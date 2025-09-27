@@ -209,208 +209,211 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>🏦 实时金价监控系统</h1>
-            <p class="subtitle">精准获取大盘金价 · 智能自动计算价格差异</p>
-        </div>
-
-        <div class="content">
-            <div class="card">
-                <div class="type-selector">
-                    <button id="typeGold" class="active" data-type="黄 金">黄 金</button>
-                    <button id="typeSilver" data-type="白银">白银</button>
-                </div>
-                <h2 id="currentPriceTitle">📊 实时黄金价格</h2> <!-- Added ID for dynamic update -->
-                <div class="price-display">
-                    <div class="current-price" id="currentPrice">加载中...</div>
-                    <div class="last-update" id="lastUpdate"></div>
-                </div>
-
-                <div class="chart-container">
-                    <div id="priceChart" style="width: 100%; height: 100%;"></div>
-                </div>
-            </div>
-
-            <div class="card">
-                <h2>🧮 价格计算器</h2>
-                <div class="auto-calc-notice">
-                    💡 输入价格和克重后，系统将自动计算价格差，无需点击按钮
-                </div>
-                <div class="calculator-form">
-                    <div class="form-group">
-                        <label for="productPrice">商品总价（元）:</label>
-                        <input type="number" id="productPrice" placeholder="请输入商品总价格" step="0.01">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="weight">商品克重（克）:</label>
-                        <input type="number" id="weight" placeholder="请输入商品重量" step="0.01">
-                    </div>
-                </div>
-
-                <div class="result" id="result">
-                    <h3>计算结果</h3>
-                    <div class="price-info">
-                        <div class="price-item">
-                            <div>每克价格</div>
-                            <div id="pricePerGram">-</div>
-                        </div>
-                        <div class="price-item">
-                            <div>大盘金价</div>
-                            <div id="marketPrice">-</div>
-                        </div>
-                    </div>
-                    <div class="difference" id="differenceDisplay">
-                        价格差: - 元/克
-                    </div>
-                </div>
-            </div>
-        </div>
-
+<div class="container">
+    <div class="header">
+        <h1>🏦 实时金价监控系统</h1>
+        <p class="subtitle">精准获取大盘金价 · 智能自动计算价格差异</p>
     </div>
 
-    <script>
-        // 防抖函数实现
-        function debounce(func, wait) {
-            let timeout;
-            return function() {
-                const context = this;
-                const args = arguments;
-                clearTimeout(timeout);
-                timeout = setTimeout(function() {
-                    func.apply(context, args);
-                }, wait);
-            };
-        }
+    <div class="content">
 
-        // 初始化图表
-        const chartDom = document.getElementById('priceChart');
-        const priceChart = echarts.init(chartDom);
+        <div class="card">
+            <div class="type-selector">
+                <button id="typeGold" class="active" data-type="黄 金">黄 金</button>
+                <button id="typeSilver" data-type="白 银">白 银</button>
+            </div>
+            <!--            -->
+            <!--            <h2 id="currentPriceTitle">📊 实时黄金价格</h2> &lt;!&ndash; Added ID for dynamic update &ndash;&gt;-->
+            <!--            <div class="price-display">-->
+            <!--                <div class="current-price" id="currentPrice">加载中...</div>-->
+            <!--                <div class="last-update" id="lastUpdate"></div>-->
+            <!--            </div>-->
 
-        let currentDataType = '黄 金'; // Default to Gold
+            <!--            <div class="chart-container">-->
+            <!--                <div id="priceChart" style="width: 100%; height: 100%;"></div>-->
+            <!--            </div>-->
+            <!--        </div>-->
 
-        // Update title based on selected type
-        function updateTitle(type) {
-            document.getElementById('currentPriceTitle').textContent = `📊 实时${type}价格`;
-        }
+            <!--        <div class="card">-->
+            <!--            <h2>🧮 价格计算器</h2>-->
+            <!--            <div class="auto-calc-notice">-->
+            <!--                💡 输入价格和克重后，系统将自动计算价格差，无需点击按钮-->
+            <!--            </div>-->
+            <div class="calculator-form">
+                <div class="form-group">
+                    <label for="productPrice">商品总价（元）:</label>
+                    <input type="number" id="productPrice" placeholder="请输入商品总价格" step="0.01"
+                           inputmode="decimal" pattern="[0-9]*">
+                </div>
 
-        // Update price display
-        function updatePriceDisplay() {
-            fetch(`/api/latest-price?type=${currentDataType}`) // Pass type
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success && data.data) {
-                        document.getElementById('currentPrice').textContent =
-                            `${data.data.real_time_price} 元/克`;
+                <div class="form-group">
+                    <label for="weight">商品克重（克）:</label>
+                    <input type="number" id="weight" placeholder="请输入商品重量" step="0.01" inputmode="decimal"
+                           pattern="[0-9]*">
+                </div>
+            </div>
 
-                        if (data.data.created_at) { // Use created_at from the database
-                            const updateTime = new Date(data.data.created_at).toLocaleString('zh-CN');
-                            document.getElementById('lastUpdate').textContent =
-                                `最后更新: ${updateTime}`;
-                        }
-                    } else {
-                        document.getElementById('currentPrice').textContent = '获取失败';
-                        document.getElementById('lastUpdate').textContent = '';
-                        console.error('获取金价失败:', data.error);
+            <div class="result" id="result">
+                <h3>计算结果</h3>
+                <div class="price-info">
+                    <div class="price-item">
+                        <div>每克价格</div>
+                        <div id="pricePerGram">-</div>
+                    </div>
+                    <div class="price-item">
+                        <div>大盘金价</div>
+                        <div id="marketPrice">-</div>
+                    </div>
+                </div>
+                <div class="difference" id="differenceDisplay">
+                    价格差: - 元/克
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 防抖函数实现
+    function debounce(func, wait) {
+        let timeout;
+        return function () {
+            const context = this;
+            const args = arguments;
+            clearTimeout(timeout);
+            timeout = setTimeout(function () {
+                func.apply(context, args);
+            }, wait);
+        };
+    }
+
+    // 初始化图表
+    const chartDom = document.getElementById('priceChart');
+    // const priceChart = echarts.init(chartDom);
+
+    let currentDataType = '黄 金'; // Default to Gold
+
+    // Update title based on selected type
+    function updateTitle(type) {
+        document.getElementById('currentPriceTitle').textContent = `📊 实时${type}回收价格`;
+    }
+
+    // Update price display
+    function updatePriceDisplay() {
+        fetch(`/api/latest-price?data_type=${currentDataType}`) // Pass data_type
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.data) {
+                    document.getElementById('currentPrice').textContent =
+                        `${data.data.recycle_price} 元/克`;
+
+                    if (data.data.created_at) { // Use created_at from the database
+                        const updateTime = new Date(data.data.created_at).toLocaleString('zh-CN');
+                        document.getElementById('lastUpdate').textContent =
+                            `最后更新: ${updateTime}`;
                     }
-                })
-                .catch(error => {
-                    console.error('获取金价失败:', error);
+                } else {
                     document.getElementById('currentPrice').textContent = '获取失败';
                     document.getElementById('lastUpdate').textContent = '';
-                });
-        }
-
-        // Update price history chart
-        function updatePriceChart() {
-            fetch(`/api/history?type=${currentDataType}`) // Pass type
-                .then(response => response.json())
-                .then(history => {
-                    if (history.success && history.data) {
-                        const dates = history.data.map(item =>
-                            new Date(item.created_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
-                        );
-                        const prices = history.data.map(item => item.real_time_price);
-
-                        const option = {
-                            tooltip: {
-                                trigger: 'axis',
-                                formatter: '{b}<br/>价格: {c} 元/克'
-                            },
-                            xAxis: {
-                                type: 'category',
-                                data: dates,
-                                axisLabel: {
-                                    rotate: 45
-                                }
-                            },
-                            yAxis: {
-                                type: 'value',
-                                name: '价格 (元/克)'
-                            },
-                            series: [{
-                                data: prices,
-                                type: 'line',
-                                smooth: true,
-                                lineStyle: {
-                                    width: 3,
-                                    color: '#4a86e8'
-                                },
-                                areaStyle: {
-                                    color: {
-                                        type: 'linear',
-                                        x: 0, y: 0, x2: 0, y2: 1,
-                                        colorStops: [{
-                                            offset: 0, color: 'rgba(74, 134, 232, 0.5)'
-                                        }, {
-                                            offset: 1, color: 'rgba(74, 134, 232, 0.1)'
-                                        }]
-                                    }
-                                }
-                            }],
-                            grid: {
-                                left: '5%',
-                                right: '5%',
-                                bottom: '15%',
-                                top: '10%'
-                            }
-                        };
-
-                        priceChart.setOption(option);
-                    } else {
-                        console.error('获取历史数据失败:', history.error);
-                        priceChart.clear(); // Clear chart if no data
-                    }
-                })
-                .catch(error => {
-                    console.error('获取历史数据失败:', error);
-                    priceChart.clear(); // Clear chart on error
-                });
-        }
-
-        // Calculate difference function
-        function calculateDifference() {
-            const productPrice = parseFloat(document.getElementById('productPrice').value);
-            const weight = parseFloat(document.getElementById('weight').value);
-
-            // If any input is empty or invalid, hide the result
-            if (isNaN(productPrice) || isNaN(weight) || weight <= 0) {
-                document.getElementById('result').style.display = 'none';
-                return;
-            }
-
-            fetch('/api/calculate', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    product_price: productPrice,
-                    weight: weight,
-                    type: currentDataType // Pass type to calculation
-                })
+                    console.error('获取金价失败:', data.error);
+                }
             })
+            .catch(error => {
+                console.error('获取金价失败:', error);
+                document.getElementById('currentPrice').textContent = '获取失败';
+                document.getElementById('lastUpdate').textContent = '';
+            });
+    }
+
+    // Update price history chart (now using /api/recent-history)
+    function updatePriceChart() {
+        fetch(`/api/recent-history?data_type=${currentDataType}`) // Changed to /api/recent-history
+            .then(response => response.json())
+            .then(history => {
+                if (history.success && history.data) {
+                    const dates = history.data.map(item =>
+                        new Date(item.created_at).toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'})
+                    );
+                    const prices = history.data.map(item => item.recycle_price);
+
+                    const option = {
+                        tooltip: {
+                            trigger: 'axis',
+                            formatter: '{b}<br/>价格: {c} 元/克'
+                        },
+                        xAxis: {
+                            type: 'category',
+                            data: dates,
+                            axisLabel: {
+                                rotate: 45
+                            }
+                        },
+                        yAxis: {
+                            type: 'value',
+                            name: '价格 (元/克)'
+                        },
+                        series: [{
+                            data: prices,
+                            type: 'line',
+                            smooth: true,
+                            lineStyle: {
+                                width: 3,
+                                color: '#4a86e8'
+                            },
+                            areaStyle: {
+                                color: {
+                                    type: 'linear',
+                                    x: 0, y: 0, x2: 0, y2: 1,
+                                    colorStops: [{
+                                        offset: 0, color: 'rgba(74, 134, 232, 0.5)'
+                                    }, {
+                                        offset: 1, color: 'rgba(74, 134, 232, 0.1)'
+                                    }]
+                                }
+                            }
+                        }],
+                        grid: {
+                            left: '5%',
+                            right: '5%',
+                            bottom: '15%',
+                            top: '10%'
+                        }
+                    };
+
+                    priceChart.setOption(option);
+                } else {
+                    console.error('获取历史数据失败:', history.error);
+                    priceChart.clear(); // Clear chart if no data
+                }
+            })
+            .catch(error => {
+                console.error('获取历史数据失败:', error);
+                priceChart.clear(); // Clear chart on error
+            });
+    }
+
+    // Calculate difference function
+    function calculateDifference() {
+        const productPrice = parseFloat(document.getElementById('productPrice').value);
+        const weight = parseFloat(document.getElementById('weight').value);
+
+        // If any input is empty or invalid, hide the result
+        if (isNaN(productPrice) || isNaN(weight) || weight <= 0) {
+            document.getElementById('result').style.display = 'none';
+            return;
+        }
+
+        fetch('/api/calculate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                product_price: productPrice,
+                weight: weight,
+                data_type: currentDataType // Pass data_type to calculation
+            })
+        })
             .then(response => response.json())
             .then(result => {
                 if (result.error) {
@@ -426,20 +429,21 @@
 
                 const differenceElement = document.getElementById('differenceDisplay');
                 const difference = result.difference.toFixed(2);
+                const total_difference = result.total_difference.toFixed(2);
                 const differencePercentage = result.difference_percentage.toFixed(2);
 
-                differenceElement.textContent =
-                    `价格差: ${difference} 元/克 (${differencePercentage}%)`;
+                differenceElement.textContent = `总收益: ${0 - total_difference}`;
+                // differenceElement.textContent = `价格差: ${difference} 元/克 (${differencePercentage}%)`;
 
                 if (result.difference < 0) {
                     differenceElement.className = 'difference negative';
-                    differenceElement.innerHTML += '<br>💡 比大盘价格便宜';
+                    // differenceElement.innerHTML += '<br>💡 比大盘价格便宜';
                 } else if (result.difference > 0) {
                     differenceElement.className = 'difference positive';
-                    differenceElement.innerHTML += '<br>💡 比大盘价格贵';
+                    // differenceElement.innerHTMLrHTML += '<br>💡 比大盘价格贵';
                 } else {
                     differenceElement.className = 'difference'; // Neutral style if no difference
-                    differenceElement.innerHTML += '<br>💡 与大盘价格持平';
+                    // differenceElement.innerHTML += '<br>💡 与大盘价格持平';
                 }
 
                 document.getElementById('result').style.display = 'block';
@@ -448,53 +452,53 @@
                 console.error('计算失败:', error);
                 document.getElementById('result').style.display = 'none';
             });
-        }
+    }
 
-        // Debounced auto-calculation function
-        const debouncedCalculate = debounce(calculateDifference, 300);
+    // Debounced auto-calculation function
+    const debouncedCalculate = debounce(calculateDifference, 300);
 
-        // Function to handle type selection
-        function selectType(type) {
-            currentDataType = type;
-            updateTitle(type); // Update the title
-            // Update active button class
-            document.querySelectorAll('.type-selector button').forEach(button => {
-                if (button.dataset.type === type) {
-                    button.classList.add('active');
-                } else {
-                    button.classList.remove('active');
-                }
-            });
-            // Re-fetch data and recalculate for the new type
-            updatePriceDisplay();
-            updatePriceChart();
-            debouncedCalculate(); // Recalculate with new type
-        }
-
-        // Page load initialization
-        document.addEventListener('DOMContentLoaded', function() {
-            // Initial load for default type (Gold)
-            selectType(currentDataType);
-
-            // Event listeners for type selection buttons
-            document.getElementById('typeGold').addEventListener('click', () => selectType('黄 金'));
-            document.getElementById('typeSilver').addEventListener('click', () => selectType('白 银'));
-
-            // Add input event listeners for calculator
-            document.getElementById('productPrice').addEventListener('input', debouncedCalculate);
-            document.getElementById('weight').addEventListener('input', debouncedCalculate);
-
-            // Update prices every 30 seconds
-            setInterval(updatePriceDisplay, 30000);
-
-            // Update chart every 2 minutes
-            setInterval(updatePriceChart, 120000);
-
-            // Resize chart on window resize
-            window.addEventListener('resize', function() {
-                priceChart.resize();
-            });
+    // Function to handle type selection
+    function selectType(type) {
+        currentDataType = type;
+        // updateTitle(type); // Update the title
+        // Update active button class
+        document.querySelectorAll('.type-selector button').forEach(button => {
+            if (button.dataset.type === type) {
+                button.classList.add('active');
+            } else {
+                button.classList.remove('active');
+            }
         });
-    </script>
+        // Re-fetch data and recalculate for the new type
+        // updatePriceDisplay();
+        // updatePriceChart();
+        debouncedCalculate(); // Recalculate with new type
+    }
+
+    // Page load initialization
+    document.addEventListener('DOMContentLoaded', function () {
+        // Initial load for default type (Gold)
+        selectType(currentDataType);
+
+        // Event listeners for type selection buttons
+        document.getElementById('typeGold').addEventListener('click', () => selectType('黄 金'));
+        document.getElementById('typeSilver').addEventListener('click', () => selectType('白 银'));
+
+        // Add input event listeners for calculator
+        document.getElementById('productPrice').addEventListener('input', debouncedCalculate);
+        document.getElementById('weight').addEventListener('input', debouncedCalculate);
+
+        // Update prices every 30 seconds
+        setInterval(updatePriceDisplay, 30000);
+
+        // Update chart every 2 minutes
+        setInterval(updatePriceChart, 120000);
+
+        // Resize chart on window resize
+        window.addEventListener('resize', function () {
+            priceChart.resize();
+        });
+    });
+</script>
 </body>
 </html>
