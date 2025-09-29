@@ -1,13 +1,13 @@
 # route.py
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from flask import Flask, jsonify, request, render_template
 
 from CustomJSONEncoder import CustomJSONProvider
 from mysql_manager import MySQLManager
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='../templates')
 app.json = CustomJSONProvider(app)  # Ensure CustomJSONProvider is used
 
 

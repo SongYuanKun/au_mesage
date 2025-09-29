@@ -50,7 +50,7 @@
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 30px;
-            padding: 30px;
+            padding: 20px;
         }
 
         @media (max-width: 768px) {
@@ -70,19 +70,19 @@
             text-align: center;
             background: linear-gradient(135deg, #28a745, #20c997);
             color: white;
-            padding: 20px;
+            padding: 2px;
             border-radius: 10px;
             margin-bottom: 20px;
         }
 
         .current-price {
-            font-size: 3em;
+            font-size: 1em;
             font-weight: bold;
-            margin: 10px 0;
+            margin: 5px 0;
         }
 
         .last-update {
-            font-size: 0.9em;
+            font-size: 0.5em;
             opacity: 0.9;
         }
 
@@ -210,10 +210,6 @@
 </head>
 <body>
 <div class="container">
-    <div class="header">
-        <h1>🏦 实时金价监控系统</h1>
-        <p class="subtitle">精准获取大盘金价 · 智能自动计算价格差异</p>
-    </div>
 
     <div class="content">
 
@@ -223,11 +219,11 @@
                 <button id="typeSilver" data-type="白 银">白 银</button>
             </div>
             <!--            -->
-            <!--            <h2 id="currentPriceTitle">📊 实时黄金价格</h2> &lt;!&ndash; Added ID for dynamic update &ndash;&gt;-->
-            <!--            <div class="price-display">-->
-            <!--                <div class="current-price" id="currentPrice">加载中...</div>-->
-            <!--                <div class="last-update" id="lastUpdate"></div>-->
-            <!--            </div>-->
+                        <h4 id="currentPriceTitle">📊 实时黄金价格</h4> <!-- Added ID for dynamic update -->
+                        <div class="price-display">
+                            <div class="current-price" id="currentPrice">加载中...</div>
+                            <div class="last-update" id="lastUpdate"></div>
+                        </div>
 
             <!--            <div class="chart-container">-->
             <!--                <div id="priceChart" style="width: 100%; height: 100%;"></div>-->
@@ -460,7 +456,7 @@
     // Function to handle type selection
     function selectType(type) {
         currentDataType = type;
-        // updateTitle(type); // Update the title
+        updateTitle(type); // Update the title
         // Update active button class
         document.querySelectorAll('.type-selector button').forEach(button => {
             if (button.dataset.type === type) {
@@ -470,7 +466,7 @@
             }
         });
         // Re-fetch data and recalculate for the new type
-        // updatePriceDisplay();
+        updatePriceDisplay();
         // updatePriceChart();
         debouncedCalculate(); // Recalculate with new type
     }

@@ -1,10 +1,9 @@
 import configparser
 import logging
-from flask import Flask
 
-from route import create_app
 from mysql_manager import MySQLManager
 from playwright_collector import PlaywrightDataCollector
+from route import create_app
 
 
 def setup_logging():
@@ -13,7 +12,7 @@ def setup_logging():
         level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         handlers=[
-            logging.FileHandler('price_service.log'),
+            logging.FileHandler('../price_service.log'),
             logging.StreamHandler()
         ]
     )
@@ -33,7 +32,7 @@ def load_config():
         },
         'api': {
             'host': config.get('api', 'host', fallback='0.0.0.0'),
-            'port': config.getint('api', 'port', fallback=5000)
+            'port': config.getint('api', 'port', fallback=8083)
         }
     }
 
