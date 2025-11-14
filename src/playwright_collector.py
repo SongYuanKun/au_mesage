@@ -12,7 +12,7 @@ class PlaywrightDataCollector:
         self.is_running = False
         self.browser = None
         self.page = None
-        self.website_url = "https://i.jzj9999.com/quoteh5/"  # 请替换为实际网址
+        self.website_url = "https://i.jzj9999.com/quoteh5/"  
 
     def start_collection(self):
         """启动数据采集服务"""

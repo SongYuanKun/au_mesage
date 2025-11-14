@@ -26,7 +26,7 @@ def create_app(mysql_manager: MySQLManager):
                 # If no specific data_type is requested, return the latest for each type
                 data = mysql_manager.get_latest_data_by_type()
                 if data:
-                    return jsonify({'success': True, 'data': data})
+                    return jsonify({'success': True, 'data': data}) 
                 else:
                     return jsonify({'success': False, 'error': '未找到任何数据'}), 404
             else:
