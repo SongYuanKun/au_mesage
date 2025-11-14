@@ -1,8 +1,11 @@
+import logging
 import threading
 import time
 from datetime import datetime
 
 from playwright.sync_api import sync_playwright
+
+logger = logging.getLogger(__name__)
 
 
 class PlaywrightDataCollector:
@@ -28,7 +31,7 @@ class PlaywrightDataCollector:
         storage_thread.daemon = True
         storage_thread.start()
 
-        print("数据采集服务已启动")
+        logger.info("数据采集服务已启动")
 
     def _run_playwright(self):
         """运行Playwright浏览器实例"""
@@ -59,7 +62,7 @@ class PlaywrightDataCollector:
                 self.page.goto(self.website_url)
                 self.page.wait_for_load_state('networkidle')
 
-                print("浏览器初始化完成，开始监控数据...")
+                logger.info("浏览器初始化完成，开始监控数据...")
 
                 # 主循环
                 while self.is_running:
@@ -68,24 +71,23 @@ class PlaywrightDataCollector:
                         data = self._refresh_and_get_data()
                         if data:
                             self.data_buffer.extend(data)
-                            print(f"获取到 {len(data)} 条新数据，缓冲区共有 {len(self.data_buffer)} 条数据")
+                            logger.info(f"获取到 {len(data)} 条新数据，缓冲区共有 {len(self.data_buffer)} 条数据")
 
                         # 等待一段时间后再次刷新
                         time.sleep(60)  # 每分钟刷新一次
 
                     except Exception as loop_error:
-                        print(f"数据采集循环错误: {loop_error}")
+                        logger.error(f"数据采集循环错误: {loop_error}")
                         time.sleep(30)  # 出错时等待30秒后重试
 
         except Exception as e:
-            print(f"Playwright运行错误: {e}")
+            logger.error(f"Playwright运行错误: {e}")
         finally:
             if self.browser:
                 self.browser.close()
 
     def _refresh_and_get_data(self):
-        """刷新页面并获取表格数据（上面提供的完整方法）"""
-        # 这里插入上面完整的方法代码
+        """刷新页面并获取表格数据"""
         try:
             # 刷新页面并等待加载完成
             self.page.reload()
@@ -152,16 +154,16 @@ class PlaywrightDataCollector:
                     }
 
                     extracted_data.append(data_item)
-                    print(f"提取数据: {product_name} - 回购: {buyback_price}, 销售: {selling_price}")
+                    logger.debug(f"提取数据: {product_name} - 回购: {buyback_price}, 销售: {selling_price}")
 
                 except Exception as row_error:
-                    print(f"解析行数据时出错: {row_error}")
+                    logger.error(f"解析行数据时出错: {row_error}")
                     continue
 
             return extracted_data
 
         except Exception as e:
-            print(f"页面刷新或数据解析错误: {e}")
+            logger.error(f"页面刷新或数据解析错误: {e}")
             return []
 
     def _save_job(self):
@@ -180,14 +182,14 @@ class PlaywrightDataCollector:
                     # 清空已存储的数据
                     self.data_buffer = []
 
-                    print(f"成功存储 {len(data_to_store)} 条数据到数据库")
+                    logger.info(f"成功存储 {len(data_to_store)} 条数据到数据库")
 
                 except Exception as storage_error:
-                    print(f"数据存储错误: {storage_error}")
+                    logger.error(f"数据存储错误: {storage_error}")
 
     def stop_collection(self):
         """停止数据采集"""
         self.is_running = False
         if self.browser:
             self.browser.close()
-        print("数据采集服务已停止")
+        logger.info("数据采集服务已停止")
