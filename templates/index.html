@@ -484,15 +484,67 @@
         document.getElementById('productPrice').addEventListener('input', debouncedCalculate);
         document.getElementById('weight').addEventListener('input', debouncedCalculate);
 
-        // Update prices every 30 seconds
-        setInterval(updatePriceDisplay, 30000);
+        // 使用变量存储定时器ID，方便管理
+        let priceUpdateInterval;
+        let chartUpdateInterval;
 
-        // Update chart every 2 minutes
-        setInterval(updatePriceChart, 120000);
+        // 更新价格的函数（带可见性检测）
+        function startPriceUpdate() {
+            // 清除之前的定时器
+            if (priceUpdateInterval) {
+                clearInterval(priceUpdateInterval);
+            }
+            
+            // 立即执行一次
+            updatePriceDisplay();
+            
+            // 设置定时器：每30秒更新一次
+            priceUpdateInterval = setInterval(function() {
+                // 只在页面可见时更新（移动浏览器优化）
+                if (!document.hidden) {
+                    updatePriceDisplay();
+                }
+            }, 30000);
+        }
+
+        // 更新图表的函数（带可见性检测）
+        function startChartUpdate() {
+            // 清除之前的定时器
+            if (chartUpdateInterval) {
+                clearInterval(chartUpdateInterval);
+            }
+            
+            // 立即执行一次
+            // updatePriceChart(); // 图表已注释，暂时不执行
+            
+            // 设置定时器：每2分钟更新一次
+            chartUpdateInterval = setInterval(function() {
+                // 只在页面可见时更新（移动浏览器优化）
+                if (!document.hidden) {
+                    // updatePriceChart(); // 图表已注释，暂时不执行
+                }
+            }, 120000);
+        }
+
+        // 启动定时更新
+        startPriceUpdate();
+        startChartUpdate();
+
+        // 使用 Page Visibility API 优化移动浏览器体验
+        // 当页面从后台切换到前台时，立即更新数据
+        document.addEventListener('visibilitychange', function() {
+            if (!document.hidden) {
+                // 页面变为可见时，立即更新价格
+                updatePriceDisplay();
+                // 重新启动定时器（防止后台时被节流）
+                startPriceUpdate();
+                startChartUpdate();
+            }
+        });
 
         // Resize chart on window resize
         window.addEventListener('resize', function () {
-            priceChart.resize();
+            // priceChart.resize(); // 图表已注释，暂时不执行
         });
     });
 </script>
