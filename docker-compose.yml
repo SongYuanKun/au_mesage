@@ -5,6 +5,6 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     image: my-au
-    container_name: my-au
+    container_name: my-au 
     ports:
-      - "8083:8083"
+      - "8083:8083" 
