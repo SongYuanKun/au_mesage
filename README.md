@@ -219,10 +219,10 @@ docker build -t au-price-collector .
 #### 创建 .env 文件
 
 ```env
-MYSQL_HOST=192.168.31.195
-MYSQL_USER=au
-MYSQL_PASSWORD=ziwZNZhRhfznaaWN
-MYSQL_DATABASE=au
+MYSQL_HOST=your_mysql_host
+MYSQL_USER=your_mysql_user
+MYSQL_PASSWORD=your_mysql_password
+MYSQL_DATABASE=your_database_name
 API_HOST=0.0.0.0
 API_PORT=8083
 ```
@@ -441,10 +441,10 @@ curl -Uri "http://localhost:8083/api/health" -Method GET | ConvertFrom-Json
 
 ```ini
 [mysql]
-host = 192.168.31.195              # MySQL 服务器地址
-user = au                          # MySQL 用户名
-password = ziwZNZhRhfznaaWN       # MySQL 密码（生产环境建议使用环境变量）
-database = au                      # 数据库名
+host = your_mysql_host             # MySQL 服务器地址
+user = your_mysql_user             # MySQL 用户名
+password = your_mysql_password     # MySQL 密码（生产环境建议使用环境变量）
+database = your_database_name      # 数据库名
 
 [api]
 host = 0.0.0.0                     # Flask API 绑定地址（0.0.0.0 表示所有接口）
@@ -633,7 +633,7 @@ app.json = CustomJSONProvider(app)
 
 ```powershell
 # 使用 MySQL 命令行
-mysql -h 192.168.31.195 -u au -p
+mysql -h your_mysql_host -u your_mysql_user -p
 # 输入密码后
 SELECT COUNT(*) FROM price_data;
 ```
