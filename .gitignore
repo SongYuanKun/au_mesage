@@ -62,3 +62,14 @@ htmlcov/
 *.db
 *.sqlite
 *.sqlite3
+
+# Project specific
+price_service.log
+*.log
+.venv/
+.venv.bak/
+
+# Cache
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
