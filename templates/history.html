@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>近7天回收价格趋势</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.0/dist/echarts.min.js"></script>
+    <style>
+        body { font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif; background:#f5f7fb; padding:20px; }
+        .container { max-width:1000px; margin:0 auto; background:white; padding:20px; border-radius:8px; }
+        .top-nav { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+        .type-selector { text-align:center; margin-bottom:10px; }
+        .type-selector button { padding:8px 14px; margin:0 6px; border-radius:4px; border:none; cursor:pointer; }
+        .type-selector button.active { background:#4a86e8; color:white; }
+        #trendChart { height:420px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="top-nav">
+        <div style="font-weight:bold;">近7天回收价格趋势</div>
+        <div><a href="/">返回首页</a></div>
+    </div>
+
+    <div class="type-selector">
+        <button id="btnGold" class="active" data-type="黄 金">黄 金</button>
+        <button id="btnSilver" data-type="白 银">白 银</button>
+    </div>
+
+    <div id="trendChart"></div>
+    <div id="noData" style="text-align:center; color:#888; display:none; margin-top:20px;">暂无数据</div>
+</div>
+
+<script>
+    const chartDom = document.getElementById('trendChart');
+    const myChart = echarts.init(chartDom);
+    let currentType = '黄 金';
+
+    function fetchLast7(type) {
+        fetch(`/api/last-7-days?data_type=${encodeURIComponent(type)}`)
+            .then(r => r.json())
+            .then(res => {
+                if (res.success && res.data) {
+                    const dates = res.data.map(d => d.date);
+                    const prices = res.data.map(d => d.recycle_price === null ? null : d.recycle_price);
+
+                    if (prices.every(p => p === null)) {
+                        document.getElementById('noData').style.display = 'block';
+                        myChart.clear();
+                        return;
+                    } else {
+                        document.getElementById('noData').style.display = 'none';
+                    }
+
+                    const option = {
+                        tooltip: { trigger: 'axis', formatter: '{b}<br/>回收价: {c} 元/克' },
+                        xAxis: { type: 'category', data: dates },
+                        yAxis: { type: 'value', name: '回收价格 (元/克)' },
+                        series: [{ data: prices, type: 'line', smooth: true, connectNulls: false }],
+                        grid: { left: '8%', right: '8%', bottom: '10%' }
+                    };
+                    myChart.setOption(option);
+                } else {
+                    document.getElementById('noData').style.display = 'block';
+                    myChart.clear();
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                document.getElementById('noData').style.display = 'block';
+                myChart.clear();
+            });
+    }
+
+    document.getElementById('btnGold').addEventListener('click', function () {
+        currentType = this.dataset.type;
+        this.classList.add('active');
+        document.getElementById('btnSilver').classList.remove('active');
+        fetchLast7(currentType);
+    });
+    document.getElementById('btnSilver').addEventListener('click', function () {
+        currentType = this.dataset.type;
+        this.classList.add('active');
+        document.getElementById('btnGold').classList.remove('active');
+        fetchLast7(currentType);
+    });
+
+    // 初始加载
+    fetchLast7(currentType);
+
+    window.addEventListener('resize', function () { myChart.resize(); });
+</script>
+</body>
+</html>
