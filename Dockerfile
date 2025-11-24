@@ -1,6 +1,10 @@
 # 使用官方 Python 轻量级镜像
 FROM python:3.11-slim-bookworm
 
+#更换中科大源
+RUN sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list.d/debian.sources
+
+
 # 设置工作目录
 WORKDIR /app
 
