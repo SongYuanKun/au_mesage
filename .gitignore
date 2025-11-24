@@ -58,6 +58,10 @@ htmlcov/
 .env
 .env.local
 
+# Local config files (敏感信息)
+my_config.ini
+config.local.ini
+
 # Database
 *.db
 *.sqlite
