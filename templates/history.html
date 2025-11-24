@@ -3,92 +3,239 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>近7天回收价格趋势</title>
+    <title>趋势与明细 — 回收价格</title>
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.0/dist/echarts.min.js"></script>
-    <style>
-        body { font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif; background:#f5f7fb; padding:20px; }
-        .container { max-width:1000px; margin:0 auto; background:white; padding:20px; border-radius:8px; }
-        .top-nav { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
-        .type-selector { text-align:center; margin-bottom:10px; }
-        .type-selector button { padding:8px 14px; margin:0 6px; border-radius:4px; border:none; cursor:pointer; }
-        .type-selector button.active { background:#4a86e8; color:white; }
-        #trendChart { height:420px; }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
 </head>
 <body>
 <div class="container">
-    <div class="top-nav">
-        <div style="font-weight:bold;">近7天回收价格趋势</div>
-        <div><a href="/">返回首页</a></div>
+
+    {% include '_nav.html' %}
+
+    <div class="content">
+        <!-- Left: Today's data chart -->
+        <div class="card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px">
+                <h2 style="margin:0">近30分钟数据</h2>
+                <div style="display:flex; gap:8px; align-items:center">
+                    <div class="type-selector">
+                        <button id="btnGold" class="active" data-type="黄 金">黄 金</button>
+                        <button id="btnSilver" data-type="白 银">白 银</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="todayChart" class="chart-container"></div>
+            <div id="noDailyChartData" style="text-align:center; color:#888; display:none; margin-top:20px;">暂无数据</div>
+            <div class="note">说明：显示最近30分钟的数据，每 30 秒自动刷新一次。</div>
+        </div>
+
+        <!-- Right: 7-day trend chart -->
+        <div class="card">
+            <h2 style="margin-bottom:12px">近7天回收价格趋势</h2>
+            <div id="trendChart" class="chart-container"></div>
+            <div id="noChartData" style="text-align:center; color:#888; display:none; margin-top:20px;">暂无趋势数据</div>
+            <!-- Trend tables: daily list and summary -->
+            <div class="trend-tables" style="margin-top:16px;">
+                <div>
+                    <h3 style="margin:0 0 8px 0; font-size:14px">近7天统计</h3>
+                    <table id="trendSummary" style="width:100%; border-collapse:collapse; font-size:13px;">
+                        <tbody>
+                        <tr><td style="padding:8px; border-top:1px solid #f0f0f0">平均回收价</td><td id="summaryAvg" style="padding:8px; text-align:right; border-top:1px solid #f0f0f0">-</td></tr>
+                        <tr><td style="padding:8px;">最高回收价</td><td id="summaryMax" style="padding:8px; text-align:right">-</td></tr>
+                        <tr><td style="padding:8px;">最低回收价</td><td id="summaryMin" style="padding:8px; text-align:right">-</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <div class="type-selector">
-        <button id="btnGold" class="active" data-type="黄 金">黄 金</button>
-        <button id="btnSilver" data-type="白 银">白 银</button>
-    </div>
-
-    <div id="trendChart"></div>
-    <div id="noData" style="text-align:center; color:#888; display:none; margin-top:20px;">暂无数据</div>
 </div>
 
 <script>
-    const chartDom = document.getElementById('trendChart');
-    const myChart = echarts.init(chartDom);
-    let currentType = '黄 金';
+    (function(){
+        // Encapsulate module to avoid globals
+        const TYPE_GOLD = '黄 金';
+        const TYPE_SILVER = '白 银';
+        let currentType = TYPE_GOLD;
 
-    function fetchLast7(type) {
-        fetch(`/api/last-7-days?data_type=${encodeURIComponent(type)}`)
-            .then(r => r.json())
-            .then(res => {
-                if (res.success && res.data) {
-                    const dates = res.data.map(d => d.date);
-                    const prices = res.data.map(d => d.recycle_price === null ? null : d.recycle_price);
+        // Elements
+        const btnGold = document.getElementById('btnGold');
+        const btnSilver = document.getElementById('btnSilver');
+        const noDailyChartData = document.getElementById('noDailyChartData');
 
-                    if (prices.every(p => p === null)) {
-                        document.getElementById('noData').style.display = 'block';
-                        myChart.clear();
-                        return;
-                    } else {
-                        document.getElementById('noData').style.display = 'none';
-                    }
+        // Chart init
+        const todayChartDom = document.getElementById('todayChart');
+        const todayChart = echarts.init(todayChartDom);
+        const chartDom = document.getElementById('trendChart');
+        const chart = echarts.init(chartDom);
+        const summaryAvg = document.getElementById('summaryAvg');
+        const summaryMax = document.getElementById('summaryMax');
+        const summaryMin = document.getElementById('summaryMin');
 
-                    const option = {
-                        tooltip: { trigger: 'axis', formatter: '{b}<br/>回收价: {c} 元/克' },
-                        xAxis: { type: 'category', data: dates },
-                        yAxis: { type: 'value', name: '回收价格 (元/克)' },
-                        series: [{ data: prices, type: 'line', smooth: true, connectNulls: false }],
-                        grid: { left: '8%', right: '8%', bottom: '10%' }
-                    };
-                    myChart.setOption(option);
-                } else {
-                    document.getElementById('noData').style.display = 'block';
-                    myChart.clear();
+        // Helpers
+        function isNumber(v){ return typeof v === 'number' && !isNaN(v); }
+        function fmtNumber(v){ return isNumber(v) ? v.toFixed(2) : (v == null ? '-' : v); }
+
+        // Fetch last 1 hour data
+        async function fetchToday(){
+            noDailyChartData.style.display = 'none';
+            try{
+                const resp = await fetch(`/api/last-1-hour?data_type=${encodeURIComponent(currentType)}`);
+                // try to parse JSON body safely
+                let j = null;
+                try { j = await resp.json(); } catch (parseErr) { j = null; }
+
+                if (!resp.ok) {
+                    // Prefer backend error message when available
+                    const msg = (j && (j.error || (j.message))) || `请求失败，HTTP ${resp.status}`;
+                    console.error('last-1-hour error response:', resp.status, msg);
+                    noDailyChartData.style.display = 'block';
+                    noDailyChartData.textContent = msg;
+                    return;
                 }
-            })
-            .catch(err => {
-                console.error(err);
-                document.getElementById('noData').style.display = 'block';
-                myChart.clear();
-            });
-    }
 
-    document.getElementById('btnGold').addEventListener('click', function () {
-        currentType = this.dataset.type;
-        this.classList.add('active');
-        document.getElementById('btnSilver').classList.remove('active');
-        fetchLast7(currentType);
-    });
-    document.getElementById('btnSilver').addEventListener('click', function () {
-        currentType = this.dataset.type;
-        this.classList.add('active');
-        document.getElementById('btnGold').classList.remove('active');
-        fetchLast7(currentType);
-    });
+                if(j && j.success && Array.isArray(j.data) && j.data.length>0){
+                    const items = j.data.sort((a,b)=> {
+                        const timeA = String(a.trade_time || a.created_at || '');
+                        const timeB = String(b.trade_time || b.created_at || '');
+                        return timeB.localeCompare(timeA);
+                    });
+                    renderTodayChart(items);
+                } else {
+                    // empty result (no data) — show friendly message
+                    noDailyChartData.style.display = 'block';
+                    noDailyChartData.textContent = '近30分钟暂无可用数据（回收价>0 被过滤）';
+                    todayChart.clear();
+                }
+            }catch(err){
+                console.error('fetchToday error', err);
+                noDailyChartData.style.display = 'block';
+                noDailyChartData.textContent = '请求数据失败，请稍后重试';
+                todayChart.clear();
+            }
+        }
 
-    // 初始加载
-    fetchLast7(currentType);
+        function renderTodayChart(items){
+            if(!items || items.length===0){
+                noDailyChartData.style.display = 'block';
+                noDailyChartData.textContent = '近30分钟暂无可用数据（回收价>0 被过滤）';
+                todayChart.clear();
+                return;
+            }
+            noDailyChartData.style.display = 'none';
+            
+            const times = items.map(it => it.created_at || '');
+            const recyclePrices = items.map(it => it.recycle_price == null ? null : Number(it.recycle_price));
+            
+            // 根据数据点数量动态计算 x 轴标签间隔
+            let axisInterval = 0;
+            if(times.length > 30) {
+                axisInterval = Math.ceil(times.length / 10);  // 大约显示 10 个标签
+            } else if(times.length > 15) {
+                axisInterval = Math.ceil(times.length / 12);  // 大约显示 12 个标签
+            }
+            
+            const option = {
+                tooltip: { trigger: 'axis', formatter: params=> {
+                    const p = params[0];
+                    return `${p.axisValue}<br/>回收价: ${p.data == null ? '-' : p.data} 元/克`;
+                }},
+                xAxis: { type: 'category', data: times, axisLabel:{ rotate:45, interval:axisInterval, fontSize:11 } },
+                yAxis: { type: 'value', name: '回收价格 (元/克)' },
+                series: [{ data: recyclePrices, type: 'line', smooth: true, lineStyle:{ color:'#ff7f50', width:3 }, areaStyle: { color: 'rgba(255,127,80,0.12)' }, connectNulls:false }],
+                grid: { left:'6%', right:'6%', bottom:'20%', top:'8%' }
+            };
+            todayChart.setOption(option, true);
+        }
 
-    window.addEventListener('resize', function () { myChart.resize(); });
+        // Fetch 7-day trend
+        async function fetchLast7(){
+            try{
+                const resp = await fetch(`/api/last-7-days?data_type=${encodeURIComponent(currentType)}`);
+                const j = await resp.json();
+                if(j.success && Array.isArray(j.data) && j.data.length>0){
+                    document.getElementById('noChartData').style.display = 'none';
+                    const dates = j.data.map(d=>d.date);
+                    const prices = j.data.map(d=> d.recycle_price == null ? null : Number(d.recycle_price));
+                    renderChart(dates, prices);
+                    renderTrendSummary(prices);
+                } else {
+                    document.getElementById('noChartData').style.display = 'block';
+                    chart.clear();
+                    renderTrendSummary([]);
+                }
+            }catch(err){
+                console.error('fetchLast7 error', err);
+                document.getElementById('noChartData').style.display = 'block';
+                chart.clear();
+            }
+        }
+
+        function renderTrendSummary(prices){
+            if(!summaryAvg) return;
+            const nums = (prices || []).filter(v=> typeof v === 'number' && !isNaN(v));
+            if(!nums || nums.length===0){
+                summaryAvg.textContent = '-'; summaryMax.textContent = '-'; summaryMin.textContent = '-';
+                return;
+            }
+            const sum = nums.reduce((a,b)=>a+b,0);
+            const avg = sum / nums.length;
+            const max = Math.max(...nums);
+            const min = Math.min(...nums);
+            summaryAvg.textContent = avg.toFixed(2);
+            summaryMax.textContent = max.toFixed(2);
+            summaryMin.textContent = min.toFixed(2);
+        }
+
+        function renderChart(dates, prices){
+            const option = {
+                tooltip: { trigger: 'axis', formatter: params=> {
+                    const p = params[0];
+                    return `${p.axisValue}<br/>回收价: ${p.data == null ? '-' : p.data} 元/克`;
+                }},
+                xAxis: { type: 'category', data: dates, axisLabel:{ rotate:45 } },
+                yAxis: { type: 'value', name: '回收价格 (元/克)' },
+                series: [{ data: prices, type: 'line', smooth: true, lineStyle:{ color:'#4a86e8', width:3 }, areaStyle: { color: 'rgba(74,134,232,0.12)' }, connectNulls:false }],
+                grid: { left:'6%', right:'6%', bottom:'18%', top:'8%' }
+            };
+            chart.setOption(option, true);
+        }
+
+        // Type selector
+        function setType(type){
+            currentType = type;
+            if(type===TYPE_GOLD){ btnGold.classList.add('active'); btnSilver.classList.remove('active'); }
+            else { btnSilver.classList.add('active'); btnGold.classList.remove('active'); }
+            // refresh both
+            fetchToday();
+            fetchLast7();
+        }
+
+        // Auto refresh timers
+        let todayTimer = null, chartTimer = null;
+        function startTimers(){
+            if(todayTimer) clearInterval(todayTimer);
+            todayTimer = setInterval(()=>{ if(!document.hidden) fetchToday(); }, 30000);
+            if(chartTimer) clearInterval(chartTimer);
+            chartTimer = setInterval(()=>{ if(!document.hidden) fetchLast7(); }, 120000);
+        }
+
+        // Event bindings
+        btnGold.addEventListener('click', ()=> setType(TYPE_GOLD));
+        btnSilver.addEventListener('click', ()=> setType(TYPE_SILVER));
+
+        document.addEventListener('visibilitychange', ()=>{ if(!document.hidden){ fetchToday(); fetchLast7(); startTimers(); }});
+        window.addEventListener('resize', ()=> chart.resize());
+
+        // Init
+        document.addEventListener('DOMContentLoaded', ()=>{
+            setType(currentType);
+            startTimers();
+        });
+
+    })();
 </script>
 </body>
 </html>

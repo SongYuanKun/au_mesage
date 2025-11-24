@@ -231,3 +231,33 @@ class MySQLManager:
         finally:
             if connection:
                 connection.close()
+
+    def get_price_history_by_time_range(self, data_type: str, start_time: str, end_time: str) -> List[Dict]:
+        """
+        获取指定时间范围内的价格数据。
+        start_time, end_time 格式: 'YYYY-MM-DD HH:MM:SS'
+        """
+        query = """
+                SELECT trade_date, trade_time, data_type, real_time_price, recycle_price, created_at
+                FROM price_data
+                WHERE data_type = %s
+                  AND recycle_price > 0
+                  AND created_at >= %s
+                  AND created_at <= %s
+                ORDER BY created_at ASC
+        """
+        params = (data_type, start_time, end_time)
+
+        connection = None
+        try:
+            connection = self.connection_pool.get_connection()
+            cursor = connection.cursor(dictionary=True)
+            cursor.execute(query, params)
+            results = cursor.fetchall()
+            return results
+        except Error as e:
+            logging.error(f"获取时间范围内数据失败 (type={data_type}, start={start_time}, end={end_time}): {e}")
+            return []
+        finally:
+            if connection:
+                connection.close()

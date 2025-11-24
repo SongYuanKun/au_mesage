@@ -7,7 +7,7 @@ from flask import Flask, jsonify, request, render_template
 from CustomJSONEncoder import CustomJSONProvider
 from mysql_manager import MySQLManager
 
-app = Flask(__name__, template_folder='../templates')
+app = Flask(__name__, template_folder='../templates', static_folder='../static')
 app.json = CustomJSONProvider(app)  # Ensure CustomJSONProvider is used
 
 
@@ -78,40 +78,71 @@ def create_app(mysql_manager: MySQLManager):
             logging.error(f"每日历史数据接口错误: {e}")
             return jsonify({'success': False, 'error': '服务器内部错误'}), 500
 
-        @app.route('/history', methods=['GET'])
-        def history_page():
-            """渲染近七天回收价格趋势页面"""
-            return render_template('history.html')
+    @app.route('/history', methods=['GET'])
+    def history_page():
+        """渲染近七天回收价格趋势页面"""
+        return render_template('history.html')
 
-        @app.route('/api/last-7-days', methods=['GET'])
-        def api_last_7_days():
-            """返回指定 data_type 的近 7 天每日回收价格（按天取当日最后一条数据的 recycle_price）"""
-            try:
-                data_type = request.args.get('data_type')
-                if not data_type:
-                    return jsonify({'success': False, 'error': '缺少 data_type 参数'}), 400
+    @app.route('/today', methods=['GET'])
+    def today_page():
+        """渲染当天实时数据表格页面"""
+        return render_template('today.html')
 
-                from datetime import datetime, timedelta
-                results = []
-                today = datetime.now().date()
-                # 从 6 天前 到 今天，按日期顺序返回
-                for i in range(6, -1, -1):
-                    day = today - timedelta(days=i)
-                    day_str = day.strftime('%Y-%m-%d')
-                    day_records = mysql_manager.get_daily_history(day_str, data_type)
-                    # 取当日最后一条记录作为当天回收价（如果存在）
-                    if day_records:
-                        last_rec = day_records[-1]
-                        price = float(last_rec.get('recycle_price', 0) or 0)
-                    else:
-                        price = None
+    @app.route('/api/last-1-hour', methods=['GET'])
+    def api_last_1_hour():
+        """返回指定 data_type 的近 30 分钟内的所有数据"""
+        try:
+            data_type = request.args.get('data_type')
+            if not data_type:
+                return jsonify({'success': False, 'error': '缺少 data_type 参数'}), 400
 
-                    results.append({'date': day_str, 'recycle_price': price})
+            from datetime import datetime, timedelta
+            # 获取30分钟前的时间
+            thirty_minutes_ago = datetime.now() - timedelta(minutes=30)
+            
+            history_data = mysql_manager.get_price_history_by_time_range(
+                data_type, 
+                thirty_minutes_ago.strftime('%Y-%m-%d %H:%M:%S'),
+                datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            )
+            
+            if history_data:
+                return jsonify({'success': True, 'data': history_data})
+            else:
+                return jsonify({'success': True, 'data': []})
+        except Exception as e:
+            logging.error(f"获取近30分钟数据失败: {e}")
+            return jsonify({'success': False, 'error': '服务器内部错误'}), 500
 
-                return jsonify({'success': True, 'data': results})
-            except Exception as e:
-                logging.error(f"获取近7天回收价格失败: {e}")
-                return jsonify({'success': False, 'error': '服务器内部错误'}), 500
+    @app.route('/api/last-7-days', methods=['GET'])
+    def api_last_7_days():
+        """返回指定 data_type 的近 7 天每日回收价格（按天取当日最后一条数据的 recycle_price）"""
+        try:
+            data_type = request.args.get('data_type')
+            if not data_type:
+                return jsonify({'success': False, 'error': '缺少 data_type 参数'}), 400
+
+            from datetime import datetime, timedelta
+            results = []
+            today = datetime.now().date()
+            # 从 6 天前 到 今天，按日期顺序返回
+            for i in range(6, -1, -1):
+                day = today - timedelta(days=i)
+                day_str = day.strftime('%Y-%m-%d')
+                day_records = mysql_manager.get_daily_history(day_str, data_type)
+                # 取当日最后一条记录作为当天回收价（如果存在）
+                if day_records:
+                    last_rec = day_records[-1]
+                    price = float(last_rec.get('recycle_price', 0) or 0)
+                else:
+                    price = None
+
+                results.append({'date': day_str, 'recycle_price': price})
+
+            return jsonify({'success': True, 'data': results})
+        except Exception as e:
+            logging.error(f"获取近7天回收价格失败: {e}")
+            return jsonify({'success': False, 'error': '服务器内部错误'}), 500
 
     @app.route('/api/history', methods=['POST'])
     def history():

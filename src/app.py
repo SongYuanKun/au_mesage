@@ -21,7 +21,7 @@ def setup_logging():
 def load_config():
     """加载配置文件"""
     config = configparser.ConfigParser()
-    config.read('config.ini')
+    config.read('my_config.ini')
 
     return {
         'mysql': {
