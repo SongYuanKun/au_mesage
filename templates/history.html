@@ -143,7 +143,7 @@
                     return `${p.axisValue}<br/>回收价: ${p.data == null ? '-' : p.data} 元/克`;
                 }},
                 xAxis: { type: 'category', data: times, axisLabel:{ rotate:45, interval:axisInterval, fontSize:11 } },
-                yAxis: { type: 'value', name: '回收价格 (元/克)' },
+                yAxis: { type: 'value', name: '回收价格 (元/克)', scale: true },
                 series: [{ data: recyclePrices, type: 'line', smooth: true, lineStyle:{ color:'#ff7f50', width:3 }, areaStyle: { color: 'rgba(255,127,80,0.12)' }, connectNulls:false }],
                 grid: { left:'6%', right:'6%', bottom:'20%', top:'8%' }
             };
@@ -196,7 +196,7 @@
                     return `${p.axisValue}<br/>回收价: ${p.data == null ? '-' : p.data} 元/克`;
                 }},
                 xAxis: { type: 'category', data: dates, axisLabel:{ rotate:45 } },
-                yAxis: { type: 'value', name: '回收价格 (元/克)' },
+                yAxis: { type: 'value', name: '回收价格 (元/克)', scale: true },
                 series: [{ data: prices, type: 'line', smooth: true, lineStyle:{ color:'#4a86e8', width:3 }, areaStyle: { color: 'rgba(74,134,232,0.12)' }, connectNulls:false }],
                 grid: { left:'6%', right:'6%', bottom:'18%', top:'8%' }
             };
