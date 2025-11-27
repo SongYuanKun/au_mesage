@@ -939,7 +939,7 @@ Get-Content price_service.log | Select-String "2025-11-24"
 
 ## 👤 作者
 
-**宋元昆** (SongYuanKun)
+***SongYuanKun***
 
 - GitHub：[@SongYuanKun](https://github.com/SongYuanKun)
 - 项目地址：[au_mesage](https://github.com/SongYuanKun/au_mesage)
