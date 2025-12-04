@@ -49,22 +49,41 @@
                 </div>
             </div>
 
-            <div class="result" id="result">
-                <h3>计算结果</h3>
-                <div class="price-info">
-                    <div class="price-item">
-                        <div>每克价格</div>
-                        <div id="pricePerGram">-</div>
-                    </div>
-                    <div class="price-item">
-                        <div>大盘金价</div>
-                        <div id="marketPrice">-</div>
-                    </div>
+        <div class="result" id="result">
+            <h3>计算结果</h3>
+            <div class="price-info">
+                <div class="price-item">
+                    <div>每克价格</div>
+                    <div id="pricePerGram">-</div>
                 </div>
-                <div class="difference" id="differenceDisplay">
-                    价格差: - 元/克
+                <div class="price-item">
+                    <div>大盘金价</div>
+                    <div id="marketPrice">-</div>
                 </div>
             </div>
+            <div class="difference" id="differenceDisplay">
+                价格差: - 元/克
+            </div>
+        </div>
+        <div class="alert-subscribe">
+            <h3>价格到达推送</h3>
+            <div class="form-group">
+                <label for="alertTarget">目标价格（元/克）:</label>
+                <input type="number" id="alertTarget" placeholder="输入阈值" step="0.01" inputmode="decimal">
+            </div>
+            <div class="form-group">
+                <label>触发条件:</label>
+                <select id="alertOp">
+                    <option value="gte">达到或超过</option>
+                    <option value="lte">达到或低于</option>
+                </select>
+            </div>
+            <div class="btn-group">
+                <button id="btnSubscribe">订阅推送</button>
+                <button id="btnUnsubscribe" disabled>取消订阅</button>
+            </div>
+            <div id="alertStatus" class="status"></div>
+        </div>
         </div>
     </div>
 </div>
@@ -346,6 +365,72 @@
         window.addEventListener('resize', function () {
             // priceChart.resize(); // 图表已注释，暂时不执行
         });
+
+        let alertSource = null;
+        function ensureNotificationPermission() {
+            try {
+                if (Notification && Notification.permission === 'default') {
+                    Notification.requestPermission();
+                }
+            } catch (e) {}
+        }
+
+        function showNotify(title, body) {
+            try {
+                if (Notification && Notification.permission === 'granted') {
+                    new Notification(title, { body });
+                } else {
+                    const el = document.getElementById('alertStatus');
+                    el.textContent = `${title}：${body}`;
+                }
+            } catch (e) {
+                const el = document.getElementById('alertStatus');
+                el.textContent = `${title}：${body}`;
+            }
+        }
+
+        function subscribeAlert() {
+            const target = parseFloat(document.getElementById('alertTarget').value);
+            const op = document.getElementById('alertOp').value;
+            if (isNaN(target)) {
+                document.getElementById('alertStatus').textContent = '请输入有效的目标价格';
+                return;
+            }
+            ensureNotificationPermission();
+            const url = `/api/price-alert/subscribe?data_type=${encodeURIComponent(currentDataType)}&target=${encodeURIComponent(target)}&op=${encodeURIComponent(op)}&auto_close=true`;
+            alertSource = new EventSource(url);
+            document.getElementById('btnUnsubscribe').disabled = false;
+            document.getElementById('alertStatus').textContent = '已订阅，等待触发...';
+
+            alertSource.addEventListener('price', (ev) => {
+                try {
+                    const data = JSON.parse(ev.data);
+                    document.getElementById('marketPrice').textContent = `${Number(data.price).toFixed(2)} 元/克`;
+                } catch {}
+            });
+            alertSource.addEventListener('alert', (ev) => {
+                try {
+                    const data = JSON.parse(ev.data);
+                    showNotify('价格到达', `当前 ${data.price} 元/克，已满足 ${op} ${target}`);
+                    document.getElementById('alertStatus').textContent = '已触发推送';
+                    unsubscribeAlert();
+                } catch {}
+            });
+            alertSource.addEventListener('error', (ev) => {
+                document.getElementById('alertStatus').textContent = '订阅错误或连接中断';
+            });
+        }
+
+        function unsubscribeAlert() {
+            if (alertSource) {
+                alertSource.close();
+                alertSource = null;
+            }
+            document.getElementById('btnUnsubscribe').disabled = true;
+        }
+
+        document.getElementById('btnSubscribe').addEventListener('click', subscribeAlert);
+        document.getElementById('btnUnsubscribe').addEventListener('click', unsubscribeAlert);
     });
 </script>
 </body>

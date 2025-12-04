@@ -57,6 +57,7 @@
 │   - /api/recent-history      (历史数据)             │
 │   - /api/calculate           (价格计算)             │
 │   - /api/health              (健康检查)             │
+│   - /api/price-alert/subscribe (价格到达推送, SSE)  │
 └────────────────────┬────────────────────────────────┘
                      │ JSON Response
                      ▼
@@ -1003,3 +1004,29 @@ A: 当前不支持，但可以通过 SQL 查询直接导出。可在路线图中
 **Last Updated**: 2025年11月24日  
 **Version**: 1.0.0  
 **Status**: ✅ Production Ready
+#### 3. 订阅价格到达推送（SSE）
+
+端点：`GET /api/price-alert/subscribe`
+
+参数：
+- `data_type` (string)：数据类型，如 `黄 金`、`白 银`
+- `target` (number)：目标价格阈值（元/克）
+- `op` (string)：比较操作，`gte`（达到或超过）或 `lte`（达到或低于），默认 `gte`
+- `auto_close` (bool)：命中后是否自动关闭连接，默认 `true`
+
+响应：`text/event-stream`
+- `event: price` 最新价格心跳，数据示例：`{"price": 585.5}`
+- `event: alert` 命中阈值时推送一次：`{"price": 585.5, "target": 585.0, "op": "gte"}`
+- `event: ping` 保活事件
+
+前端使用示例：
+
+```javascript
+const url = `/api/price-alert/subscribe?data_type=黄%20金&target=585.0&op=gte&auto_close=true`;
+const es = new EventSource(url);
+es.addEventListener('price', ev => console.log('price', JSON.parse(ev.data)));
+es.addEventListener('alert', ev => console.log('alert', JSON.parse(ev.data)));
+es.onerror = () => console.log('连接错误');
+```
+
+注意：SSE 为长连接，建议在不需要时调用 `es.close()` 释放资源。
