@@ -2,7 +2,9 @@
 import logging
 from datetime import datetime
 
-from flask import Flask, jsonify, request, render_template
+from flask import Flask, jsonify, request, render_template, Response, stream_with_context
+import time
+import json
 
 from CustomJSONEncoder import CustomJSONProvider
 from mysql_manager import MySQLManager
@@ -143,6 +145,45 @@ def create_app(mysql_manager: MySQLManager):
         except Exception as e:
             logging.error(f"获取近7天回收价格失败: {e}")
             return jsonify({'success': False, 'error': '服务器内部错误'}), 500
+
+    @app.route('/api/price-alert/subscribe', methods=['GET'])
+    def price_alert_subscribe():
+        data_type = request.args.get('data_type')
+        target_raw = request.args.get('target')
+        op = request.args.get('op', 'gte')
+        auto_close = request.args.get('auto_close', 'true').lower() == 'true'
+        try:
+            if not data_type or target_raw is None:
+                return jsonify({'success': False, 'error': '缺少参数: data_type 或 target'}), 400
+            target = float(target_raw)
+        except Exception:
+            return jsonify({'success': False, 'error': '参数格式错误'}), 400
+
+        def sse_stream():
+            alerted = False
+            while True:
+                price = mysql_manager.get_latest_market_price(data_type)
+                if price is None:
+                    yield 'event: error\n'
+                    yield 'data: 无法获取最新市场价格\n\n'
+                    break
+                payload_price = json.dumps({'price': float(price)})
+                yield 'event: price\n'
+                yield f'data: {payload_price}\n\n'
+                cond = (op == 'gte' and float(price) >= target) or (op == 'lte' and float(price) <= target)
+                if cond and not alerted:
+                    payload_alert = json.dumps({'price': float(price), 'target': target, 'op': op})
+                    yield 'event: alert\n'
+                    yield f'data: {payload_alert}\n\n'
+                    alerted = True
+                    if auto_close:
+                        break
+                yield 'event: ping\n'
+                yield 'data: keepalive\n\n'
+                time.sleep(5)
+
+        headers = {'Cache-Control': 'no-cache', 'Connection': 'keep-alive'}
+        return Response(stream_with_context(sse_stream()), mimetype='text/event-stream', headers=headers)
 
     @app.route('/api/history', methods=['POST'])
     def history():
