@@ -1,6 +1,7 @@
 # route.py
 import logging
 from datetime import datetime
+import pytz
 
 from flask import Flask, jsonify, request, render_template, Response, stream_with_context
 import time
@@ -11,6 +12,9 @@ from mysql_manager import MySQLManager
 
 app = Flask(__name__, template_folder='../templates', static_folder='../static')
 app.json = CustomJSONProvider(app)  # Ensure CustomJSONProvider is used
+
+# 定义北京时区
+BEIJING_TZ = pytz.timezone('Asia/Shanghai')
 
 
 def create_app(mysql_manager: MySQLManager):
@@ -67,7 +71,7 @@ def create_app(mysql_manager: MySQLManager):
         默认返回今天的所有数据。
         """
         try:
-            date_str = request.args.get('date', datetime.now().strftime('%Y-%m-%d'))
+            date_str = request.args.get('date', datetime.now(BEIJING_TZ).strftime('%Y-%m-%d'))
             data_type = request.args.get('data_type')  # Optional data_type filter
 
             history_data = mysql_manager.get_daily_history(date_str, data_type)
@@ -98,14 +102,15 @@ def create_app(mysql_manager: MySQLManager):
             if not data_type:
                 return jsonify({'success': False, 'error': '缺少 data_type 参数'}), 400
 
-            from datetime import datetime, timedelta
-            # 获取30分钟前的时间
-            thirty_minutes_ago = datetime.now() - timedelta(minutes=30)
+            from datetime import timedelta
+            # 获取30分钟前的时间（北京时间）
+            beijing_now = datetime.now(BEIJING_TZ)
+            thirty_minutes_ago = beijing_now - timedelta(minutes=30)
             
             history_data = mysql_manager.get_price_history_by_time_range(
                 data_type, 
                 thirty_minutes_ago.strftime('%Y-%m-%d %H:%M:%S'),
-                datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                beijing_now.strftime('%Y-%m-%d %H:%M:%S')
             )
             
             if history_data:
@@ -124,9 +129,9 @@ def create_app(mysql_manager: MySQLManager):
             if not data_type:
                 return jsonify({'success': False, 'error': '缺少 data_type 参数'}), 400
 
-            from datetime import datetime, timedelta
+            from datetime import timedelta
             results = []
-            today = datetime.now().date()
+            today = datetime.now(BEIJING_TZ).date()
             # 从 6 天前 到 今天，按日期顺序返回
             for i in range(6, -1, -1):
                 day = today - timedelta(days=i)
@@ -272,7 +277,7 @@ def create_app(mysql_manager: MySQLManager):
         """服务健康检查接口"""
         return jsonify({
             'status': 'healthy',
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': datetime.now(BEIJING_TZ).isoformat(),
             'service': 'price-data-api'
         })
 

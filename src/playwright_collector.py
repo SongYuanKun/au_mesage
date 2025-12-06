@@ -4,10 +4,14 @@ import os
 import threading
 import time
 from datetime import datetime
+import pytz
 
 from playwright.sync_api import sync_playwright
 
 logger = logging.getLogger(__name__)
+
+# 定义北京时区
+BEIJING_TZ = pytz.timezone('Asia/Shanghai')
 
 
 def load_website_url():
@@ -158,9 +162,10 @@ class PlaywrightDataCollector:
                     high_price = clean_price(high_price)
                     low_price = clean_price(low_price)
 
-                    # 获取当前日期和时间
-                    current_date = datetime.now().strftime('%Y-%m-%d')
-                    current_time = datetime.now().strftime('%H:%M:%S')
+                    # 获取当前日期和时间（北京时间）
+                    beijing_now = datetime.now(BEIJING_TZ)
+                    current_date = beijing_now.strftime('%Y-%m-%d')
+                    current_time = beijing_now.strftime('%H:%M:%S')
 
                     data_item = {
                         'trade_date': current_date,
