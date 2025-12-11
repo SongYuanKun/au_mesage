@@ -8,12 +8,12 @@
 - 配置：`config.ini`（MySQL / API / Playwright 设置）。Docker 镜像由 `Dockerfile` 构建，`docker-compose.yml` 提供简单服务定义。
 
 ## 关键文件与示例（引用）
-- 入口与启动：`src/app.py`（`main()` 会启动采集器并 run Flask）。
-- 路由与 API：`src/route.py`（重点接口：`/api/latest-price`, `/api/recent-history`, `/api/calculate`, `/api/health`）。
-- 数据库层：`src/mysql_manager.py`（使用 `mysql.connector.pooling.MySQLConnectionPool`，表名 `price_data`，常用字段：`trade_date, trade_time, data_type, real_time_price, recycle_price, created_at`）。
-- 采集器：`src/playwright_collector.py`（无头浏览器抓取、线程后台运行、每分钟刷新、每30秒保存缓冲区）。
-- 自定义 JSON 编码：`src/CustomJSONEncoder.py`（将 `datetime`/`date`/`timedelta`/`Decimal` 转为 JSON 友好类型，Flask app 在 `route.py` 中使用）。
-- 前端示例：`templates/index.html`（使用 `/api/*` 接口，ECharts、自动计算逻辑）。
+- 入口与启动：[src/app.py](src/app.py)（`main()` 会启动采集器并 run Flask）。
+- 路由与 API：[src/route.py](src/route.py)（重点接口：`/api/latest-price`, `/api/recent-history`, `/api/calculate`, `/api/health`, `/api/last-1-hour`, `/api/last-7-days`, `/api/price-alert/subscribe`）。
+- 数据库层：[src/mysql_manager.py](src/mysql_manager.py)（使用 `mysql.connector.pooling.MySQLConnectionPool`，表名 `price_data`，常用字段：`trade_date, trade_time, data_type, real_time_price, recycle_price, created_at`）。
+- 采集器：[src/playwright_collector.py](src/playwright_collector.py)（无头浏览器抓取、线程后台运行、每分钟刷新、每30秒保存缓冲区）。
+- 自定义 JSON 编码：[src/CustomJSONEncoder.py](src/CustomJSONEncoder.py)（将 `datetime`/`date`/`timedelta`/`Decimal` 转为 JSON 友好类型，Flask app 在 `route.py` 中使用）。
+- 前端示例：[templates/index.html](templates/index.html)（使用 `/api/*` 接口，ECharts、自动计算逻辑）。
 
 ## 运行与调试（必备命令）
 - 本地开发（PowerShell）：
@@ -40,10 +40,13 @@ docker-compose up --build
 
 ## 项目约定与常见模式（可用于自动化修改）
 - 配置文件：`config.ini` 位于项目根，必须包含 `[mysql]` 和 `[api]` 段。AI 改动时优先在 `config.ini` 或环境变量里说明更改点。
+- **本地配置**：`my_config.ini` 优先级高于 `config.ini`，用于本地开发敏感信息。[src/playwright_collector.py](src/playwright_collector.py) 中 `load_website_url()` 优先读取 `my_config.ini`。
 - 相对路径假设：`route.py` 将模板目录设置为 `template_folder='../templates'`，因此项目以根目录（包含 `src/` 与 `templates/`）为工作目录运行。修改文件或运行脚本时请确保当前工作目录为仓库根。
+- **时区约定**：所有时间戳使用北京时区（`Asia/Shanghai`），通过 `pytz.timezone('Asia/Shanghai')` 获取。`created_at` 为 MySQL 自动时间戳，数据查询时基于此列排序和过滤。
 - 数据过滤：SQL 查询通常包含 `and recycle_price > 0`（过滤无效价格），在改写查询要保留该条件以避免返回占位/无效数据。
 - JSON 输出：项目使用 `CustomJSONProvider` 将 `Decimal` 转 float 并格式化 `datetime`；在修改 API 返回时遵循现有格式以免前端解析失败。
 - 异常处理：路由函数中有通用 try/except 并记录错误，新增接口时请复用现有错误响应结构（{success: False, error: msg} 或 {'error': msg}）。
+- **前端多页面**：项目有 3 个页面：[templates/index.html](templates/index.html)（主页，含计算器和实时价格），[templates/history.html](templates/history.html)（近 7 天趋势和 30 分钟实时数据），两者共享 [templates/_nav.html](templates/_nav.html) 和 [static/css/main.css](static/css/main.css)。
 
 ## 数据库交互注意点
 - 连接池初始化在 `MySQLManager._initialize_pool`，池名 `price_pool`、默认大小 5。不要在高频路径反复创建新池。
@@ -64,10 +67,12 @@ CREATE TABLE IF NOT EXISTS price_data (
   data_type VARCHAR(50) NOT NULL,
   real_time_price DECIMAL(10, 4) DEFAULT 0,
   recycle_price DECIMAL(10, 4) DEFAULT 0,
+  high_price DECIMAL(10, 4) DEFAULT 0,
+  low_price DECIMAL(10, 4) DEFAULT 0,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_type_date (data_type, trade_date),
   INDEX idx_created_at (created_at)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 验证连接：`mysql -h <host> -u <user> -p<password> <database>` 后运行 `SELECT COUNT(*) FROM price_data;`
 
@@ -134,6 +139,11 @@ curl -Uri "http://localhost:8083/api/calculate" -Method POST -Headers @{"Content
 - `created_at`：数据库自动时间戳（TIMESTAMP），用于排序和追踪
 - `Decimal` 类型在 JSON 中通过 `CustomJSONProvider` 自动转为浮点数
 
+### 高级特性：SSE 价格告警与时间范围查询
+- **`/api/price-alert/subscribe`**（GET，SSE）：订阅价格到达推送，参数 `data_type`, `target`, `op`(gte/lte), `auto_close`(true/false)。返回事件流：`event: price`（心跳），`event: alert`（触发），`event: ping`（保活）。
+- **`/api/last-1-hour`**（GET）：获取最近 30 分钟数据，需参数 `data_type`。前端历史页面用于实时数据展示。
+- **`/api/last-7-days`**（GET）：获取近 7 天每日最后一条记录的回收价，用于趋势图。需参数 `data_type`。
+
 ## 扩展点与扩展示例
 
 ### 添加新的采集数据类型
@@ -187,11 +197,12 @@ def get_data_last_n_days(self, data_type: str, days: int) -> List[Dict]:
 ```
 
 ## 不要做的事（对 AI 的明确限制）
-- **数据库**：不要假设 `price_data` 之外的表；不要新增列除非明确提供迁移 SQL。仅使用 `mysql_manager.py` 中已定义的列名。
+- **数据库**：不要假设 `price_data` 之外的表；不要新增列除非明确提供迁移 SQL。仅使用 `mysql_manager.py` 中已定义的列名（`id, trade_date, trade_time, data_type, real_time_price, recycle_price, high_price, low_price, created_at`）。
 - **数据过滤**：不要移除 `recycle_price > 0` 的过滤条件，除非确认业务允许零值和占位符数据。
 - **响应格式**：新增 API 时必须遵循 `{success: bool, data/error: ...}` 结构，避免破坏前端解析逻辑。
 - **data_type 拼写**：`黄 金` 和 `白 银` 的前后空格是精确值，不要改为其他格式（如 `黄金` 或 `黄  金`）。
 - **连接池**：不要在高频路径（如 API 处理函数）中创建新的 `MySQLConnectionPool`；总是复用 `mysql_manager.connection_pool`。
+- **SQL 时间函数**：使用 `created_at` 列进行时间范围查询时，注意 MySQL 函数如 `DATE_SUB(NOW(), INTERVAL 30 MINUTE)` 与北京时区的一致性。建议在 Python 中计算时间范围（使用 `datetime.now(BEIJING_TZ)`）后传入 SQL。
 
 ## 故障排查速查表
 
