@@ -3,7 +3,8 @@ import logging
 import os
 import threading
 import time
-from datetime import datetime, timedelta
+import random
+from datetime import datetime, timedelta, timezone
 
 from playwright.sync_api import sync_playwright
 
@@ -53,10 +54,9 @@ class PlaywrightDataCollector:
         logger.info("数据采集服务已启动")
 
     def _run_playwright(self):
-        """运行Playwright浏览器实例"""
+        """运行Playwright浏览器实例，增加网站可用性检测机制"""
         try:
             with sync_playwright() as p:
-                # 启动浏览器（无头模式可改为False用于调试）
                 self.browser = p.chromium.launch(
                     headless=True,
                     args=[
@@ -65,40 +65,73 @@ class PlaywrightDataCollector:
                         '--no-sandbox'
                     ]
                 )
-
-                # 创建浏览上下文
                 context = self.browser.new_context(
                     viewport={'width': 1920, 'height': 1080},
                     user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
                 )
-
                 self.page = context.new_page()
-
-                # 设置超时时间
                 self.page.set_default_timeout(30000)
 
-                # 访问目标网站
-                self.page.goto(self.website_url)
-                self.page.wait_for_load_state('networkidle')
-
-                logger.info("浏览器初始化完成，开始监控数据...")
+                # 检查网站可用性，重试机制
+                max_retries = 5
+                for attempt in range(max_retries):
+                    try:
+                        self.page.goto(self.website_url, timeout=20000)
+                        self.page.wait_for_load_state('networkidle', timeout=20000)
+                        # 检查页面是否有主要数据元素
+                        if self.page.query_selector('.quote-price-table .price-table-row'):
+                            logger.info("浏览器初始化完成，网站可用，开始监控数据...")
+                            break
+                        else:
+                            raise Exception("未检测到主要数据元素，页面可能异常")
+                    except Exception as open_err:
+                        logger.error(f"网站打开失败（第{attempt+1}次）: {open_err}")
+                        time.sleep(10)
+                else:
+                    logger.error("多次尝试后网站仍无法访问，采集线程退出")
+                    return
 
                 # 主循环
                 while self.is_running:
                     try:
-                        # 定期刷新并获取数据
+                        # 随机等待，模拟用户操作间隔
+                        wait_time = random.randint(50, 90)
+                        # 随机概率执行页面滚动或点击，进一步模拟用户
+                        if random.random() < 0.3:
+                            try:
+                                # 随机滚动到页面某处
+                                scroll_y = random.randint(0, 800)
+                                self.page.evaluate(f"window.scrollTo(0, {scroll_y})")
+                                logger.debug(f"模拟滚动到Y={scroll_y}")
+                            except Exception as scroll_err:
+                                logger.debug(f"模拟滚动失败: {scroll_err}")
+                        if random.random() < 0.2:
+                            try:
+                                # 随机点击表格某一行
+                                rows = self.page.query_selector_all('.quote-price-table .price-table-row')
+                                if rows:
+                                    row = random.choice(rows)
+                                    row.click()
+                                    logger.debug("模拟点击表格行")
+                            except Exception as click_err:
+                                logger.debug(f"模拟点击失败: {click_err}")
+
                         data = self._refresh_and_get_data()
                         if data:
                             self.data_buffer.extend(data)
                             logger.info(f"获取到 {len(data)} 条新数据，缓冲区共有 {len(self.data_buffer)} 条数据")
-
-                        # 等待一段时间后再次刷新
-                        time.sleep(60)  # 每分钟刷新一次
-
+                        else:
+                            logger.warning("未获取到有效数据，可能网站异常")
+                        # 随机等待后再刷新
+                        time.sleep(wait_time)
                     except Exception as loop_error:
                         logger.error(f"数据采集循环错误: {loop_error}")
-                        time.sleep(30)  # 出错时等待30秒后重试
-
+                        try:
+                            self.page.goto(self.website_url, timeout=20000)
+                            self.page.wait_for_load_state('networkidle', timeout=20000)
+                        except Exception as reload_err:
+                            logger.error(f"页面重载失败: {reload_err}")
+                        time.sleep(30)
         except Exception as e:
             logger.error(f"Playwright运行错误: {e}")
         finally:
