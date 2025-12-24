@@ -3,7 +3,7 @@ import logging
 import os
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from playwright.sync_api import sync_playwright
 
@@ -158,9 +158,9 @@ class PlaywrightDataCollector:
                     high_price = clean_price(high_price)
                     low_price = clean_price(low_price)
 
-                    # 获取当前日期和时间
-                    current_date = datetime.now().strftime('%Y-%m-%d')
-                    current_time = datetime.now().strftime('%H:%M:%S')
+                    beijing_now = datetime.now(timezone.utc).astimezone(timezone(timedelta(hours=8)))
+                    current_date = beijing_now.strftime('%Y-%m-%d')
+                    current_time = beijing_now.strftime('%H:%M:%S')
 
                     data_item = {
                         'trade_date': current_date,
