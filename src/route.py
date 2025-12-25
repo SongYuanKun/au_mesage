@@ -1,6 +1,6 @@
 # route.py
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 from flask import Flask, jsonify, request, render_template, Response, stream_with_context
 import time
@@ -98,9 +98,9 @@ def create_app(mysql_manager: MySQLManager):
             if not data_type:
                 return jsonify({'success': False, 'error': '缺少 data_type 参数'}), 400
 
-            from datetime import datetime, timedelta
             # 获取30分钟前的时间
-            thirty_minutes_ago = datetime.now() - timedelta(minutes=30)
+            beijing_now = datetime.now(timezone.utc).astimezone(timezone(timedelta(hours=8)))
+            thirty_minutes_ago = beijing_now - timedelta(minutes=30)
             
             history_data = mysql_manager.get_price_history_by_time_range(
                 data_type, 
