@@ -97,11 +97,7 @@
                 }
 
                 if(j && j.success && Array.isArray(j.data) && j.data.length>0){
-                    const items = j.data.sort((a,b)=> {
-                        const timeA = String(a.trade_time || a.created_at || '');
-                        const timeB = String(b.trade_time || b.created_at || '');
-                        return timeB.localeCompare(timeA);
-                    });
+                    const items = j.data;
                     renderTodayChart(items);
                 } else {
                     // empty result (no data) — show friendly message
