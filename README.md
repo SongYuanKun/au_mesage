@@ -57,15 +57,17 @@
 │   - /api/recent-history      (历史数据)             │
 │   - /api/calculate           (价格计算)             │
 │   - /api/health              (健康检查)             │
+│   - /api/last-1-hour         (最近1小时数据)        │
+│   - /api/last-7-days         (最近7天每日价格)      │
 │   - /api/price-alert/subscribe (价格到达推送, SSE)  │
 └────────────────────┬────────────────────────────────┘
                      │ JSON Response
                      ▼
 ┌─────────────────────────────────────────────────────┐
 │   Web Frontend (HTML + JavaScript + ECharts)        │
-│   - 实时价格展示                                    │
-│   - 价格趋势图表                                    │
-│   - 价格计算器                                      │
+│   - index.html: 主页（实时价格、价格计算器）        │
+│   - history.html: 历史页面（7天趋势图、30分钟数据） │
+│   - today.html: 当天实时数据表格                    │
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -76,6 +78,7 @@
 ```
 au/
 ├── config.ini                    # 配置文件（MySQL、API、Playwright）
+├── my_config.ini                 # 本地配置文件（优先级高于 config.ini，用于敏感信息）
 ├── requirements.txt              # Python 依赖列表
 ├── Dockerfile                    # Docker 镜像构建文件
 ├── docker-compose.yml            # Docker Compose 编排配置
@@ -91,7 +94,11 @@ au/
 │   └── __pycache__/              # Python 缓存目录
 │
 ├── templates/                    # 前端模板目录
-│   └── index.html                # 主页 HTML（包含 ECharts 图表和 JavaScript 逻辑）
+│   ├── index.html                # 主页 HTML（包含 ECharts 图表和价格计算器）
+│   ├── history.html              # 历史页面 HTML（7天趋势图和30分钟实时数据）
+│   ├── today.html                # 当天实时数据表格页面
+│   ├── _nav.html                 # 导航栏模板
+│   └── _styles.html              # 样式模板
 │
 └── scripts/                      # 脚本目录
     └── init.sql                  # 数据库初始化 SQL
@@ -438,7 +445,142 @@ curl -Uri "http://localhost:8083/api/health" -Method GET | ConvertFrom-Json
 
 ---
 
+#### 5. 获取最近 1 小时数据
+
+**端点**：`GET /api/last-1-hour`
+
+**参数**（必需）：
+- `data_type` (string)：数据类型，如 `黄 金`、`白 银`
+
+**用途**：获取最近 30 分钟内的所有价格数据，用于前端历史页面的实时数据展示
+
+**请求示例**：
+
+```powershell
+curl -Uri "http://localhost:8083/api/last-1-hour?data_type=黄%20金" -Method GET | ConvertFrom-Json
+```
+
+**响应示例**：
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "trade_date": "2025-11-24",
+      "trade_time": "14:00:00",
+      "data_type": "黄 金",
+      "real_time_price": 585.50,
+      "recycle_price": 575.30
+    },
+    {
+      "trade_date": "2025-11-24",
+      "trade_time": "14:30:00",
+      "data_type": "黄 金",
+      "real_time_price": 586.00,
+      "recycle_price": 575.80
+    }
+  ]
+}
+```
+
+---
+
+#### 6. 获取最近 7 天每日价格
+
+**端点**：`GET /api/last-7-days`
+
+**参数**（必需）：
+- `data_type` (string)：数据类型，如 `黄 金`、`白 银`
+
+**用途**：获取近 7 天每日最后一条记录的回收价格，用于趋势图展示
+
+**请求示例**：
+
+```powershell
+curl -Uri "http://localhost:8083/api/last-7-days?data_type=黄%20金" -Method GET | ConvertFrom-Json
+```
+
+**响应示例**：
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "date": "2025-11-18",
+      "recycle_price": 570.50
+    },
+    {
+      "date": "2025-11-19",
+      "recycle_price": 572.30
+    },
+    {
+      "date": "2025-11-20",
+      "recycle_price": 571.80
+    },
+    {
+      "date": "2025-11-21",
+      "recycle_price": 573.20
+    },
+    {
+      "date": "2025-11-22",
+      "recycle_price": 574.10
+    },
+    {
+      "date": "2025-11-23",
+      "recycle_price": 575.50
+    },
+    {
+      "date": "2025-11-24",
+      "recycle_price": 575.30
+    }
+  ]
+}
+```
+
+---
+
+#### 7. 订阅价格到达推送（SSE）
+
+**端点**：`GET /api/price-alert/subscribe`
+
+**参数**：
+- `data_type` (string)：数据类型，如 `黄 金`、`白 银`
+- `target` (number)：目标价格阈值（元/克）
+- `op` (string)：比较操作，`gte`（达到或超过）或 `lte`（达到或低于），默认 `gte`
+- `auto_close` (bool)：命中后是否自动关闭连接，默认 `true`
+
+**响应格式**：`text/event-stream`（Server-Sent Events）
+
+**事件类型**：
+- `event: price`：最新价格心跳，数据示例：`{"price": 585.5}`
+- `event: alert`：命中阈值时推送一次：`{"price": 585.5, "target": 585.0, "op": "gte"}`
+- `event: ping`：保活事件
+
+**前端使用示例**：
+
+```javascript
+const url = `/api/price-alert/subscribe?data_type=黄%20金&target=585.0&op=gte&auto_close=true`;
+const es = new EventSource(url);
+es.addEventListener('price', ev => console.log('price', JSON.parse(ev.data)));
+es.addEventListener('alert', ev => console.log('alert', JSON.parse(ev.data)));
+es.onerror = () => console.log('连接错误');
+```
+
+**注意**：SSE 为长连接，建议在不需要时调用 `es.close()` 释放资源。
+
+---
+
 ## 🔧 配置说明
+
+### 配置文件层次
+
+项目支持两种配置文件：
+- `config.ini`：主配置文件，包含所有配置项
+- `my_config.ini`：本地配置文件（可选），优先级高于 `config.ini`，用于本地开发时的敏感信息覆盖
+
+如果存在 `my_config.ini`，系统会优先读取其中的配置项。
 
 ### config.ini 详细配置
 
@@ -537,6 +679,9 @@ python src/app.py
 - `GET /api/recent-history`：获取历史价格
 - `POST /api/calculate`：计算价格
 - `GET /api/health`：健康检查
+- `GET /api/last-1-hour`：获取最近1小时数据
+- `GET /api/last-7-days`：获取最近7天每日价格
+- `GET /api/price-alert/subscribe`：价格到达推送（SSE）
 
 **特性**：
 - 完整的异常处理
@@ -733,16 +878,17 @@ Playwright 采集器启动（后台线程）
 docker build -t au-price-collector:1.0 .
 ```
 
-#### 2. 创建 .env 文件（存放敏感信息）
+#### 2. 配置环境变量（或修改 config.ini）
 
-```env
-MYSQL_HOST=your-production-mysql-host
-MYSQL_USER=production-user
-MYSQL_PASSWORD=strong-password-here
-MYSQL_DATABASE=production-db
-API_HOST=0.0.0.0
-API_PORT=8083
-```
+设置以下环境变量，或直接修改项目根目录的 `config.ini` 文件：
+
+- MYSQL_HOST=your-production-mysql-host
+- MYSQL_USER=production-user
+- MYSQL_PASSWORD=strong-password-here
+- MYSQL_DATABASE=production-db
+- API_HOST=0.0.0.0
+- API_PORT=8083
+- WEBSITE_URL=https://your_website_url.com
 
 #### 3. 使用 docker-compose 启动
 
@@ -1001,32 +1147,6 @@ A: 当前不支持，但可以通过 SQL 查询直接导出。可在路线图中
 
 ---
 
-**Last Updated**: 2025年11月24日  
+**Last Updated**: 2025年12月28日  
 **Version**: 1.0.0  
 **Status**: ✅ Production Ready
-#### 3. 订阅价格到达推送（SSE）
-
-端点：`GET /api/price-alert/subscribe`
-
-参数：
-- `data_type` (string)：数据类型，如 `黄 金`、`白 银`
-- `target` (number)：目标价格阈值（元/克）
-- `op` (string)：比较操作，`gte`（达到或超过）或 `lte`（达到或低于），默认 `gte`
-- `auto_close` (bool)：命中后是否自动关闭连接，默认 `true`
-
-响应：`text/event-stream`
-- `event: price` 最新价格心跳，数据示例：`{"price": 585.5}`
-- `event: alert` 命中阈值时推送一次：`{"price": 585.5, "target": 585.0, "op": "gte"}`
-- `event: ping` 保活事件
-
-前端使用示例：
-
-```javascript
-const url = `/api/price-alert/subscribe?data_type=黄%20金&target=585.0&op=gte&auto_close=true`;
-const es = new EventSource(url);
-es.addEventListener('price', ev => console.log('price', JSON.parse(ev.data)));
-es.addEventListener('alert', ev => console.log('alert', JSON.parse(ev.data)));
-es.onerror = () => console.log('连接错误');
-```
-
-注意：SSE 为长连接，建议在不需要时调用 `es.close()` 释放资源。
