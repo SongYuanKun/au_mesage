@@ -44,15 +44,24 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # 复制项目文件
 COPY . .
 
-# 安装 Playwright 浏览器
+# 安装 Playwright 浏览器并安装 tini 作为 init 进程（转发信号）
 RUN playwright install chromium
+
+# 安装 tini（信号转发）
+RUN apt-get update && apt-get install -y --no-install-recommends tini && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# 复制并设置入口脚本
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # 设置环境变量
 ENV FLASK_ENV=production
 ENV PYTHONUNBUFFERED=1
+ENV TZ=Asia/Shanghai
 
 # 暴露端口
 EXPOSE 8083
 
-# 启动应用
+# 入口与启动命令
+ENTRYPOINT ["tini", "--", "/usr/local/bin/docker-entrypoint.sh"]
 CMD ["python", "src/app.py"]
