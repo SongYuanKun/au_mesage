@@ -1,11 +1,14 @@
 <!DOCTYPE html>
-<html lang="zh-CN">    
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>实时金价监控系统 - 自动计算</title>
+    <title>实时金价监控系统 - 智能计算</title>
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.0/dist/echarts.min.js"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
 <div class="container">
@@ -15,79 +18,350 @@
 
         <div class="card">
             <div class="type-selector">
-                <button id="typeGold" class="active" data-type="黄 金">黄 金</button>
-                <button id="typeSilver" data-type="白 银">白 银</button>
+                <button id="typeGold" class="active" data-type="黄 金">
+                    <span class="btn-icon">🥇</span> 黄 金
+                </button>
+                <button id="typeSilver" data-type="白 银">
+                    <span class="btn-icon">🥈</span> 白 银
+                </button>
             </div>
-            <!--            -->
-                        <h4 id="currentPriceTitle">📊 实时黄金价格</h4> <!-- Added ID for dynamic update -->
-                        <div class="price-display">
-                            <div class="current-price" id="currentPrice">加载中...</div>
-                            <div class="last-update" id="lastUpdate"></div>
-                        </div>
-
-            <!--            <div class="chart-container">-->
-            <!--                <div id="priceChart" style="width: 100%; height: 100%;"></div>-->
-            <!--            </div>-->
-            <!--        </div>-->
-
-            <!--        <div class="card">-->
-            <!--            <h2>🧮 价格计算器</h2>-->
-            <!--            <div class="auto-calc-notice">-->
-            <!--                💡 输入价格和克重后，系统将自动计算价格差，无需点击按钮-->
-            <!--            </div>-->
-            <div class="calculator-form">
-                <div class="form-group">
-                    <label for="productPrice">商品总价（元）:</label>
-                    <input type="number" id="productPrice" placeholder="请输入商品总价格" step="0.01"
-                           inputmode="decimal" pattern="[0-9]*">
+            
+            <h2 id="currentPriceTitle" class="section-title">
+                <span class="title-icon">📊</span>
+                实时黄金价格
+            </h2>
+            
+            <div class="price-display">
+                <div class="price-content">
+                    <div class="current-price" id="currentPrice">加载中...</div>
+                    <div class="last-update" id="lastUpdate"></div>
                 </div>
-
-                <div class="form-group">
-                    <label for="weight">商品克重（克）:</label>
-                    <input type="number" id="weight" placeholder="请输入商品重量" step="0.01" inputmode="decimal"
-                           pattern="[0-9]*">
+                <div class="price-decoration">
+                    <div class="pulse-dot"></div>
                 </div>
             </div>
 
-        <div class="result" id="result">
-            <h3>计算结果</h3>
-            <div class="price-info">
-                <div class="price-item">
-                    <div>每克价格</div>
-                    <div id="pricePerGram">-</div>
+            <div class="calculator-section">
+                <h3 class="section-title">
+                    <span class="title-icon">🧮</span>
+                    智能价格计算器
+                </h3>
+                
+                <div class="auto-calc-notice">
+                    <span class="notice-icon">💡</span>
+                    <span>输入价格和克重后，系统将自动计算价格差，无需点击按钮</span>
                 </div>
-                <div class="price-item">
-                    <div>大盘金价</div>
-                    <div id="marketPrice">-</div>
+                
+                <div class="calculator-form">
+                    <div class="form-group">
+                        <label for="productPrice" class="form-label">
+                            <span class="label-icon">💵</span>
+                            商品总价（元）
+                        </label>
+                        <input type="number" id="productPrice" 
+                               class="form-input" 
+                               placeholder="请输入商品总价格" 
+                               step="0.01"
+                               inputmode="decimal" 
+                               pattern="[0-9]*">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="weight" class="form-label">
+                            <span class="label-icon">⚖️</span>
+                            商品克重（克）
+                        </label>
+                        <input type="number" id="weight" 
+                               class="form-input" 
+                               placeholder="请输入商品重量" 
+                               step="0.01" 
+                               inputmode="decimal"
+                               pattern="[0-9]*">
+                    </div>
                 </div>
             </div>
-            <div class="difference" id="differenceDisplay">
-                价格差: - 元/克
+
+            <div class="result" id="result">
+                <h3 class="result-title">
+                    <span class="result-icon">📈</span>
+                    计算结果
+                </h3>
+                <div class="price-info">
+                    <div class="price-item">
+                        <div class="item-label">每克价格</div>
+                        <div class="item-value" id="pricePerGram">-</div>
+                    </div>
+                    <div class="price-item">
+                        <div class="item-label">大盘金价</div>
+                        <div class="item-value" id="marketPrice">-</div>
+                    </div>
+                </div>
+                <div class="difference" id="differenceDisplay">
+                    <span class="difference-icon">💰</span>
+                    <span class="difference-text">总收益: - 元</span>
+                </div>
             </div>
-        </div>
-        <div class="alert-subscribe">
-            <h3>价格到达推送</h3>
-            <div class="form-group">
-                <label for="alertTarget">目标价格（元/克）:</label>
-                <input type="number" id="alertTarget" placeholder="输入阈值" step="0.01" inputmode="decimal">
+            
+            <div class="alert-subscribe">
+                <h3 class="alert-title">
+                    <span class="alert-icon">🔔</span>
+                    价格到达推送
+                </h3>
+                <div class="alert-form">
+                    <div class="form-group">
+                        <label for="alertTarget" class="form-label">
+                            <span class="label-icon">🎯</span>
+                            目标价格（元/克）
+                        </label>
+                        <input type="number" id="alertTarget" 
+                               class="form-input" 
+                               placeholder="输入阈值" 
+                               step="0.01" 
+                               inputmode="decimal">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">
+                            <span class="label-icon">⚡</span>
+                            触发条件
+                        </label>
+                        <select id="alertOp" class="form-select">
+                            <option value="gte">达到或超过</option>
+                            <option value="lte">达到或低于</option>
+                        </select>
+                    </div>
+                    <div class="btn-group">
+                        <button id="btnSubscribe" class="btn btn-primary">
+                            <span class="btn-icon">📬</span>
+                            订阅推送
+                        </button>
+                        <button id="btnUnsubscribe" class="btn btn-secondary" disabled>
+                            <span class="btn-icon">❌</span>
+                            取消订阅
+                        </button>
+                    </div>
+                    <div id="alertStatus" class="status"></div>
+                </div>
             </div>
-            <div class="form-group">
-                <label>触发条件:</label>
-                <select id="alertOp">
-                    <option value="gte">达到或超过</option>
-                    <option value="lte">达到或低于</option>
-                </select>
-            </div>
-            <div class="btn-group">
-                <button id="btnSubscribe">订阅推送</button>
-                <button id="btnUnsubscribe" disabled>取消订阅</button>
-            </div>
-            <div id="alertStatus" class="status"></div>
-        </div>
         </div>
     </div>
 </div>
 
+<style>
+/* Additional styles for enhanced components */
+.section-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 2rem;
+    color: var(--text-primary);
+    font-weight: 600;
+    font-size: 1.5rem;
+}
+
+.title-icon {
+    font-size: 1.75rem;
+    animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+}
+
+.price-content {
+    position: relative;
+    z-index: 2;
+}
+
+.price-decoration {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    z-index: 1;
+}
+
+.pulse-dot {
+    width: 12px;
+    height: 12px;
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 20px rgba(255, 255, 255, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
+    }
+}
+
+.calculator-section {
+    margin-bottom: 2rem;
+}
+
+.form-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.label-icon {
+    font-size: 1rem;
+}
+
+.form-input, .form-select {
+    width: 100%;
+    padding: 1rem;
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-md);
+    font-size: 1rem;
+    transition: var(--transition);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: inherit;
+}
+
+.form-input:focus, .form-select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    transform: translateY(-1px);
+}
+
+.result-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.result-icon {
+    font-size: 1.25rem;
+}
+
+.item-label {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
+
+.item-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+.difference-icon {
+    font-size: 1.5rem;
+    margin-right: 0.5rem;
+}
+
+.difference-text {
+    font-size: 1.75rem;
+    font-weight: 700;
+}
+
+.alert-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.alert-icon {
+    font-size: 1.25rem;
+}
+
+.alert-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.btn-icon {
+    font-size: 1rem;
+}
+
+.type-selector button .btn-icon {
+    font-size: 1rem;
+    margin-right: 0.5rem;
+}
+
+/* Enhanced type selector */
+.type-selector {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 2rem;
+    background: var(--bg-secondary);
+    padding: 0.25rem;
+    border-radius: var(--radius-lg);
+    width: fit-content;
+    margin-left: auto;
+    margin-right: auto;
+    box-shadow: var(--shadow-sm);
+}
+
+.type-selector button {
+    background: transparent;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    transition: var(--transition);
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.type-selector button.active {
+    background: var(--bg-primary);
+    color: var(--primary-color);
+    box-shadow: var(--shadow-sm);
+}
+
+.type-selector button:hover:not(.active) {
+    color: var(--text-primary);
+    transform: translateY(-1px);
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+    .section-title {
+        font-size: 1.25rem;
+        flex-direction: column;
+        text-align: center;
+        gap: 0.5rem;
+    }
+    
+    .title-icon {
+        font-size: 1.5rem;
+    }
+    
+    .type-selector {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .type-selector button {
+        flex: 1;
+        justify-content: center;
+    }
+}
+</style>
 <script>
     // 防抖函数实现
     function debounce(func, wait) {

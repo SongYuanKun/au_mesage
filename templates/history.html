@@ -6,6 +6,9 @@
     <title>趋势与明细 — 回收价格</title>
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.0/dist/echarts.min.js"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
 <div class="container">
@@ -13,39 +16,82 @@
     {% include '_nav.html' %}
 
     <div class="content">
-        <!-- Left: Today's data chart -->
+        <!-- Real-time Chart Card -->
         <div class="card">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px">
-                <h2 style="margin:0">近30分钟数据</h2>
-                <div style="display:flex; gap:8px; align-items:center">
-                    <div class="type-selector">
-                        <button id="btnGold" class="active" data-type="黄 金">黄 金</button>
-                        <button id="btnSilver" data-type="白 银">白 银</button>
-                    </div>
+            <div class="card-header">
+                <h2 class="section-title">
+                    <span class="title-icon">⏱️</span>
+                    近30分钟实时数据
+                </h2>
+                <div class="type-selector">
+                    <button id="btnGold" class="active" data-type="黄 金">
+                        <span class="btn-icon">🥇</span> 黄 金
+                    </button>
+                    <button id="btnSilver" data-type="白 银">
+                        <span class="btn-icon">🥈</span> 白 银
+                    </button>
                 </div>
             </div>
 
-            <div id="todayChart" class="chart-container"></div>
-            <div id="noDailyChartData" style="text-align:center; color:#888; display:none; margin-top:20px;">暂无数据</div>
-            <div class="note">说明：显示最近30分钟的数据，每 30 秒自动刷新一次。</div>
+            <div class="chart-wrapper">
+                <div id="todayChart" class="chart-container modern-chart"></div>
+                <div id="noDailyChartData" class="chart-placeholder" style="display: none;">
+                    <div class="placeholder-icon">📊</div>
+                    <div class="placeholder-text">暂无数据</div>
+                    <div class="placeholder-subtext">请稍后刷新重试</div>
+                </div>
+            </div>
+            
+            <div class="chart-info">
+                <div class="info-item">
+                    <span class="info-icon">ℹ️</span>
+                    <span class="info-text">显示最近30分钟的数据，每 30 秒自动刷新一次</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-icon">🔄</span>
+                    <span class="info-text" id="lastRefresh">最后更新: -</span>
+                </div>
+            </div>
         </div>
 
-        <!-- Right: 7-day trend chart -->
+        <!-- 7-day Trend Chart Card -->
         <div class="card">
-            <h2 style="margin-bottom:12px">近7天回收价格趋势</h2>
-            <div id="trendChart" class="chart-container"></div>
-            <div id="noChartData" style="text-align:center; color:#888; display:none; margin-top:20px;">暂无趋势数据</div>
-            <!-- Trend tables: daily list and summary -->
-            <div class="trend-tables" style="margin-top:16px;">
-                <div>
-                    <h3 style="margin:0 0 8px 0; font-size:14px">近7天统计</h3>
-                    <table id="trendSummary" style="width:100%; border-collapse:collapse; font-size:13px;">
-                        <tbody>
-                        <tr><td style="padding:8px; border-top:1px solid #f0f0f0">平均回收价</td><td id="summaryAvg" style="padding:8px; text-align:right; border-top:1px solid #f0f0f0">-</td></tr>
-                        <tr><td style="padding:8px;">最高回收价</td><td id="summaryMax" style="padding:8px; text-align:right">-</td></tr>
-                        <tr><td style="padding:8px;">最低回收价</td><td id="summaryMin" style="padding:8px; text-align:right">-</td></tr>
-                        </tbody>
-                    </table>
+            <h2 class="section-title">
+                <span class="title-icon">📈</span>
+                近7天回收价格趋势
+            </h2>
+            
+            <div class="chart-wrapper">
+                <div id="trendChart" class="chart-container modern-chart"></div>
+                <div id="noChartData" class="chart-placeholder" style="display: none;">
+                    <div class="placeholder-icon">📊</div>
+                    <div class="placeholder-text">暂无趋势数据</div>
+                    <div class="placeholder-subtext">请稍后刷新重试</div>
+                </div>
+            </div>
+            
+            <!-- Trend Statistics -->
+            <div class="trend-stats">
+                <h3 class="stats-title">
+                    <span class="stats-icon">📊</span>
+                    近7天统计
+                </h3>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">平均回收价</div>
+                        <div class="stat-value" id="summaryAvg">-</div>
+                        <div class="stat-trend" id="avgTrend">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">最高回收价</div>
+                        <div class="stat-value" id="summaryMax">-</div>
+                        <div class="stat-trend positive">📈 最高点</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">最低回收价</div>
+                        <div class="stat-value" id="summaryMin">-</div>
+                        <div class="stat-trend negative">📉 最低点</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -53,6 +99,249 @@
 
 </div>
 
+<style>
+/* Enhanced styles for history page */
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.chart-wrapper {
+    position: relative;
+    margin: 2rem 0;
+}
+
+.modern-chart {
+    background: var(--bg-primary);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+}
+
+.chart-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem 2rem;
+    text-align: center;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+    border: 2px dashed var(--border-color);
+}
+
+.placeholder-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+    animation: float 3s ease-in-out infinite;
+}
+
+.placeholder-text {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+}
+
+.placeholder-subtext {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+.chart-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+    padding: 1rem;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    border-left: 4px solid var(--info-color);
+}
+
+.info-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.info-icon {
+    font-size: 1rem;
+}
+
+.trend-stats {
+    margin-top: 2rem;
+}
+
+.stats-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+    color: var(--text-primary);
+    font-weight: 600;
+    font-size: 1.25rem;
+}
+
+.stats-icon {
+    font-size: 1.5rem;
+    animation: float 3s ease-in-out infinite;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+}
+
+.stat-card {
+    background: var(--bg-primary);
+    padding: 1.5rem;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+    transition: var(--transition);
+    text-align: center;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.75rem;
+    font-weight: 500;
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin-bottom: 0.5rem;
+}
+
+.stat-trend {
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 0.25rem 0.75rem;
+    border-radius: var(--radius-sm);
+    display: inline-block;
+}
+
+.stat-trend.positive {
+    background: var(--success-color);
+    color: white;
+}
+
+.stat-trend.negative {
+    background: var(--danger-color);
+    color: white;
+}
+
+/* Enhanced type selector for history page */
+.type-selector {
+    display: flex;
+    gap: 0.5rem;
+    background: var(--bg-secondary);
+    padding: 0.25rem;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+}
+
+.type-selector button {
+    background: transparent;
+    border: none;
+    padding: 0.75rem 1.25rem;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.type-selector button.active {
+    background: var(--bg-primary);
+    color: var(--primary-color);
+    box-shadow: var(--shadow-sm);
+}
+
+.type-selector button:hover:not(.active) {
+    color: var(--text-primary);
+    transform: translateY(-1px);
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .card-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .section-title {
+        justify-content: center;
+        text-align: center;
+    }
+    
+    .type-selector {
+        justify-content: center;
+        width: 100%;
+    }
+    
+    .type-selector button {
+        flex: 1;
+        justify-content: center;
+    }
+    
+    .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .stat-card {
+        padding: 1rem;
+    }
+    
+    .stat-value {
+        font-size: 1.5rem;
+    }
+    
+    .chart-placeholder {
+        padding: 3rem 1rem;
+    }
+    
+    .placeholder-icon {
+        font-size: 3rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .chart-info {
+        padding: 0.75rem;
+    }
+    
+    .info-item {
+        font-size: 0.8rem;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+        text-align: left;
+    }
+}
+</style>
 <script>
     (function(){
         // Encapsulate module to avoid globals
