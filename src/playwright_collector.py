@@ -1,4 +1,3 @@
-import configparser
 import logging
 import os
 import threading
@@ -14,23 +13,6 @@ logger = logging.getLogger(__name__)
 BEIJING_TZ = pytz.timezone('Asia/Shanghai')
 
 
-def load_website_url():
-    """从配置文件加载采集网址"""
-    config = configparser.ConfigParser()
-    config_path = os.path.join(os.path.dirname(__file__), '..', 'config.ini')
-    
-    # 优先读取本地配置文件 my_config.ini
-    local_config_path = os.path.join(os.path.dirname(__file__), '..', 'my_config.ini')
-    if os.path.exists(local_config_path):
-        config.read(local_config_path)
-        logger.info("从 my_config.ini 加载配置")
-    elif os.path.exists(config_path):
-        config.read(config_path)
-        logger.info("从 config.ini 加载配置")
-    
-    return config.get('playwright', 'website_url', fallback='https://your_website_url.com')
-
-
 class PlaywrightDataCollector:
     def __init__(self, mysql_manager):
         self.mysql_manager = mysql_manager
@@ -38,7 +20,7 @@ class PlaywrightDataCollector:
         self.is_running = False
         self.browser = None
         self.page = None
-        self.website_url = load_website_url()  
+        self.website_url = os.environ.get('WEBSITE_URL', 'https://your_website_url.com')
 
     def start_collection(self):
         """启动数据采集服务"""

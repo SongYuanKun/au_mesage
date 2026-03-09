@@ -1,5 +1,5 @@
-import configparser
 import logging
+import os
 
 from mysql_manager import MySQLManager
 from playwright_collector import PlaywrightDataCollector
@@ -19,20 +19,17 @@ def setup_logging():
 
 
 def load_config():
-    """加载配置文件"""
-    config = configparser.ConfigParser()
-    config.read('my_config.ini')
-
+    """从环境变量加载配置"""
     return {
         'mysql': {
-            'host': config.get('mysql', 'host', fallback='localhost'),
-            'user': config.get('mysql', 'user', fallback='root'),
-            'password': config.get('mysql', 'password'),
-            'database': config.get('mysql', 'database', fallback='price_data')
+            'host': os.environ.get('MYSQL_HOST', 'localhost'),
+            'user': os.environ.get('MYSQL_USER', 'root'),
+            'password': os.environ['MYSQL_PASSWORD'],
+            'database': os.environ.get('MYSQL_DATABASE', 'price_data')
         },
         'api': {
-            'host': config.get('api', 'host', fallback='0.0.0.0'),
-            'port': config.getint('api', 'port', fallback=8083)
+            'host': os.environ.get('API_HOST', '0.0.0.0'),
+            'port': int(os.environ.get('API_PORT', '8083'))
         }
     }
 

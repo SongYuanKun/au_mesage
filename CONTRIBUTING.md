@@ -7,8 +7,8 @@
 1. 克隆仓库并进入目录：
 
 ```bash
-git clone <repo-url>
-cd au
+git clone https://github.com/SongYuanKun/au_mesage.git
+cd au_mesage
 ```
 
 2. 创建 Python 虚拟环境并安装依赖：
@@ -22,11 +22,16 @@ pip install -r requirements.txt
 3. 安装 Playwright 浏览器：
 
 ```bash
-playwright install
 playwright install chromium
 ```
 
-4. 配置 `config.ini`（或复制 `my_config.ini`）并初始化数据库（参见 `scripts/init.sql`）。
+4. 配置环境变量并初始化数据库：
+
+```bash
+cp .env.example .env
+# 编辑 .env 填入实际配置
+mysql -h localhost -u root -p price_data < scripts/init.sql
+```
 
 5. 运行应用：
 

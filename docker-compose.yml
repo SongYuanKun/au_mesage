@@ -6,7 +6,9 @@ services:
     image: my-au:latest
     container_name: my-au
     restart: unless-stopped
-    ports:
-      - "8083:8083"
+    env_file:
+      - .env
     environment:
       - TZ=Asia/Shanghai
+    ports:
+      - "8083:8083"
