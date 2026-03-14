@@ -25,7 +25,7 @@ def create_app(mysql_manager: MySQLManager):
 
     @app.route('/api/price-overview', methods=['GET'])
     def price_overview():
-        """返回金/银的综合概览：当前价、涨跌、今日高低"""
+        """返回金/银的综合概览：当前价、涨跌、今日高低（单条SQL）"""
         try:
             from datetime import timedelta
             today = datetime.now(BEIJING_TZ).date()
@@ -33,31 +33,24 @@ def create_app(mysql_manager: MySQLManager):
             today_str = today.strftime('%Y-%m-%d')
             yesterday_str = yesterday.strftime('%Y-%m-%d')
 
-            latest_all = mysql_manager.get_latest_data_by_type()
-            yest_rows = mysql_manager.get_daily_close_all_types(yesterday_str)
-            yest_map = {r['data_type']: float(r['recycle_price']) for r in yest_rows}
-            hl_rows = mysql_manager.get_today_high_low(today_str)
-            hl_map = {r['data_type']: r for r in hl_rows}
+            rows = mysql_manager.get_price_overview_data(today_str, yesterday_str)
 
             result = []
-            for item in latest_all:
-                dt = item['data_type']
-                recycle = float(item.get('recycle_price', 0) or 0)
-                realtime = float(item.get('real_time_price', 0) or 0)
-                yest_close = yest_map.get(dt)
-                change = round(recycle - yest_close, 2) if yest_close else None
-                change_pct = round((change / yest_close) * 100, 2) if yest_close and yest_close != 0 else None
-                stats = hl_map.get(dt, {})
+            for r in rows:
+                recycle = float(r.get('recycle_price', 0) or 0)
+                yest = float(r['yesterday_close']) if r.get('yesterday_close') is not None else None
+                change = round(recycle - yest, 2) if yest is not None else None
+                change_pct = round((change / yest) * 100, 2) if yest and yest != 0 else None
                 result.append({
-                    'data_type': dt,
+                    'data_type': r['data_type'],
                     'recycle_price': recycle,
-                    'real_time_price': realtime,
-                    'yesterday_close': yest_close,
+                    'real_time_price': float(r.get('real_time_price', 0) or 0),
+                    'yesterday_close': yest,
                     'change': change,
                     'change_pct': change_pct,
-                    'today_high': float(stats.get('today_high', 0) or 0),
-                    'today_low': float(stats.get('today_low', 0) or 0),
-                    'updated_at': str(item.get('created_at', ''))
+                    'today_high': float(r.get('today_high', 0) or 0),
+                    'today_low': float(r.get('today_low', 0) or 0),
+                    'updated_at': str(r.get('updated_at', ''))
                 })
 
             return jsonify({'success': True, 'data': result})

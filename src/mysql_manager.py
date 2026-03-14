@@ -232,49 +232,51 @@ class MySQLManager:
             if connection:
                 connection.close()
 
-    def get_daily_close_all_types(self, date: str) -> List[Dict]:
-        """获取指定日期每个 data_type 的收盘价（当天最后一条）"""
+    def get_price_overview_data(self, today_str: str, yesterday_str: str) -> List[Dict]:
+        """
+        单条 SQL 获取价格概览：当前价、昨日收盘、今日高低。
+        仅扫描最近两天数据，避免全表扫描。
+        """
         query = """
-                SELECT data_type, recycle_price
+                SELECT
+                    cur.data_type,
+                    cur.recycle_price,
+                    cur.real_time_price,
+                    cur.created_at   AS updated_at,
+                    yest.recycle_price AS yesterday_close,
+                    hl.today_high,
+                    hl.today_low
                 FROM (
+                    SELECT data_type, recycle_price, real_time_price, created_at,
+                           ROW_NUMBER() OVER(PARTITION BY data_type ORDER BY created_at DESC) AS rn
+                    FROM price_data
+                    WHERE recycle_price > 0 AND trade_date >= %s
+                ) cur
+                LEFT JOIN (
                     SELECT data_type, recycle_price,
                            ROW_NUMBER() OVER(PARTITION BY data_type ORDER BY created_at DESC) AS rn
                     FROM price_data
                     WHERE recycle_price > 0 AND trade_date = %s
-                ) sub
-                WHERE sub.rn = 1
+                ) yest ON cur.data_type = yest.data_type AND yest.rn = 1
+                LEFT JOIN (
+                    SELECT data_type,
+                           MAX(recycle_price) AS today_high,
+                           MIN(recycle_price) AS today_low
+                    FROM price_data
+                    WHERE recycle_price > 0 AND trade_date = %s
+                    GROUP BY data_type
+                ) hl ON cur.data_type = hl.data_type
+                WHERE cur.rn = 1
         """
+        params = (yesterday_str, yesterday_str, today_str)
         connection = None
         try:
             connection = self.connection_pool.get_connection()
             cursor = connection.cursor(dictionary=True)
-            cursor.execute(query, (date,))
+            cursor.execute(query, params)
             return cursor.fetchall()
         except Error as e:
-            logging.error(f"获取每日收盘价失败 (date={date}): {e}")
-            return []
-        finally:
-            if connection:
-                connection.close()
-
-    def get_today_high_low(self, date: str) -> List[Dict]:
-        """获取指定日期每个 data_type 的最高/最低回收价"""
-        query = """
-                SELECT data_type,
-                       MAX(recycle_price) AS today_high,
-                       MIN(recycle_price) AS today_low
-                FROM price_data
-                WHERE trade_date = %s AND recycle_price > 0
-                GROUP BY data_type
-        """
-        connection = None
-        try:
-            connection = self.connection_pool.get_connection()
-            cursor = connection.cursor(dictionary=True)
-            cursor.execute(query, (date,))
-            return cursor.fetchall()
-        except Error as e:
-            logging.error(f"获取当日高低价失败 (date={date}): {e}")
+            logging.error(f"获取价格概览数据失败: {e}")
             return []
         finally:
             if connection:
