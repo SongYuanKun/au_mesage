@@ -23,6 +23,48 @@ def create_app(mysql_manager: MySQLManager):
         """渲染主页"""
         return render_template('index.html')
 
+    @app.route('/api/price-overview', methods=['GET'])
+    def price_overview():
+        """返回金/银的综合概览：当前价、涨跌、今日高低"""
+        try:
+            from datetime import timedelta
+            today = datetime.now(BEIJING_TZ).date()
+            yesterday = today - timedelta(days=1)
+            today_str = today.strftime('%Y-%m-%d')
+            yesterday_str = yesterday.strftime('%Y-%m-%d')
+
+            latest_all = mysql_manager.get_latest_data_by_type()
+            yest_rows = mysql_manager.get_daily_close_all_types(yesterday_str)
+            yest_map = {r['data_type']: float(r['recycle_price']) for r in yest_rows}
+            hl_rows = mysql_manager.get_today_high_low(today_str)
+            hl_map = {r['data_type']: r for r in hl_rows}
+
+            result = []
+            for item in latest_all:
+                dt = item['data_type']
+                recycle = float(item.get('recycle_price', 0) or 0)
+                realtime = float(item.get('real_time_price', 0) or 0)
+                yest_close = yest_map.get(dt)
+                change = round(recycle - yest_close, 2) if yest_close else None
+                change_pct = round((change / yest_close) * 100, 2) if yest_close and yest_close != 0 else None
+                stats = hl_map.get(dt, {})
+                result.append({
+                    'data_type': dt,
+                    'recycle_price': recycle,
+                    'real_time_price': realtime,
+                    'yesterday_close': yest_close,
+                    'change': change,
+                    'change_pct': change_pct,
+                    'today_high': float(stats.get('today_high', 0) or 0),
+                    'today_low': float(stats.get('today_low', 0) or 0),
+                    'updated_at': str(item.get('created_at', ''))
+                })
+
+            return jsonify({'success': True, 'data': result})
+        except Exception as e:
+            logging.error(f"价格概览接口错误: {e}")
+            return jsonify({'success': False, 'error': '服务器内部错误'}), 500
+
     @app.route('/api/latest-price', methods=['GET'])
     def get_latest_price():
         """获取最新价格接口"""

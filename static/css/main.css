@@ -242,25 +242,52 @@ body {
     color: var(--text-primary);
 }
 
-/* --- Price Hero --- */
-.price-hero {
+/* --- Price Card (dual layout) --- */
+.price-card {
     background: var(--bg-primary);
     border-radius: var(--radius-lg);
-    padding: 1.5rem;
+    padding: 1.25rem;
     box-shadow: var(--shadow-sm);
     border: 1px solid var(--border-color);
+    transition: var(--transition);
     display: flex;
     flex-direction: column;
+    gap: .75rem;
+}
+
+.price-card:hover { box-shadow: var(--shadow-md); }
+
+.price-card-header {
+    display: flex;
+    justify-content: space-between;
     align-items: center;
-    gap: 1rem;
 }
 
-.price-main {
-    text-align: center;
+.price-card-name {
+    font-size: .9375rem;
+    font-weight: 700;
+    color: var(--text-primary);
 }
 
-.price-value {
-    font-size: 2.75rem;
+.price-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: .2rem;
+    padding: .2rem .5rem;
+    border-radius: 20px;
+    font-size: .7rem;
+    font-weight: 600;
+    font-family: var(--font-mono);
+}
+
+.price-badge.up { background: #dcfce7; color: #16a34a; }
+.price-badge.down { background: #fee2e2; color: #dc2626; }
+.price-badge.neutral { background: var(--bg-tertiary); color: var(--text-secondary); }
+
+.price-card-body { text-align: center; padding: .25rem 0; }
+
+.price-card-value {
+    font-size: 2.25rem;
     font-weight: 800;
     color: var(--text-primary);
     font-family: var(--font-mono);
@@ -268,56 +295,54 @@ body {
     line-height: 1.1;
 }
 
-.price-unit {
-    font-size: 1rem;
+.price-card-unit {
+    font-size: .875rem;
     color: var(--text-muted);
     font-weight: 500;
-    margin-left: .25rem;
+    margin-left: .125rem;
 }
 
-.price-label {
-    font-size: .8125rem;
+.price-card-label {
+    font-size: .75rem;
     color: var(--text-muted);
-    margin-bottom: .25rem;
-    font-weight: 500;
+    margin-bottom: .125rem;
 }
 
-.price-meta {
+.price-card-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: .5rem;
+    padding-top: .5rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.price-stat {
+    text-align: center;
+}
+
+.price-stat-key {
+    font-size: .6875rem;
+    color: var(--text-muted);
+    font-weight: 500;
+    display: block;
+    margin-bottom: .125rem;
+}
+
+.price-stat-val {
+    font-size: .875rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+}
+
+.price-card-time {
+    font-size: .6875rem;
+    color: var(--text-muted);
+    text-align: right;
     display: flex;
     align-items: center;
-    gap: 1rem;
-    flex-wrap: wrap;
-    justify-content: center;
-}
-
-.price-badge {
-    display: inline-flex;
-    align-items: center;
+    justify-content: flex-end;
     gap: .25rem;
-    padding: .25rem .625rem;
-    border-radius: 20px;
-    font-size: .75rem;
-    font-weight: 600;
-}
-
-.price-badge.up {
-    background: #dcfce7;
-    color: #16a34a;
-}
-
-.price-badge.down {
-    background: #fee2e2;
-    color: #dc2626;
-}
-
-.price-badge.neutral {
-    background: var(--bg-tertiary);
-    color: var(--text-secondary);
-}
-
-.price-update-time {
-    font-size: .75rem;
-    color: var(--text-muted);
 }
 
 .price-live-dot {
@@ -327,12 +352,20 @@ body {
     border-radius: 50%;
     display: inline-block;
     animation: livePulse 2s infinite;
-    margin-right: .25rem;
 }
 
 @keyframes livePulse {
     0%, 100% { opacity: 1; }
     50% { opacity: .4; }
+}
+
+/* Small type tabs inside calculator */
+.type-tabs-sm {
+    padding: 2px;
+}
+.type-tabs-sm .type-tab {
+    padding: .3rem .625rem;
+    font-size: .75rem;
 }
 
 /* --- Forms --- */

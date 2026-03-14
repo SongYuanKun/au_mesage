@@ -12,32 +12,80 @@
     {% include '_nav.html' %}
 
     <div class="content">
-        <!-- Price Hero -->
-        <div class="price-hero">
-            <div class="type-tabs">
-                <button class="type-tab active" data-type="黄 金">🥇 黄金</button>
-                <button class="type-tab" data-type="白 银">🥈 白银</button>
-            </div>
-            <div class="price-main">
-                <div class="price-label" id="currentPriceLabel">回收价格</div>
-                <span class="price-value" id="currentPrice">--</span>
-                <span class="price-unit">元/克</span>
-            </div>
-            <div class="price-meta">
-                <span class="price-badge neutral" id="priceChange">-- --</span>
-                <span class="price-update-time">
+        <!-- Dual Price Cards: Gold + Silver -->
+        <div class="grid-2">
+            <div class="price-card" id="card-gold">
+                <div class="price-card-header">
+                    <span class="price-card-name">🥇 黄金</span>
+                    <span class="price-badge neutral" id="gold-badge">--</span>
+                </div>
+                <div class="price-card-body">
+                    <div class="price-card-label">回收价格</div>
+                    <span class="price-card-value" id="gold-price">--</span>
+                    <span class="price-card-unit">元/克</span>
+                </div>
+                <div class="price-card-stats">
+                    <div class="price-stat">
+                        <span class="price-stat-key">大盘价</span>
+                        <span class="price-stat-val" id="gold-realtime">--</span>
+                    </div>
+                    <div class="price-stat">
+                        <span class="price-stat-key">今日最高</span>
+                        <span class="price-stat-val" id="gold-high">--</span>
+                    </div>
+                    <div class="price-stat">
+                        <span class="price-stat-key">今日最低</span>
+                        <span class="price-stat-val" id="gold-low">--</span>
+                    </div>
+                </div>
+                <div class="price-card-time">
                     <span class="price-live-dot"></span>
-                    <span id="lastUpdate">获取中...</span>
-                </span>
+                    <span id="gold-time">获取中...</span>
+                </div>
+            </div>
+
+            <div class="price-card" id="card-silver">
+                <div class="price-card-header">
+                    <span class="price-card-name">🥈 白银</span>
+                    <span class="price-badge neutral" id="silver-badge">--</span>
+                </div>
+                <div class="price-card-body">
+                    <div class="price-card-label">回收价格</div>
+                    <span class="price-card-value" id="silver-price">--</span>
+                    <span class="price-card-unit">元/克</span>
+                </div>
+                <div class="price-card-stats">
+                    <div class="price-stat">
+                        <span class="price-stat-key">大盘价</span>
+                        <span class="price-stat-val" id="silver-realtime">--</span>
+                    </div>
+                    <div class="price-stat">
+                        <span class="price-stat-key">今日最高</span>
+                        <span class="price-stat-val" id="silver-high">--</span>
+                    </div>
+                    <div class="price-stat">
+                        <span class="price-stat-key">今日最低</span>
+                        <span class="price-stat-val" id="silver-low">--</span>
+                    </div>
+                </div>
+                <div class="price-card-time">
+                    <span class="price-live-dot"></span>
+                    <span id="silver-time">获取中...</span>
+                </div>
             </div>
         </div>
 
-        <!-- Two Column: Calculator + Alert -->
+        <!-- Calculator + Alert -->
         <div class="grid-2">
-            <!-- Calculator -->
             <div class="card">
-                <h3 class="card-title">🧮 价格计算器</h3>
-                <p class="card-desc">输入商品价格和克重，自动计算与大盘的价差</p>
+                <div class="card-header">
+                    <h3 class="card-title">🧮 价格计算器</h3>
+                    <div class="type-tabs type-tabs-sm">
+                        <button class="type-tab active" data-calc-type="黄 金">金</button>
+                        <button class="type-tab" data-calc-type="白 银">银</button>
+                    </div>
+                </div>
+                <p class="card-desc">输入商品价格和克重，自动计算与回收价的差额</p>
 
                 <div class="form-grid">
                     <div class="form-group">
@@ -63,15 +111,18 @@
                             <div class="result-item-value" id="marketPrice">-</div>
                         </div>
                     </div>
-                    <div class="result-total neutral" id="differenceDisplay">
-                        差额：--
-                    </div>
+                    <div class="result-total neutral" id="differenceDisplay">差额：--</div>
                 </div>
             </div>
 
-            <!-- Alert -->
             <div class="card">
-                <h3 class="card-title">🔔 价格提醒</h3>
+                <div class="card-header">
+                    <h3 class="card-title">🔔 价格提醒</h3>
+                    <div class="type-tabs type-tabs-sm">
+                        <button class="type-tab active" data-alert-type="黄 金">金</button>
+                        <button class="type-tab" data-alert-type="白 银">银</button>
+                    </div>
+                </div>
                 <p class="card-desc">设置目标价格，触发后浏览器推送通知</p>
 
                 <div class="alert-form">
@@ -104,7 +155,8 @@
 
 <script>
 (function(){
-    var currentType = '黄 金';
+    var calcType = '黄 金';
+    var alertType = '黄 金';
 
     function debounce(fn, wait) {
         var timer;
@@ -115,47 +167,66 @@
         };
     }
 
-    function updatePriceDisplay() {
-        fetch('/api/latest-price?data_type=' + encodeURIComponent(currentType))
+    /* ---- Price Overview (both metals at once) ---- */
+    function loadOverview() {
+        fetch('/api/price-overview')
             .then(function(r){ return r.json(); })
-            .then(function(data){
-                if (data.success && data.data) {
-                    var price = Number(data.data.recycle_price);
-                    document.getElementById('currentPrice').textContent = price.toFixed(2);
-                    if (data.data.created_at) {
-                        document.getElementById('lastUpdate').textContent =
-                            '更新于 ' + new Date(data.data.created_at).toLocaleTimeString('zh-CN', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
-                    }
-                } else {
-                    document.getElementById('currentPrice').textContent = '--';
-                    document.getElementById('lastUpdate').textContent = '获取失败';
-                }
+            .then(function(resp){
+                if (!resp.success || !resp.data) return;
+                resp.data.forEach(function(item){
+                    var key = null;
+                    if (item.data_type === '黄 金') key = 'gold';
+                    else if (item.data_type === '白 银') key = 'silver';
+                    if (!key) return;
+                    fillCard(key, item);
+                });
             })
-            .catch(function(){
-                document.getElementById('currentPrice').textContent = '--';
-                document.getElementById('lastUpdate').textContent = '获取失败';
-            });
+            .catch(function(e){ console.error('overview error', e); });
     }
 
+    function fillCard(key, d) {
+        var priceEl = document.getElementById(key + '-price');
+        var badgeEl = document.getElementById(key + '-badge');
+        var realtimeEl = document.getElementById(key + '-realtime');
+        var highEl = document.getElementById(key + '-high');
+        var lowEl = document.getElementById(key + '-low');
+        var timeEl = document.getElementById(key + '-time');
+
+        priceEl.textContent = d.recycle_price ? d.recycle_price.toFixed(2) : '--';
+        realtimeEl.textContent = d.real_time_price ? d.real_time_price.toFixed(2) : '--';
+        highEl.textContent = d.today_high ? d.today_high.toFixed(2) : '--';
+        lowEl.textContent = d.today_low ? d.today_low.toFixed(2) : '--';
+
+        if (d.change != null && d.change_pct != null) {
+            var sign = d.change >= 0 ? '+' : '';
+            badgeEl.textContent = sign + d.change.toFixed(2) + '  ' + sign + d.change_pct.toFixed(2) + '%';
+            badgeEl.className = 'price-badge ' + (d.change > 0 ? 'up' : d.change < 0 ? 'down' : 'neutral');
+        } else {
+            badgeEl.textContent = '暂无昨日数据';
+            badgeEl.className = 'price-badge neutral';
+        }
+
+        if (d.updated_at) {
+            var t = new Date(d.updated_at);
+            timeEl.textContent = '更新于 ' + t.toLocaleTimeString('zh-CN', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+        }
+    }
+
+    /* ---- Calculator ---- */
     function calculateDifference() {
         var pp = parseFloat(document.getElementById('productPrice').value);
         var w = parseFloat(document.getElementById('weight').value);
         var resultEl = document.getElementById('result');
-
-        if (isNaN(pp) || isNaN(w) || w <= 0) {
-            resultEl.style.display = 'none';
-            return;
-        }
+        if (isNaN(pp) || isNaN(w) || w <= 0) { resultEl.style.display = 'none'; return; }
 
         fetch('/api/calculate', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ product_price: pp, weight: w, data_type: currentType })
+            body: JSON.stringify({ product_price: pp, weight: w, data_type: calcType })
         })
         .then(function(r){ return r.json(); })
         .then(function(res){
             if (res.error) { resultEl.style.display = 'none'; return; }
-
             document.getElementById('pricePerGram').textContent = res.price_per_gram.toFixed(2);
             document.getElementById('marketPrice').textContent = res.market_price.toFixed(2);
 
@@ -163,15 +234,7 @@
             var el = document.getElementById('differenceDisplay');
             var sign = diff > 0 ? '+' : '';
             el.textContent = '总价差：' + sign + diff.toFixed(2) + ' 元';
-
-            if (diff > 0) {
-                el.className = 'result-total negative';
-            } else if (diff < 0) {
-                el.className = 'result-total positive';
-            } else {
-                el.className = 'result-total neutral';
-            }
-
+            el.className = 'result-total ' + (diff > 0 ? 'negative' : diff < 0 ? 'positive' : 'neutral');
             resultEl.style.display = 'block';
         })
         .catch(function(){ resultEl.style.display = 'none'; });
@@ -179,22 +242,12 @@
 
     var debouncedCalc = debounce(calculateDifference, 300);
 
-    function selectType(type) {
-        currentType = type;
-        document.querySelectorAll('.type-tab').forEach(function(btn){
-            btn.classList.toggle('active', btn.getAttribute('data-type') === type);
-        });
-        updatePriceDisplay();
-        debouncedCalc();
-    }
-
-    /* Alert subscription via SSE */
+    /* ---- Alert Subscription (SSE) ---- */
     var alertSource = null;
 
     function showAlertStatus(msg) {
         var el = document.getElementById('alertStatus');
-        el.textContent = msg;
-        el.style.display = 'block';
+        el.textContent = msg; el.style.display = 'block';
     }
 
     function ensureNotifPermission() {
@@ -203,14 +256,9 @@
 
     function showNotify(title, body) {
         try {
-            if (Notification && Notification.permission === 'granted') {
-                new Notification(title, { body: body });
-            } else {
-                showAlertStatus(title + '：' + body);
-            }
-        } catch(e) {
-            showAlertStatus(title + '：' + body);
-        }
+            if (Notification && Notification.permission === 'granted') new Notification(title, { body: body });
+            else showAlertStatus(title + '：' + body);
+        } catch(e) { showAlertStatus(title + '：' + body); }
     }
 
     function subscribeAlert() {
@@ -218,15 +266,11 @@
         var op = document.getElementById('alertOp').value;
         if (isNaN(target)) { showAlertStatus('请输入有效的目标价格'); return; }
         ensureNotifPermission();
-        var url = '/api/price-alert/subscribe?data_type=' + encodeURIComponent(currentType) +
-                  '&target=' + encodeURIComponent(target) + '&op=' + encodeURIComponent(op) + '&auto_close=true';
-        alertSource = new EventSource(url);
+        alertSource = new EventSource('/api/price-alert/subscribe?data_type=' + encodeURIComponent(alertType) +
+            '&target=' + encodeURIComponent(target) + '&op=' + encodeURIComponent(op) + '&auto_close=true');
         document.getElementById('btnUnsubscribe').disabled = false;
         showAlertStatus('已订阅，等待价格触发...');
 
-        alertSource.addEventListener('price', function(ev){
-            try { var d = JSON.parse(ev.data); document.getElementById('marketPrice').textContent = Number(d.price).toFixed(2); } catch(e){}
-        });
         alertSource.addEventListener('alert', function(ev){
             try {
                 var d = JSON.parse(ev.data);
@@ -236,9 +280,7 @@
                 unsubscribeAlert();
             } catch(e){}
         });
-        alertSource.addEventListener('error', function(){
-            showAlertStatus('连接中断，请重试');
-        });
+        alertSource.addEventListener('error', function(){ showAlertStatus('连接中断，请重试'); });
     }
 
     function unsubscribeAlert() {
@@ -246,26 +288,36 @@
         document.getElementById('btnUnsubscribe').disabled = true;
     }
 
-    /* Init */
+    /* ---- Init ---- */
     document.addEventListener('DOMContentLoaded', function(){
-        selectType(currentType);
-
-        document.querySelectorAll('.type-tab').forEach(function(btn){
-            btn.addEventListener('click', function(){ selectType(this.getAttribute('data-type')); });
-        });
+        loadOverview();
 
         document.getElementById('productPrice').addEventListener('input', debouncedCalc);
         document.getElementById('weight').addEventListener('input', debouncedCalc);
         document.getElementById('btnSubscribe').addEventListener('click', subscribeAlert);
         document.getElementById('btnUnsubscribe').addEventListener('click', unsubscribeAlert);
 
-        var priceTimer = setInterval(function(){
-            if (!document.hidden) updatePriceDisplay();
-        }, 30000);
-
-        document.addEventListener('visibilitychange', function(){
-            if (!document.hidden) updatePriceDisplay();
+        document.querySelectorAll('[data-calc-type]').forEach(function(btn){
+            btn.addEventListener('click', function(){
+                calcType = this.getAttribute('data-calc-type');
+                document.querySelectorAll('[data-calc-type]').forEach(function(b){
+                    b.classList.toggle('active', b.getAttribute('data-calc-type') === calcType);
+                });
+                debouncedCalc();
+            });
         });
+
+        document.querySelectorAll('[data-alert-type]').forEach(function(btn){
+            btn.addEventListener('click', function(){
+                alertType = this.getAttribute('data-alert-type');
+                document.querySelectorAll('[data-alert-type]').forEach(function(b){
+                    b.classList.toggle('active', b.getAttribute('data-alert-type') === alertType);
+                });
+            });
+        });
+
+        setInterval(function(){ if (!document.hidden) loadOverview(); }, 30000);
+        document.addEventListener('visibilitychange', function(){ if (!document.hidden) loadOverview(); });
     });
 })();
 </script>

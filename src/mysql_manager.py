@@ -232,6 +232,54 @@ class MySQLManager:
             if connection:
                 connection.close()
 
+    def get_daily_close_all_types(self, date: str) -> List[Dict]:
+        """获取指定日期每个 data_type 的收盘价（当天最后一条）"""
+        query = """
+                SELECT data_type, recycle_price
+                FROM (
+                    SELECT data_type, recycle_price,
+                           ROW_NUMBER() OVER(PARTITION BY data_type ORDER BY created_at DESC) AS rn
+                    FROM price_data
+                    WHERE recycle_price > 0 AND trade_date = %s
+                ) sub
+                WHERE sub.rn = 1
+        """
+        connection = None
+        try:
+            connection = self.connection_pool.get_connection()
+            cursor = connection.cursor(dictionary=True)
+            cursor.execute(query, (date,))
+            return cursor.fetchall()
+        except Error as e:
+            logging.error(f"获取每日收盘价失败 (date={date}): {e}")
+            return []
+        finally:
+            if connection:
+                connection.close()
+
+    def get_today_high_low(self, date: str) -> List[Dict]:
+        """获取指定日期每个 data_type 的最高/最低回收价"""
+        query = """
+                SELECT data_type,
+                       MAX(recycle_price) AS today_high,
+                       MIN(recycle_price) AS today_low
+                FROM price_data
+                WHERE trade_date = %s AND recycle_price > 0
+                GROUP BY data_type
+        """
+        connection = None
+        try:
+            connection = self.connection_pool.get_connection()
+            cursor = connection.cursor(dictionary=True)
+            cursor.execute(query, (date,))
+            return cursor.fetchall()
+        except Error as e:
+            logging.error(f"获取当日高低价失败 (date={date}): {e}")
+            return []
+        finally:
+            if connection:
+                connection.close()
+
     def get_last_n_days_daily_price(self, data_type: str, start_date: str, end_date: str) -> List[Dict]:
         """
         单条 SQL 获取日期范围内每天最后一条回收价格（窗口函数）。
