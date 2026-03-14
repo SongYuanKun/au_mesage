@@ -3,709 +3,271 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>实时金价监控系统 - 智能计算</title>
-    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.0/dist/echarts.min.js"></script>
+    <title>实时金价监控</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
 <div class="container">
 
     {% include '_nav.html' %}
+
     <div class="content">
-
-        <div class="card">
-            <div class="type-selector">
-                <button id="typeGold" class="active" data-type="黄 金">
-                    <span class="btn-icon">🥇</span> 黄 金
-                </button>
-                <button id="typeSilver" data-type="白 银">
-                    <span class="btn-icon">🥈</span> 白 银
-                </button>
+        <!-- Price Hero -->
+        <div class="price-hero">
+            <div class="type-tabs">
+                <button class="type-tab active" data-type="黄 金">🥇 黄金</button>
+                <button class="type-tab" data-type="白 银">🥈 白银</button>
             </div>
-            
-            <h2 id="currentPriceTitle" class="section-title">
-                <span class="title-icon">📊</span>
-                实时黄金价格
-            </h2>
-            
-            <div class="price-display">
-                <div class="price-content">
-                    <div class="current-price" id="currentPrice">加载中...</div>
-                    <div class="last-update" id="lastUpdate"></div>
-                </div>
-                <div class="price-decoration">
-                    <div class="pulse-dot"></div>
-                </div>
+            <div class="price-main">
+                <div class="price-label" id="currentPriceLabel">回收价格</div>
+                <span class="price-value" id="currentPrice">--</span>
+                <span class="price-unit">元/克</span>
             </div>
+            <div class="price-meta">
+                <span class="price-badge neutral" id="priceChange">-- --</span>
+                <span class="price-update-time">
+                    <span class="price-live-dot"></span>
+                    <span id="lastUpdate">获取中...</span>
+                </span>
+            </div>
+        </div>
 
-            <div class="calculator-section">
-                <h3 class="section-title">
-                    <span class="title-icon">🧮</span>
-                    智能价格计算器
-                </h3>
-                
-                <div class="auto-calc-notice">
-                    <span class="notice-icon">💡</span>
-                    <span>输入价格和克重后，系统将自动计算价格差，无需点击按钮</span>
-                </div>
-                
-                <div class="calculator-form">
+        <!-- Two Column: Calculator + Alert -->
+        <div class="grid-2">
+            <!-- Calculator -->
+            <div class="card">
+                <h3 class="card-title">🧮 价格计算器</h3>
+                <p class="card-desc">输入商品价格和克重，自动计算与大盘的价差</p>
+
+                <div class="form-grid">
                     <div class="form-group">
-                        <label for="productPrice" class="form-label">
-                            <span class="label-icon">💵</span>
-                            商品总价（元）
-                        </label>
-                        <input type="number" id="productPrice" 
-                               class="form-input" 
-                               placeholder="请输入商品总价格" 
-                               step="0.01"
-                               inputmode="decimal" 
-                               pattern="[0-9]*">
+                        <label class="form-label" for="productPrice">商品总价（元）</label>
+                        <input type="number" id="productPrice" class="form-input"
+                               placeholder="如 5800" step="0.01" inputmode="decimal">
                     </div>
-
                     <div class="form-group">
-                        <label for="weight" class="form-label">
-                            <span class="label-icon">⚖️</span>
-                            商品克重（克）
-                        </label>
-                        <input type="number" id="weight" 
-                               class="form-input" 
-                               placeholder="请输入商品重量" 
-                               step="0.01" 
-                               inputmode="decimal"
-                               pattern="[0-9]*">
+                        <label class="form-label" for="weight">克重（克）</label>
+                        <input type="number" id="weight" class="form-input"
+                               placeholder="如 10.5" step="0.01" inputmode="decimal">
+                    </div>
+                </div>
+
+                <div class="result-panel" id="result">
+                    <div class="result-grid">
+                        <div class="result-item">
+                            <div class="result-item-label">每克价格</div>
+                            <div class="result-item-value" id="pricePerGram">-</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-item-label">大盘回收价</div>
+                            <div class="result-item-value" id="marketPrice">-</div>
+                        </div>
+                    </div>
+                    <div class="result-total neutral" id="differenceDisplay">
+                        差额：--
                     </div>
                 </div>
             </div>
 
-            <div class="result" id="result">
-                <h3 class="result-title">
-                    <span class="result-icon">📈</span>
-                    计算结果
-                </h3>
-                <div class="price-info">
-                    <div class="price-item">
-                        <div class="item-label">每克价格</div>
-                        <div class="item-value" id="pricePerGram">-</div>
-                    </div>
-                    <div class="price-item">
-                        <div class="item-label">大盘金价</div>
-                        <div class="item-value" id="marketPrice">-</div>
-                    </div>
-                </div>
-                <div class="difference" id="differenceDisplay">
-                    <span class="difference-icon">💰</span>
-                    <span class="difference-text">总收益: - 元</span>
-                </div>
-            </div>
-            
-            <div class="alert-subscribe">
-                <h3 class="alert-title">
-                    <span class="alert-icon">🔔</span>
-                    价格到达推送
-                </h3>
+            <!-- Alert -->
+            <div class="card">
+                <h3 class="card-title">🔔 价格提醒</h3>
+                <p class="card-desc">设置目标价格，触发后浏览器推送通知</p>
+
                 <div class="alert-form">
                     <div class="form-group">
-                        <label for="alertTarget" class="form-label">
-                            <span class="label-icon">🎯</span>
-                            目标价格（元/克）
-                        </label>
-                        <input type="number" id="alertTarget" 
-                               class="form-input" 
-                               placeholder="输入阈值" 
-                               step="0.01" 
-                               inputmode="decimal">
+                        <label class="form-label" for="alertTarget">目标价格（元/克）</label>
+                        <input type="number" id="alertTarget" class="form-input"
+                               placeholder="如 680" step="0.01" inputmode="decimal">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">
-                            <span class="label-icon">⚡</span>
-                            触发条件
-                        </label>
+                        <label class="form-label" for="alertOp">触发条件</label>
                         <select id="alertOp" class="form-select">
                             <option value="gte">达到或超过</option>
                             <option value="lte">达到或低于</option>
                         </select>
                     </div>
-                    <div class="btn-group">
-                        <button id="btnSubscribe" class="btn btn-primary">
-                            <span class="btn-icon">📬</span>
-                            订阅推送
-                        </button>
-                        <button id="btnUnsubscribe" class="btn btn-secondary" disabled>
-                            <span class="btn-icon">❌</span>
-                            取消订阅
-                        </button>
+                    <div class="btn-row">
+                        <button id="btnSubscribe" class="btn btn-primary">订阅推送</button>
+                        <button id="btnUnsubscribe" class="btn btn-secondary" disabled>取消订阅</button>
                     </div>
-                    <div id="alertStatus" class="status"></div>
+                    <div id="alertStatus" class="alert-status" style="display:none;"></div>
                 </div>
             </div>
         </div>
     </div>
+
+    <footer class="site-footer">
+        数据来源于公开市场，仅供参考，不构成投资建议
+    </footer>
 </div>
 
-<style>
-/* Additional styles for enhanced components */
-.section-title {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin-bottom: 2rem;
-    color: var(--text-primary);
-    font-weight: 600;
-    font-size: 1.5rem;
-}
-
-.title-icon {
-    font-size: 1.75rem;
-    animation: float 3s ease-in-out infinite;
-}
-
-@keyframes float {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-10px); }
-}
-
-.price-content {
-    position: relative;
-    z-index: 2;
-}
-
-.price-decoration {
-    position: absolute;
-    top: 1rem;
-    right: 1rem;
-    z-index: 1;
-}
-
-.pulse-dot {
-    width: 12px;
-    height: 12px;
-    background: rgba(255, 255, 255, 0.8);
-    border-radius: 50%;
-    animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-    0% {
-        box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7);
-    }
-    70% {
-        box-shadow: 0 0 0 20px rgba(255, 255, 255, 0);
-    }
-    100% {
-        box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
-    }
-}
-
-.calculator-section {
-    margin-bottom: 2rem;
-}
-
-.form-label {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 0.5rem;
-}
-
-.label-icon {
-    font-size: 1rem;
-}
-
-.form-input, .form-select {
-    width: 100%;
-    padding: 1rem;
-    border: 2px solid var(--border-color);
-    border-radius: var(--radius-md);
-    font-size: 1rem;
-    transition: var(--transition);
-    background: var(--bg-primary);
-    color: var(--text-primary);
-    font-family: inherit;
-}
-
-.form-input:focus, .form-select:focus {
-    outline: none;
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-    transform: translateY(-1px);
-}
-
-.result-title {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin-bottom: 1.5rem;
-    color: var(--text-primary);
-    font-weight: 600;
-}
-
-.result-icon {
-    font-size: 1.25rem;
-}
-
-.item-label {
-    font-size: 0.875rem;
-    color: var(--text-secondary);
-    margin-bottom: 0.5rem;
-    font-weight: 500;
-}
-
-.item-value {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--primary-color);
-}
-
-.difference-icon {
-    font-size: 1.5rem;
-    margin-right: 0.5rem;
-}
-
-.difference-text {
-    font-size: 1.75rem;
-    font-weight: 700;
-}
-
-.alert-title {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin-bottom: 1.5rem;
-    color: var(--text-primary);
-    font-weight: 600;
-}
-
-.alert-icon {
-    font-size: 1.25rem;
-}
-
-.alert-form {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-}
-
-.btn-icon {
-    font-size: 1rem;
-}
-
-.type-selector button .btn-icon {
-    font-size: 1rem;
-    margin-right: 0.5rem;
-}
-
-/* Enhanced type selector */
-.type-selector {
-    display: flex;
-    gap: 0.5rem;
-    margin-bottom: 2rem;
-    background: var(--bg-secondary);
-    padding: 0.25rem;
-    border-radius: var(--radius-lg);
-    width: fit-content;
-    margin-left: auto;
-    margin-right: auto;
-    box-shadow: var(--shadow-sm);
-}
-
-.type-selector button {
-    background: transparent;
-    border: none;
-    padding: 0.75rem 1.5rem;
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--text-secondary);
-    transition: var(--transition);
-    position: relative;
-    display: flex;
-    align-items: center;
-}
-
-.type-selector button.active {
-    background: var(--bg-primary);
-    color: var(--primary-color);
-    box-shadow: var(--shadow-sm);
-}
-
-.type-selector button:hover:not(.active) {
-    color: var(--text-primary);
-    transform: translateY(-1px);
-}
-
-/* Mobile optimizations */
-@media (max-width: 768px) {
-    .section-title {
-        font-size: 1.25rem;
-        flex-direction: column;
-        text-align: center;
-        gap: 0.5rem;
-    }
-    
-    .title-icon {
-        font-size: 1.5rem;
-    }
-    
-    .type-selector {
-        width: 100%;
-        justify-content: center;
-    }
-    
-    .type-selector button {
-        flex: 1;
-        justify-content: center;
-    }
-}
-</style>
 <script>
-    // 防抖函数实现
-    function debounce(func, wait) {
-        let timeout;
-        return function () {
-            const context = this;
-            const args = arguments;
-            clearTimeout(timeout);
-            timeout = setTimeout(function () {
-                func.apply(context, args);
-            }, wait);
+(function(){
+    var currentType = '黄 金';
+
+    function debounce(fn, wait) {
+        var timer;
+        return function() {
+            var ctx = this, args = arguments;
+            clearTimeout(timer);
+            timer = setTimeout(function(){ fn.apply(ctx, args); }, wait);
         };
     }
 
-    // 初始化图表
-    const chartDom = document.getElementById('priceChart');
-    // const priceChart = echarts.init(chartDom);
-
-    let currentDataType = '黄 金'; // Default to Gold
-
-    // Update title based on selected type
-    function updateTitle(type) {
-        document.getElementById('currentPriceTitle').textContent = `📊 实时${type}回收价格`;
-    }
-
-    // Update price display
     function updatePriceDisplay() {
-        fetch(`/api/latest-price?data_type=${currentDataType}`) // Pass data_type
-            .then(response => response.json())
-            .then(data => {
+        fetch('/api/latest-price?data_type=' + encodeURIComponent(currentType))
+            .then(function(r){ return r.json(); })
+            .then(function(data){
                 if (data.success && data.data) {
-                    document.getElementById('currentPrice').textContent =
-                        `${data.data.recycle_price} 元/克`;
-
-                    if (data.data.created_at) { // Use created_at from the database
-                        const updateTime = new Date(data.data.created_at).toLocaleString('zh-CN');
+                    var price = Number(data.data.recycle_price);
+                    document.getElementById('currentPrice').textContent = price.toFixed(2);
+                    if (data.data.created_at) {
                         document.getElementById('lastUpdate').textContent =
-                            `最后更新: ${updateTime}`;
+                            '更新于 ' + new Date(data.data.created_at).toLocaleTimeString('zh-CN', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
                     }
                 } else {
-                    document.getElementById('currentPrice').textContent = '获取失败';
-                    document.getElementById('lastUpdate').textContent = '';
-                    console.error('获取金价失败:', data.error);
+                    document.getElementById('currentPrice').textContent = '--';
+                    document.getElementById('lastUpdate').textContent = '获取失败';
                 }
             })
-            .catch(error => {
-                console.error('获取金价失败:', error);
-                document.getElementById('currentPrice').textContent = '获取失败';
-                document.getElementById('lastUpdate').textContent = '';
+            .catch(function(){
+                document.getElementById('currentPrice').textContent = '--';
+                document.getElementById('lastUpdate').textContent = '获取失败';
             });
     }
 
-    // Update price history chart (now using /api/recent-history)
-    function updatePriceChart() {
-        fetch(`/api/recent-history?data_type=${currentDataType}`) // Changed to /api/recent-history
-            .then(response => response.json())
-            .then(history => {
-                if (history.success && history.data) {
-                    const dates = history.data.map(item =>
-                        new Date(item.created_at).toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'})
-                    );
-                    const prices = history.data.map(item => item.recycle_price);
-
-                    const option = {
-                        tooltip: {
-                            trigger: 'axis',
-                            formatter: '{b}<br/>价格: {c} 元/克'
-                        },
-                        xAxis: {
-                            type: 'category',
-                            data: dates,
-                            axisLabel: {
-                                rotate: 45
-                            }
-                        },
-                        yAxis: {
-                            type: 'value',
-                            name: '价格 (元/克)'
-                        },
-                        series: [{
-                            data: prices,
-                            type: 'line',
-                            smooth: true,
-                            lineStyle: {
-                                width: 3,
-                                color: '#4a86e8'
-                            },
-                            areaStyle: {
-                                color: {
-                                    type: 'linear',
-                                    x: 0, y: 0, x2: 0, y2: 1,
-                                    colorStops: [{
-                                        offset: 0, color: 'rgba(74, 134, 232, 0.5)'
-                                    }, {
-                                        offset: 1, color: 'rgba(74, 134, 232, 0.1)'
-                                    }]
-                                }
-                            }
-                        }],
-                        grid: {
-                            left: '5%',
-                            right: '5%',
-                            bottom: '15%',
-                            top: '10%'
-                        }
-                    };
-
-                    priceChart.setOption(option);
-                } else {
-                    console.error('获取历史数据失败:', history.error);
-                    priceChart.clear(); // Clear chart if no data
-                }
-            })
-            .catch(error => {
-                console.error('获取历史数据失败:', error);
-                priceChart.clear(); // Clear chart on error
-            });
-    }
-
-    // Calculate difference function
     function calculateDifference() {
-        const productPrice = parseFloat(document.getElementById('productPrice').value);
-        const weight = parseFloat(document.getElementById('weight').value);
+        var pp = parseFloat(document.getElementById('productPrice').value);
+        var w = parseFloat(document.getElementById('weight').value);
+        var resultEl = document.getElementById('result');
 
-        // If any input is empty or invalid, hide the result
-        if (isNaN(productPrice) || isNaN(weight) || weight <= 0) {
-            document.getElementById('result').style.display = 'none';
+        if (isNaN(pp) || isNaN(w) || w <= 0) {
+            resultEl.style.display = 'none';
             return;
         }
 
         fetch('/api/calculate', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                product_price: productPrice,
-                weight: weight,
-                data_type: currentDataType // Pass data_type to calculation
-            })
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ product_price: pp, weight: w, data_type: currentType })
         })
-            .then(response => response.json())
-            .then(result => {
-                if (result.error) {
-                    document.getElementById('result').style.display = 'none';
-                    console.error('计算失败:', result.error);
-                    return;
-                }
+        .then(function(r){ return r.json(); })
+        .then(function(res){
+            if (res.error) { resultEl.style.display = 'none'; return; }
 
-                document.getElementById('pricePerGram').textContent =
-                    `${result.price_per_gram.toFixed(2)} 元/克`;
-                document.getElementById('marketPrice').textContent =
-                    `${result.market_price.toFixed(2)} 元/克`;
+            document.getElementById('pricePerGram').textContent = res.price_per_gram.toFixed(2);
+            document.getElementById('marketPrice').textContent = res.market_price.toFixed(2);
 
-                const differenceElement = document.getElementById('differenceDisplay');
-                const difference = result.difference.toFixed(2);
-                const total_difference = result.total_difference.toFixed(2);
-                const differencePercentage = result.difference_percentage.toFixed(2);
+            var diff = res.total_difference;
+            var el = document.getElementById('differenceDisplay');
+            var sign = diff > 0 ? '+' : '';
+            el.textContent = '总价差：' + sign + diff.toFixed(2) + ' 元';
 
-                differenceElement.textContent = `总收益: ${0 - total_difference}`;
-                // differenceElement.textContent = `价格差: ${difference} 元/克 (${differencePercentage}%)`;
-
-                if (result.difference < 0) {
-                    differenceElement.className = 'difference negative';
-                    // differenceElement.innerHTML += '<br>💡 比大盘价格便宜';
-                } else if (result.difference > 0) {
-                    differenceElement.className = 'difference positive';
-                    // differenceElement.innerHTMLrHTML += '<br>💡 比大盘价格贵';
-                } else {
-                    differenceElement.className = 'difference'; // Neutral style if no difference
-                    // differenceElement.innerHTML += '<br>💡 与大盘价格持平';
-                }
-
-                document.getElementById('result').style.display = 'block';
-            })
-            .catch(error => {
-                console.error('计算失败:', error);
-                document.getElementById('result').style.display = 'none';
-            });
-    }
-
-    // Debounced auto-calculation function
-    const debouncedCalculate = debounce(calculateDifference, 300);
-
-    // Function to handle type selection
-    function selectType(type) {
-        currentDataType = type;
-        updateTitle(type); // Update the title
-        // Update active button class
-        document.querySelectorAll('.type-selector button').forEach(button => {
-            if (button.dataset.type === type) {
-                button.classList.add('active');
+            if (diff > 0) {
+                el.className = 'result-total negative';
+            } else if (diff < 0) {
+                el.className = 'result-total positive';
             } else {
-                button.classList.remove('active');
+                el.className = 'result-total neutral';
             }
-        });
-        // Re-fetch data and recalculate for the new type
-        updatePriceDisplay();
-        // updatePriceChart();
-        debouncedCalculate(); // Recalculate with new type
+
+            resultEl.style.display = 'block';
+        })
+        .catch(function(){ resultEl.style.display = 'none'; });
     }
 
-    // Page load initialization
-    document.addEventListener('DOMContentLoaded', function () {
-        // Initial load for default type (Gold)
-        selectType(currentDataType);
+    var debouncedCalc = debounce(calculateDifference, 300);
 
-        // Event listeners for type selection buttons
-        document.getElementById('typeGold').addEventListener('click', () => selectType('黄 金'));
-        document.getElementById('typeSilver').addEventListener('click', () => selectType('白 银'));
+    function selectType(type) {
+        currentType = type;
+        document.querySelectorAll('.type-tab').forEach(function(btn){
+            btn.classList.toggle('active', btn.getAttribute('data-type') === type);
+        });
+        updatePriceDisplay();
+        debouncedCalc();
+    }
 
-        // Add input event listeners for calculator
-        document.getElementById('productPrice').addEventListener('input', debouncedCalculate);
-        document.getElementById('weight').addEventListener('input', debouncedCalculate);
+    /* Alert subscription via SSE */
+    var alertSource = null;
 
-        // 使用变量存储定时器ID，方便管理
-        let priceUpdateInterval;
-        let chartUpdateInterval;
+    function showAlertStatus(msg) {
+        var el = document.getElementById('alertStatus');
+        el.textContent = msg;
+        el.style.display = 'block';
+    }
 
-        // 更新价格的函数（带可见性检测）
-        function startPriceUpdate() {
-            // 清除之前的定时器
-            if (priceUpdateInterval) {
-                clearInterval(priceUpdateInterval);
+    function ensureNotifPermission() {
+        try { if (Notification && Notification.permission === 'default') Notification.requestPermission(); } catch(e){}
+    }
+
+    function showNotify(title, body) {
+        try {
+            if (Notification && Notification.permission === 'granted') {
+                new Notification(title, { body: body });
+            } else {
+                showAlertStatus(title + '：' + body);
             }
-            
-            // 立即执行一次
-            updatePriceDisplay();
-            
-            // 设置定时器：每30秒更新一次
-            priceUpdateInterval = setInterval(function() {
-                // 只在页面可见时更新（移动浏览器优化）
-                if (!document.hidden) {
-                    updatePriceDisplay();
-                }
-            }, 30000);
+        } catch(e) {
+            showAlertStatus(title + '：' + body);
         }
+    }
 
-        // 更新图表的函数（带可见性检测）
-        function startChartUpdate() {
-            // 清除之前的定时器
-            if (chartUpdateInterval) {
-                clearInterval(chartUpdateInterval);
-            }
-            
-            // 立即执行一次
-            // updatePriceChart(); // 图表已注释，暂时不执行
-            
-            // 设置定时器：每2分钟更新一次
-            chartUpdateInterval = setInterval(function() {
-                // 只在页面可见时更新（移动浏览器优化）
-                if (!document.hidden) {
-                    // updatePriceChart(); // 图表已注释，暂时不执行
-                }
-            }, 120000);
-        }
+    function subscribeAlert() {
+        var target = parseFloat(document.getElementById('alertTarget').value);
+        var op = document.getElementById('alertOp').value;
+        if (isNaN(target)) { showAlertStatus('请输入有效的目标价格'); return; }
+        ensureNotifPermission();
+        var url = '/api/price-alert/subscribe?data_type=' + encodeURIComponent(currentType) +
+                  '&target=' + encodeURIComponent(target) + '&op=' + encodeURIComponent(op) + '&auto_close=true';
+        alertSource = new EventSource(url);
+        document.getElementById('btnUnsubscribe').disabled = false;
+        showAlertStatus('已订阅，等待价格触发...');
 
-        // 启动定时更新
-        startPriceUpdate();
-        startChartUpdate();
+        alertSource.addEventListener('price', function(ev){
+            try { var d = JSON.parse(ev.data); document.getElementById('marketPrice').textContent = Number(d.price).toFixed(2); } catch(e){}
+        });
+        alertSource.addEventListener('alert', function(ev){
+            try {
+                var d = JSON.parse(ev.data);
+                var opText = op === 'gte' ? '达到或超过' : '达到或低于';
+                showNotify('价格触发', '当前 ' + d.price + ' 元/克，已' + opText + ' ' + target);
+                showAlertStatus('已触发通知');
+                unsubscribeAlert();
+            } catch(e){}
+        });
+        alertSource.addEventListener('error', function(){
+            showAlertStatus('连接中断，请重试');
+        });
+    }
 
-        // 使用 Page Visibility API 优化移动浏览器体验
-        // 当页面从后台切换到前台时，立即更新数据
-        document.addEventListener('visibilitychange', function() {
-            if (!document.hidden) {
-                // 页面变为可见时，立即更新价格
-                updatePriceDisplay();
-                // 重新启动定时器（防止后台时被节流）
-                startPriceUpdate();
-                startChartUpdate();
-            }
+    function unsubscribeAlert() {
+        if (alertSource) { alertSource.close(); alertSource = null; }
+        document.getElementById('btnUnsubscribe').disabled = true;
+    }
+
+    /* Init */
+    document.addEventListener('DOMContentLoaded', function(){
+        selectType(currentType);
+
+        document.querySelectorAll('.type-tab').forEach(function(btn){
+            btn.addEventListener('click', function(){ selectType(this.getAttribute('data-type')); });
         });
 
-        // Resize chart on window resize
-        window.addEventListener('resize', function () {
-            // priceChart.resize(); // 图表已注释，暂时不执行
-        });
-
-        let alertSource = null;
-        function ensureNotificationPermission() {
-            try {
-                if (Notification && Notification.permission === 'default') {
-                    Notification.requestPermission();
-                }
-            } catch (e) {}
-        }
-
-        function showNotify(title, body) {
-            try {
-                if (Notification && Notification.permission === 'granted') {
-                    new Notification(title, { body });
-                } else {
-                    const el = document.getElementById('alertStatus');
-                    el.textContent = `${title}：${body}`;
-                }
-            } catch (e) {
-                const el = document.getElementById('alertStatus');
-                el.textContent = `${title}：${body}`;
-            }
-        }
-
-        function subscribeAlert() {
-            const target = parseFloat(document.getElementById('alertTarget').value);
-            const op = document.getElementById('alertOp').value;
-            if (isNaN(target)) {
-                document.getElementById('alertStatus').textContent = '请输入有效的目标价格';
-                return;
-            }
-            ensureNotificationPermission();
-            const url = `/api/price-alert/subscribe?data_type=${encodeURIComponent(currentDataType)}&target=${encodeURIComponent(target)}&op=${encodeURIComponent(op)}&auto_close=true`;
-            alertSource = new EventSource(url);
-            document.getElementById('btnUnsubscribe').disabled = false;
-            document.getElementById('alertStatus').textContent = '已订阅，等待触发...';
-
-            alertSource.addEventListener('price', (ev) => {
-                try {
-                    const data = JSON.parse(ev.data);
-                    document.getElementById('marketPrice').textContent = `${Number(data.price).toFixed(2)} 元/克`;
-                } catch {}
-            });
-            alertSource.addEventListener('alert', (ev) => {
-                try {
-                    const data = JSON.parse(ev.data);
-                    showNotify('价格到达', `当前 ${data.price} 元/克，已满足 ${op} ${target}`);
-                    document.getElementById('alertStatus').textContent = '已触发推送';
-                    unsubscribeAlert();
-                } catch {}
-            });
-            alertSource.addEventListener('error', (ev) => {
-                document.getElementById('alertStatus').textContent = '订阅错误或连接中断';
-            });
-        }
-
-        function unsubscribeAlert() {
-            if (alertSource) {
-                alertSource.close();
-                alertSource = null;
-            }
-            document.getElementById('btnUnsubscribe').disabled = true;
-        }
-
+        document.getElementById('productPrice').addEventListener('input', debouncedCalc);
+        document.getElementById('weight').addEventListener('input', debouncedCalc);
         document.getElementById('btnSubscribe').addEventListener('click', subscribeAlert);
         document.getElementById('btnUnsubscribe').addEventListener('click', unsubscribeAlert);
+
+        var priceTimer = setInterval(function(){
+            if (!document.hidden) updatePriceDisplay();
+        }, 30000);
+
+        document.addEventListener('visibilitychange', function(){
+            if (!document.hidden) updatePriceDisplay();
+        });
     });
+})();
 </script>
 </body>
 </html>

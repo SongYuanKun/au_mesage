@@ -89,11 +89,6 @@ def create_app(mysql_manager: MySQLManager):
         """渲染近七天回收价格趋势页面"""
         return render_template('history.html')
 
-    @app.route('/today', methods=['GET'])
-    def today_page():
-        """渲染当天实时数据表格页面"""
-        return render_template('today.html')
-
     @app.route('/api/last-1-hour', methods=['GET'])
     def api_last_1_hour():
         """返回指定 data_type 的近 30 分钟内的所有数据"""

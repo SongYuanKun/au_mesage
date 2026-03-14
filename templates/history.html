@@ -3,12 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>趋势与明细 — 回收价格</title>
+    <title>趋势图表 — 金价监控</title>
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.0/dist/echarts.min.js"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
 <div class="container">
@@ -16,511 +13,185 @@
     {% include '_nav.html' %}
 
     <div class="content">
-        <!-- Real-time Chart Card -->
+        <!-- Real-time chart (last 30 min) -->
         <div class="card">
             <div class="card-header">
-                <h2 class="section-title">
-                    <span class="title-icon">⏱️</span>
-                    近30分钟实时数据
-                </h2>
-                <div class="type-selector">
-                    <button id="btnGold" class="active" data-type="黄 金">
-                        <span class="btn-icon">🥇</span> 黄 金
-                    </button>
-                    <button id="btnSilver" data-type="白 银">
-                        <span class="btn-icon">🥈</span> 白 银
-                    </button>
+                <h2 class="card-title">⏱ 近30分钟实时走势</h2>
+                <div class="type-tabs">
+                    <button id="btnGold" class="type-tab active" data-type="黄 金">🥇 黄金</button>
+                    <button id="btnSilver" class="type-tab" data-type="白 银">🥈 白银</button>
                 </div>
             </div>
 
-            <div class="chart-wrapper">
-                <div id="todayChart" class="chart-container modern-chart"></div>
-                <div id="noDailyChartData" class="chart-placeholder" style="display: none;">
-                    <div class="placeholder-icon">📊</div>
-                    <div class="placeholder-text">暂无数据</div>
-                    <div class="placeholder-subtext">请稍后刷新重试</div>
-                </div>
+            <div id="todayChart" class="chart-container"></div>
+            <div id="noDailyChartData" class="chart-placeholder" style="display:none;">
+                <div class="chart-placeholder-icon">📊</div>
+                <div class="chart-placeholder-text">暂无数据</div>
+                <div class="chart-placeholder-sub">请稍后刷新重试</div>
             </div>
-            
+
             <div class="chart-info">
-                <div class="info-item">
-                    <span class="info-icon">ℹ️</span>
-                    <span class="info-text">显示最近30分钟的数据，每 30 秒自动刷新一次</span>
+                <div class="chart-info-item">
+                    <span>ℹ️</span>
+                    <span>展示最近 30 分钟数据，每 30 秒自动刷新</span>
                 </div>
-                <div class="info-item">
-                    <span class="info-icon">🔄</span>
-                    <span class="info-text" id="lastRefresh">最后更新: -</span>
+                <div class="chart-info-item">
+                    <span>🔄</span>
+                    <span id="lastRefresh">最后更新：-</span>
                 </div>
             </div>
         </div>
 
-        <!-- 7-day Trend Chart Card -->
+        <!-- 7-day trend -->
         <div class="card">
-            <h2 class="section-title">
-                <span class="title-icon">📈</span>
-                近7天回收价格趋势
-            </h2>
-            
-            <div class="chart-wrapper">
-                <div id="trendChart" class="chart-container modern-chart"></div>
-                <div id="noChartData" class="chart-placeholder" style="display: none;">
-                    <div class="placeholder-icon">📊</div>
-                    <div class="placeholder-text">暂无趋势数据</div>
-                    <div class="placeholder-subtext">请稍后刷新重试</div>
-                </div>
+            <h2 class="card-title" style="margin-bottom:1.25rem;">📈 近7天回收价格趋势</h2>
+
+            <div id="trendChart" class="chart-container"></div>
+            <div id="noChartData" class="chart-placeholder" style="display:none;">
+                <div class="chart-placeholder-icon">📊</div>
+                <div class="chart-placeholder-text">暂无趋势数据</div>
+                <div class="chart-placeholder-sub">请稍后刷新重试</div>
             </div>
-            
-            <!-- Trend Statistics -->
-            <div class="trend-stats">
-                <h3 class="stats-title">
-                    <span class="stats-icon">📊</span>
-                    近7天统计
-                </h3>
+
+            <div class="stats-section">
+                <h3 class="stats-title">📊 近7天统计</h3>
                 <div class="stats-grid">
                     <div class="stat-card">
                         <div class="stat-label">平均回收价</div>
                         <div class="stat-value" id="summaryAvg">-</div>
-                        <div class="stat-trend" id="avgTrend">-</div>
+                        <span class="stat-tag neutral">均值</span>
                     </div>
                     <div class="stat-card">
                         <div class="stat-label">最高回收价</div>
                         <div class="stat-value" id="summaryMax">-</div>
-                        <div class="stat-trend positive">📈 最高点</div>
+                        <span class="stat-tag up">最高</span>
                     </div>
                     <div class="stat-card">
                         <div class="stat-label">最低回收价</div>
                         <div class="stat-value" id="summaryMin">-</div>
-                        <div class="stat-trend negative">📉 最低点</div>
+                        <span class="stat-tag down">最低</span>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
+    <footer class="site-footer">
+        数据来源于公开市场，仅供参考，不构成投资建议
+    </footer>
 </div>
 
-<style>
-/* Enhanced styles for history page */
-.card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 2rem;
-    flex-wrap: wrap;
-    gap: 1rem;
-}
-
-.chart-wrapper {
-    position: relative;
-    margin: 2rem 0;
-}
-
-.modern-chart {
-    background: var(--bg-primary);
-    border-radius: var(--radius-lg);
-    border: 1px solid var(--border-color);
-    box-shadow: var(--shadow-sm);
-}
-
-.chart-placeholder {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 4rem 2rem;
-    text-align: center;
-    background: var(--bg-secondary);
-    border-radius: var(--radius-lg);
-    border: 2px dashed var(--border-color);
-}
-
-.placeholder-icon {
-    font-size: 4rem;
-    margin-bottom: 1rem;
-    opacity: 0.5;
-    animation: float 3s ease-in-out infinite;
-}
-
-.placeholder-text {
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: var(--text-secondary);
-    margin-bottom: 0.5rem;
-}
-
-.placeholder-subtext {
-    font-size: 0.875rem;
-    color: var(--text-muted);
-}
-
-.chart-info {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    margin-top: 1.5rem;
-    padding: 1rem;
-    background: var(--bg-secondary);
-    border-radius: var(--radius-md);
-    border-left: 4px solid var(--info-color);
-}
-
-.info-item {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    font-size: 0.875rem;
-    color: var(--text-secondary);
-}
-
-.info-icon {
-    font-size: 1rem;
-}
-
-.trend-stats {
-    margin-top: 2rem;
-}
-
-.stats-title {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin-bottom: 1.5rem;
-    color: var(--text-primary);
-    font-weight: 600;
-    font-size: 1.25rem;
-}
-
-.stats-icon {
-    font-size: 1.5rem;
-    animation: float 3s ease-in-out infinite;
-}
-
-.stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1.5rem;
-}
-
-.stat-card {
-    background: var(--bg-primary);
-    padding: 1.5rem;
-    border-radius: var(--radius-lg);
-    border: 1px solid var(--border-color);
-    box-shadow: var(--shadow-sm);
-    transition: var(--transition);
-    text-align: center;
-}
-
-.stat-card:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-}
-
-.stat-label {
-    font-size: 0.875rem;
-    color: var(--text-secondary);
-    margin-bottom: 0.75rem;
-    font-weight: 500;
-}
-
-.stat-value {
-    font-size: 2rem;
-    font-weight: 700;
-    color: var(--primary-color);
-    margin-bottom: 0.5rem;
-}
-
-.stat-trend {
-    font-size: 0.75rem;
-    font-weight: 500;
-    padding: 0.25rem 0.75rem;
-    border-radius: var(--radius-sm);
-    display: inline-block;
-}
-
-.stat-trend.positive {
-    background: var(--success-color);
-    color: white;
-}
-
-.stat-trend.negative {
-    background: var(--danger-color);
-    color: white;
-}
-
-/* Enhanced type selector for history page */
-.type-selector {
-    display: flex;
-    gap: 0.5rem;
-    background: var(--bg-secondary);
-    padding: 0.25rem;
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-sm);
-}
-
-.type-selector button {
-    background: transparent;
-    border: none;
-    padding: 0.75rem 1.25rem;
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--text-secondary);
-    transition: var(--transition);
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.type-selector button.active {
-    background: var(--bg-primary);
-    color: var(--primary-color);
-    box-shadow: var(--shadow-sm);
-}
-
-.type-selector button:hover:not(.active) {
-    color: var(--text-primary);
-    transform: translateY(-1px);
-}
-
-/* Responsive design */
-@media (max-width: 768px) {
-    .card-header {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    
-    .section-title {
-        justify-content: center;
-        text-align: center;
-    }
-    
-    .type-selector {
-        justify-content: center;
-        width: 100%;
-    }
-    
-    .type-selector button {
-        flex: 1;
-        justify-content: center;
-    }
-    
-    .stats-grid {
-        grid-template-columns: 1fr;
-        gap: 1rem;
-    }
-    
-    .stat-card {
-        padding: 1rem;
-    }
-    
-    .stat-value {
-        font-size: 1.5rem;
-    }
-    
-    .chart-placeholder {
-        padding: 3rem 1rem;
-    }
-    
-    .placeholder-icon {
-        font-size: 3rem;
-    }
-}
-
-@media (max-width: 480px) {
-    .chart-info {
-        padding: 0.75rem;
-    }
-    
-    .info-item {
-        font-size: 0.8rem;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.25rem;
-        text-align: left;
-    }
-}
-</style>
 <script>
-    (function(){
-        // Encapsulate module to avoid globals
-        const TYPE_GOLD = '黄 金';
-        const TYPE_SILVER = '白 银';
-        let currentType = TYPE_GOLD;
+(function(){
+    var TYPE_GOLD = '黄 金', TYPE_SILVER = '白 银';
+    var currentType = TYPE_GOLD;
 
-        // Elements
-        const btnGold = document.getElementById('btnGold');
-        const btnSilver = document.getElementById('btnSilver');
-        const noDailyChartData = document.getElementById('noDailyChartData');
+    var btnGold = document.getElementById('btnGold');
+    var btnSilver = document.getElementById('btnSilver');
+    var noDailyEl = document.getElementById('noDailyChartData');
+    var noChartEl = document.getElementById('noChartData');
 
-        // Chart init
-        const todayChartDom = document.getElementById('todayChart');
-        const todayChart = echarts.init(todayChartDom);
-        const chartDom = document.getElementById('trendChart');
-        const chart = echarts.init(chartDom);
-        const summaryAvg = document.getElementById('summaryAvg');
-        const summaryMax = document.getElementById('summaryMax');
-        const summaryMin = document.getElementById('summaryMin');
+    var todayChart = echarts.init(document.getElementById('todayChart'));
+    var trendChart = echarts.init(document.getElementById('trendChart'));
 
-        // Helpers
-        function isNumber(v){ return typeof v === 'number' && !isNaN(v); }
-        function fmtNumber(v){ return isNumber(v) ? v.toFixed(2) : (v == null ? '-' : v); }
+    var chartColors = { today: '#f97316', trend: '#6366f1' };
 
-        // Fetch last 1 hour data
-        async function fetchToday(){
-            noDailyChartData.style.display = 'none';
-            try{
-                const resp = await fetch(`/api/last-1-hour?data_type=${encodeURIComponent(currentType)}`);
-                // try to parse JSON body safely
-                let j = null;
-                try { j = await resp.json(); } catch (parseErr) { j = null; }
-
-                if (!resp.ok) {
-                    // Prefer backend error message when available
-                    const msg = (j && (j.error || (j.message))) || `请求失败，HTTP ${resp.status}`;
-                    console.error('last-1-hour error response:', resp.status, msg);
-                    noDailyChartData.style.display = 'block';
-                    noDailyChartData.textContent = msg;
-                    return;
-                }
-
-                if(j && j.success && Array.isArray(j.data) && j.data.length>0){
-                    const items = j.data;
-                    renderTodayChart(items);
-                } else {
-                    // empty result (no data) — show friendly message
-                    noDailyChartData.style.display = 'block';
-                    noDailyChartData.textContent = '近30分钟暂无可用数据（回收价>0 被过滤）';
-                    todayChart.clear();
-                }
-            }catch(err){
-                console.error('fetchToday error', err);
-                noDailyChartData.style.display = 'block';
-                noDailyChartData.textContent = '请求数据失败，请稍后重试';
-                todayChart.clear();
-            }
-        }
-
-        function renderTodayChart(items){
-            if(!items || items.length===0){
-                noDailyChartData.style.display = 'block';
-                noDailyChartData.textContent = '近30分钟暂无可用数据（回收价>0 被过滤）';
-                todayChart.clear();
-                return;
-            }
-            noDailyChartData.style.display = 'none';
-            
-            const times = items.map(it => it.created_at || '');
-            const recyclePrices = items.map(it => it.recycle_price == null ? null : Number(it.recycle_price));
-            
-            // 根据数据点数量动态计算 x 轴标签间隔
-            let axisInterval = 0;
-            if(times.length > 30) {
-                axisInterval = Math.ceil(times.length / 10);  // 大约显示 10 个标签
-            } else if(times.length > 15) {
-                axisInterval = Math.ceil(times.length / 12);  // 大约显示 12 个标签
-            }
-            
-            const option = {
-                tooltip: { trigger: 'axis', formatter: params=> {
-                    const p = params[0];
-                    return `${p.axisValue}<br/>回收价: ${p.data == null ? '-' : p.data} 元/克`;
+    function makeLineOption(xData, yData, color, yAxisName) {
+        return {
+            tooltip: { trigger: 'axis', formatter: function(p){ return p[0].axisValue + '<br/>回收价：' + (p[0].data == null ? '-' : p[0].data) + ' 元/克'; }},
+            xAxis: { type: 'category', data: xData, axisLabel: { rotate: 45, fontSize: 11 } },
+            yAxis: { type: 'value', name: yAxisName || '元/克', scale: true },
+            series: [{
+                data: yData, type: 'line', smooth: true,
+                lineStyle: { color: color, width: 2.5 },
+                itemStyle: { color: color },
+                areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+                    colorStops: [{ offset: 0, color: color + '30' }, { offset: 1, color: color + '05' }]
                 }},
-                xAxis: { type: 'category', data: times, axisLabel:{ rotate:45, interval:axisInterval, fontSize:11 } },
-                yAxis: { type: 'value', name: '回收价格 (元/克)', scale: true },
-                series: [{ data: recyclePrices, type: 'line', smooth: true, lineStyle:{ color:'#ff7f50', width:3 }, areaStyle: { color: 'rgba(255,127,80,0.12)' }, connectNulls:false }],
-                grid: { left:'6%', right:'6%', bottom:'20%', top:'8%' }
-            };
-            todayChart.setOption(option, true);
-        }
+                connectNulls: false
+            }],
+            grid: { left: '6%', right: '4%', bottom: '18%', top: '8%' }
+        };
+    }
 
-        // Fetch 7-day trend
-        async function fetchLast7(){
-            try{
-                const resp = await fetch(`/api/last-7-days?data_type=${encodeURIComponent(currentType)}`);
-                const j = await resp.json();
-                if(j.success && Array.isArray(j.data) && j.data.length>0){
-                    document.getElementById('noChartData').style.display = 'none';
-                    const dates = j.data.map(d=>d.date);
-                    const prices = j.data.map(d=> d.recycle_price == null ? null : Number(d.recycle_price));
-                    renderChart(dates, prices);
-                    renderTrendSummary(prices);
-                } else {
-                    document.getElementById('noChartData').style.display = 'block';
-                    chart.clear();
-                    renderTrendSummary([]);
-                }
-            }catch(err){
-                console.error('fetchLast7 error', err);
-                document.getElementById('noChartData').style.display = 'block';
-                chart.clear();
+    async function fetchToday() {
+        noDailyEl.style.display = 'none';
+        try {
+            var resp = await fetch('/api/last-1-hour?data_type=' + encodeURIComponent(currentType));
+            var j = await resp.json().catch(function(){ return null; });
+            if (!resp.ok || !j) { noDailyEl.style.display = 'block'; todayChart.clear(); return; }
+            if (j.success && Array.isArray(j.data) && j.data.length > 0) {
+                var times = j.data.map(function(it){ return it.created_at || ''; });
+                var prices = j.data.map(function(it){ return it.recycle_price == null ? null : Number(it.recycle_price); });
+                todayChart.setOption(makeLineOption(times, prices, chartColors.today, '回收价格'), true);
+                document.getElementById('lastRefresh').textContent = '最后更新：' + new Date().toLocaleTimeString('zh-CN');
+            } else {
+                noDailyEl.style.display = 'block'; todayChart.clear();
             }
+        } catch(e) {
+            console.error('fetchToday', e);
+            noDailyEl.style.display = 'block'; todayChart.clear();
         }
+    }
 
-        function renderTrendSummary(prices){
-            if(!summaryAvg) return;
-            const nums = (prices || []).filter(v=> typeof v === 'number' && !isNaN(v));
-            if(!nums || nums.length===0){
-                summaryAvg.textContent = '-'; summaryMax.textContent = '-'; summaryMin.textContent = '-';
-                return;
+    async function fetchLast7() {
+        try {
+            var resp = await fetch('/api/last-7-days?data_type=' + encodeURIComponent(currentType));
+            var j = await resp.json();
+            if (j.success && Array.isArray(j.data) && j.data.length > 0) {
+                noChartEl.style.display = 'none';
+                var dates = j.data.map(function(d){ return d.date; });
+                var prices = j.data.map(function(d){ return d.recycle_price == null ? null : Number(d.recycle_price); });
+                trendChart.setOption(makeLineOption(dates, prices, chartColors.trend, '回收价格'), true);
+                renderStats(prices);
+            } else {
+                noChartEl.style.display = 'block'; trendChart.clear(); renderStats([]);
             }
-            const sum = nums.reduce((a,b)=>a+b,0);
-            const avg = sum / nums.length;
-            const max = Math.max(...nums);
-            const min = Math.min(...nums);
-            summaryAvg.textContent = avg.toFixed(2);
-            summaryMax.textContent = max.toFixed(2);
-            summaryMin.textContent = min.toFixed(2);
+        } catch(e) {
+            console.error('fetchLast7', e);
+            noChartEl.style.display = 'block'; trendChart.clear();
         }
+    }
 
-        function renderChart(dates, prices){
-            const option = {
-                tooltip: { trigger: 'axis', formatter: params=> {
-                    const p = params[0];
-                    return `${p.axisValue}<br/>回收价: ${p.data == null ? '-' : p.data} 元/克`;
-                }},
-                xAxis: { type: 'category', data: dates, axisLabel:{ rotate:45 } },
-                yAxis: { type: 'value', name: '回收价格 (元/克)', scale: true },
-                series: [{ data: prices, type: 'line', smooth: true, lineStyle:{ color:'#4a86e8', width:3 }, areaStyle: { color: 'rgba(74,134,232,0.12)' }, connectNulls:false }],
-                grid: { left:'6%', right:'6%', bottom:'18%', top:'8%' }
-            };
-            chart.setOption(option, true);
+    function renderStats(prices) {
+        var nums = (prices || []).filter(function(v){ return typeof v === 'number' && !isNaN(v); });
+        if (!nums.length) {
+            document.getElementById('summaryAvg').textContent = '-';
+            document.getElementById('summaryMax').textContent = '-';
+            document.getElementById('summaryMin').textContent = '-';
+            return;
         }
+        var sum = nums.reduce(function(a,b){ return a+b; }, 0);
+        document.getElementById('summaryAvg').textContent = (sum / nums.length).toFixed(2);
+        document.getElementById('summaryMax').textContent = Math.max.apply(null, nums).toFixed(2);
+        document.getElementById('summaryMin').textContent = Math.min.apply(null, nums).toFixed(2);
+    }
 
-        // Type selector
-        function setType(type){
-            currentType = type;
-            if(type===TYPE_GOLD){ btnGold.classList.add('active'); btnSilver.classList.remove('active'); }
-            else { btnSilver.classList.add('active'); btnGold.classList.remove('active'); }
-            // refresh both
-            fetchToday();
-            fetchLast7();
-        }
+    function setType(type) {
+        currentType = type;
+        btnGold.classList.toggle('active', type === TYPE_GOLD);
+        btnSilver.classList.toggle('active', type === TYPE_SILVER);
+        fetchToday(); fetchLast7();
+    }
 
-        // Auto refresh timers
-        let todayTimer = null, chartTimer = null;
-        function startTimers(){
-            if(todayTimer) clearInterval(todayTimer);
-            todayTimer = setInterval(()=>{ if(!document.hidden) fetchToday(); }, 30000);
-            if(chartTimer) clearInterval(chartTimer);
-            chartTimer = setInterval(()=>{ if(!document.hidden) fetchLast7(); }, 120000);
-        }
+    var todayTimer, trendTimer;
+    function startTimers() {
+        if (todayTimer) clearInterval(todayTimer);
+        todayTimer = setInterval(function(){ if(!document.hidden) fetchToday(); }, 30000);
+        if (trendTimer) clearInterval(trendTimer);
+        trendTimer = setInterval(function(){ if(!document.hidden) fetchLast7(); }, 120000);
+    }
 
-        // Event bindings
-        btnGold.addEventListener('click', ()=> setType(TYPE_GOLD));
-        btnSilver.addEventListener('click', ()=> setType(TYPE_SILVER));
+    btnGold.addEventListener('click', function(){ setType(TYPE_GOLD); });
+    btnSilver.addEventListener('click', function(){ setType(TYPE_SILVER); });
+    window.addEventListener('resize', function(){ todayChart.resize(); trendChart.resize(); });
+    document.addEventListener('visibilitychange', function(){ if(!document.hidden){ fetchToday(); fetchLast7(); startTimers(); }});
 
-        document.addEventListener('visibilitychange', ()=>{ if(!document.hidden){ fetchToday(); fetchLast7(); startTimers(); }});
-        window.addEventListener('resize', ()=> chart.resize());
-
-        // Init
-        document.addEventListener('DOMContentLoaded', ()=>{
-            setType(currentType);
-            startTimers();
-        });
-
-    })();
+    document.addEventListener('DOMContentLoaded', function(){
+        setType(currentType);
+        startTimers();
+    });
+})();
 </script>
 </body>
 </html>
