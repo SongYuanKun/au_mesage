@@ -118,27 +118,24 @@ def create_app(mysql_manager: MySQLManager):
 
     @app.route('/api/last-7-days', methods=['GET'])
     def api_last_7_days():
-        """返回指定 data_type 的近 7 天每日回收价格（按天取当日最后一条数据的 recycle_price）"""
+        """返回指定 data_type 的近 7 天每日回收价格（单条 SQL 查询）"""
         try:
             data_type = request.args.get('data_type')
             if not data_type:
                 return jsonify({'success': False, 'error': '缺少 data_type 参数'}), 400
 
             from datetime import timedelta
-            results = []
             today = datetime.now(BEIJING_TZ).date()
-            # 从 6 天前 到 今天，按日期顺序返回
-            for i in range(6, -1, -1):
-                day = today - timedelta(days=i)
-                day_str = day.strftime('%Y-%m-%d')
-                day_records = mysql_manager.get_daily_history(day_str, data_type)
-                # 取当日最后一条记录作为当天回收价（如果存在）
-                if day_records:
-                    last_rec = day_records[-1]
-                    price = float(last_rec.get('recycle_price', 0) or 0)
-                else:
-                    price = None
+            start_date = (today - timedelta(days=6)).strftime('%Y-%m-%d')
+            end_date = today.strftime('%Y-%m-%d')
 
+            rows = mysql_manager.get_last_n_days_daily_price(data_type, start_date, end_date)
+            price_map = {str(r['date']): float(r['recycle_price'] or 0) for r in rows}
+
+            results = []
+            for i in range(6, -1, -1):
+                day_str = (today - timedelta(days=i)).strftime('%Y-%m-%d')
+                price = price_map.get(day_str)
                 results.append({'date': day_str, 'recycle_price': price})
 
             return jsonify({'success': True, 'data': results})

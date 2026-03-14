@@ -232,6 +232,39 @@ class MySQLManager:
             if connection:
                 connection.close()
 
+    def get_last_n_days_daily_price(self, data_type: str, start_date: str, end_date: str) -> List[Dict]:
+        """
+        单条 SQL 获取日期范围内每天最后一条回收价格（窗口函数）。
+        返回 [{'date': '2026-03-14', 'recycle_price': 688.12}, ...]
+        """
+        query = """
+                SELECT trade_date AS date, recycle_price
+                FROM (
+                    SELECT trade_date, recycle_price,
+                           ROW_NUMBER() OVER(PARTITION BY trade_date ORDER BY created_at DESC) AS rn
+                    FROM price_data
+                    WHERE data_type = %s
+                      AND recycle_price > 0
+                      AND trade_date >= %s
+                      AND trade_date <= %s
+                ) sub
+                WHERE sub.rn = 1
+                ORDER BY date ASC
+        """
+        params = (data_type, start_date, end_date)
+        connection = None
+        try:
+            connection = self.connection_pool.get_connection()
+            cursor = connection.cursor(dictionary=True)
+            cursor.execute(query, params)
+            return cursor.fetchall()
+        except Error as e:
+            logging.error(f"获取近N天每日价格失败 (type={data_type}): {e}")
+            return []
+        finally:
+            if connection:
+                connection.close()
+
     def get_price_history_by_time_range(self, data_type: str, start_time: str, end_time: str) -> List[Dict]:
         """
         获取指定时间范围内的价格数据。
