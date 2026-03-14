@@ -12,5 +12,6 @@ CREATE TABLE IF NOT EXISTS price_data (
   low_price DECIMAL(10, 4) DEFAULT 0,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_type_created (data_type, created_at DESC),
-  INDEX idx_date_type_recycle (trade_date, data_type, recycle_price)
+  INDEX idx_date_type_recycle (trade_date, data_type, recycle_price),
+  INDEX idx_type_date_created (data_type, trade_date, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
