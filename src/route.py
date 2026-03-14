@@ -2,6 +2,7 @@
 import logging
 from datetime import datetime
 import pytz
+import threading
 
 from flask import Flask, jsonify, request, render_template, Response, stream_with_context
 import time
@@ -11,10 +12,24 @@ from CustomJSONEncoder import CustomJSONProvider
 from mysql_manager import MySQLManager
 
 app = Flask(__name__, template_folder='../templates', static_folder='../static')
-app.json = CustomJSONProvider(app)  # Ensure CustomJSONProvider is used
+app.json = CustomJSONProvider(app)
 
-# 定义北京时区
 BEIJING_TZ = pytz.timezone('Asia/Shanghai')
+
+# Simple TTL cache
+_cache = {}
+_cache_lock = threading.Lock()
+
+def cache_get(key, ttl=10):
+    with _cache_lock:
+        entry = _cache.get(key)
+        if entry and (time.time() - entry[1]) < ttl:
+            return entry[0]
+    return None
+
+def cache_set(key, value):
+    with _cache_lock:
+        _cache[key] = (value, time.time())
 
 
 def create_app(mysql_manager: MySQLManager):
@@ -25,7 +40,10 @@ def create_app(mysql_manager: MySQLManager):
 
     @app.route('/api/price-overview', methods=['GET'])
     def price_overview():
-        """返回金/银的综合概览：当前价、涨跌、今日高低（单条SQL）"""
+        """返回金/银的综合概览：当前价、涨跌、今日高低（单条SQL + 10s缓存）"""
+        cached = cache_get('price_overview', ttl=10)
+        if cached is not None:
+            return jsonify(cached)
         try:
             from datetime import timedelta
             today = datetime.now(BEIJING_TZ).date()
@@ -53,7 +71,9 @@ def create_app(mysql_manager: MySQLManager):
                     'updated_at': str(r.get('updated_at', ''))
                 })
 
-            return jsonify({'success': True, 'data': result})
+            resp = {'success': True, 'data': result}
+            cache_set('price_overview', resp)
+            return jsonify(resp)
         except Exception as e:
             logging.error(f"价格概览接口错误: {e}")
             return jsonify({'success': False, 'error': '服务器内部错误'}), 500
@@ -153,11 +173,16 @@ def create_app(mysql_manager: MySQLManager):
 
     @app.route('/api/last-7-days', methods=['GET'])
     def api_last_7_days():
-        """返回指定 data_type 的近 7 天每日回收价格（单条 SQL 查询）"""
+        """返回指定 data_type 的近 7 天每日回收价格（单条SQL + 60s缓存）"""
         try:
             data_type = request.args.get('data_type')
             if not data_type:
                 return jsonify({'success': False, 'error': '缺少 data_type 参数'}), 400
+
+            cache_key = f'last7_{data_type}'
+            cached = cache_get(cache_key, ttl=60)
+            if cached is not None:
+                return jsonify(cached)
 
             from datetime import timedelta
             today = datetime.now(BEIJING_TZ).date()
@@ -173,7 +198,9 @@ def create_app(mysql_manager: MySQLManager):
                 price = price_map.get(day_str)
                 results.append({'date': day_str, 'recycle_price': price})
 
-            return jsonify({'success': True, 'data': results})
+            resp = {'success': True, 'data': results}
+            cache_set(cache_key, resp)
+            return jsonify(resp)
         except Exception as e:
             logging.error(f"获取近7天回收价格失败: {e}")
             return jsonify({'success': False, 'error': '服务器内部错误'}), 500

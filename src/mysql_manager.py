@@ -85,15 +85,16 @@ class MySQLManager:
                 connection.close()
 
     def get_latest_data_by_type(self):
-        """获取最新价格数据，每个data_type返回一条"""
+        """获取最新价格数据，每个data_type返回一条（限制最近2天避免全表扫描）"""
         query = """
                 SELECT trade_date, trade_time, data_type, real_time_price, recycle_price, created_at
                 FROM (
-                    SELECT *,
+                    SELECT trade_date, trade_time, data_type, real_time_price, recycle_price, created_at,
                            ROW_NUMBER() OVER(PARTITION BY data_type ORDER BY created_at DESC) as rn
                     FROM price_data
+                    WHERE trade_date >= CURDATE() - INTERVAL 1 DAY
                 ) as sub
-                WHERE sub.rn = 1;
+                WHERE sub.rn = 1
         """
 
         connection = None
