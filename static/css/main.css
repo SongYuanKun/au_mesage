@@ -652,6 +652,102 @@ body {
 .stat-tag.down { background: #fee2e2; color: #dc2626; }
 .stat-tag.neutral { background: var(--bg-tertiary); color: var(--text-muted); }
 
+/* --- Range Tabs --- */
+.range-tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--bg-tertiary);
+    padding: 3px;
+    border-radius: var(--radius-md);
+    margin-bottom: 1rem;
+    width: fit-content;
+}
+
+.range-tab {
+    background: none;
+    border: none;
+    padding: .4rem .75rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: .8125rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    transition: var(--transition);
+    font-family: inherit;
+}
+
+.range-tab.active {
+    background: var(--bg-primary);
+    color: var(--primary);
+    box-shadow: var(--shadow-xs);
+}
+
+.range-tab:hover:not(.active) {
+    color: var(--text-primary);
+}
+
+.range-tabs-sm {
+    padding: 2px;
+    gap: 2px;
+}
+
+.range-tabs-sm .range-tab {
+    padding: .3rem .5rem;
+    font-size: .75rem;
+}
+
+/* --- Larger Chart Container --- */
+.chart-container-lg {
+    height: 420px;
+}
+
+/* --- Price Levels Legend --- */
+.price-levels-legend {
+    display: flex;
+    gap: 1.25rem;
+    padding: .75rem 0;
+    flex-wrap: wrap;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: .375rem;
+    font-size: .75rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.legend-dot-high { background: #ef4444; }
+.legend-dot-low { background: #22c55e; }
+
+.legend-line {
+    width: 16px;
+    height: 0;
+    border-top: 2px dashed #94a3b8;
+    display: inline-block;
+}
+
+.legend-line-round {
+    border-top-color: #94a3b8;
+}
+
+/* --- 4-col Stats Grid --- */
+.stats-grid-4 {
+    grid-template-columns: repeat(4, 1fr);
+}
+
+/* --- Text color utilities --- */
+.text-up { color: #ef4444 !important; }
+.text-down { color: #22c55e !important; }
+
 /* --- Footer --- */
 .site-footer {
     text-align: center;
@@ -672,6 +768,8 @@ body {
     .grid-2 { grid-template-columns: 1fr; }
     .form-grid { grid-template-columns: 1fr; }
     .stats-grid { grid-template-columns: 1fr; gap: .75rem; }
+    .stats-grid-4 { grid-template-columns: repeat(2, 1fr); }
+    .chart-container-lg { height: 320px; }
     .card { padding: 1.25rem; }
     .price-value { font-size: 2.25rem; }
     .chart-container { height: 260px; }
@@ -706,4 +804,7 @@ body {
     .price-value { font-size: 2rem; }
     .result-grid { grid-template-columns: 1fr; }
     .chart-container { height: 220px; }
+    .chart-container-lg { height: 280px; }
+    .stats-grid-4 { grid-template-columns: repeat(2, 1fr); }
+    .range-tabs { flex-wrap: wrap; }
 }

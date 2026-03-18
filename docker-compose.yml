@@ -1,4 +1,27 @@
 services:
+  mysql:
+    image: mysql:8.0
+    container_name: au-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: au_root_2024
+      MYSQL_DATABASE: gold_price
+      MYSQL_USER: auuser
+      MYSQL_PASSWORD: au123456
+      TZ: Asia/Shanghai
+    ports:
+      - "3306:3306"
+    volumes:
+      - au_mysql_data:/var/lib/mysql
+      - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pau_root_2024"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+
   app:
     build:
       context: .
@@ -10,10 +33,14 @@ services:
       - .env
     environment:
       - TZ=Asia/Shanghai
+      - MYSQL_HOST=mysql
     ports:
       - "8083:8083"
     volumes:
       - ./logs:/app/logs
+    depends_on:
+      mysql:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8083/api/health"]
       interval: 30s
@@ -25,3 +52,6 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+volumes:
+  au_mysql_data:

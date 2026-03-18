@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>行情分析 — 金价监控</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.0/dist/echarts.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+</head>
+<body>
+<div class="container">
+
+    {% include '_nav.html' %}
+
+    <div class="content">
+        <!-- K-line / Trend Chart -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">K线走势</h2>
+                <div class="type-tabs type-tabs-sm">
+                    <button class="type-tab active" data-metal="黄 金">黄金</button>
+                    <button class="type-tab" data-metal="白 银">白银</button>
+                </div>
+            </div>
+
+            <!-- Time Range Tabs -->
+            <div class="range-tabs" id="rangeTabs">
+                <button class="range-tab" data-range="1d">1天</button>
+                <button class="range-tab active" data-range="7d">7天</button>
+                <button class="range-tab" data-range="30d">30天</button>
+                <button class="range-tab" data-range="90d">90天</button>
+                <button class="range-tab" data-range="1y">1年</button>
+                <button class="range-tab" data-range="all">全部</button>
+            </div>
+
+            <div id="mainChart" class="chart-container chart-container-lg"></div>
+            <div id="noMainData" class="chart-placeholder" style="display:none;">
+                <div class="chart-placeholder-icon">📊</div>
+                <div class="chart-placeholder-text">暂无数据</div>
+                <div class="chart-placeholder-sub">选择的时间范围内无数据</div>
+            </div>
+
+            <!-- Price Level Legend -->
+            <div class="price-levels-legend" id="priceLevels" style="display:none;">
+                <span class="legend-item"><span class="legend-dot legend-dot-high"></span>区间最高</span>
+                <span class="legend-item"><span class="legend-dot legend-dot-low"></span>区间最低</span>
+                <span class="legend-item"><span class="legend-line legend-line-round"></span>整数关口</span>
+            </div>
+
+            <!-- Stats Summary -->
+            <div class="stats-section" id="trendStats">
+                <div class="stats-grid stats-grid-4">
+                    <div class="stat-card">
+                        <div class="stat-label">区间涨跌</div>
+                        <div class="stat-value" id="statChange">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">最高价</div>
+                        <div class="stat-value" id="statHigh">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">最低价</div>
+                        <div class="stat-value" id="statLow">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">振幅</div>
+                        <div class="stat-value" id="statAmplitude">-</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gold/Silver Ratio -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">金银比</h2>
+                <div class="range-tabs range-tabs-sm" id="ratioRangeTabs">
+                    <button class="range-tab" data-ratio-range="7d">7天</button>
+                    <button class="range-tab active" data-ratio-range="30d">30天</button>
+                    <button class="range-tab" data-ratio-range="90d">90天</button>
+                    <button class="range-tab" data-ratio-range="1y">1年</button>
+                </div>
+            </div>
+            <p class="card-desc">金银比 = 金价 / 银价，反映两者相对强弱。历史均值约 60-80，偏高时银可能被低估。</p>
+
+            <div id="ratioChart" class="chart-container"></div>
+            <div id="noRatioData" class="chart-placeholder" style="display:none;">
+                <div class="chart-placeholder-icon">⚖️</div>
+                <div class="chart-placeholder-text">暂无金银比数据</div>
+            </div>
+
+            <div class="stats-section" id="ratioStats" style="display:none;">
+                <div class="stats-grid stats-grid-4">
+                    <div class="stat-card">
+                        <div class="stat-label">当前金银比</div>
+                        <div class="stat-value" id="ratioCurrent">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">区间均值</div>
+                        <div class="stat-value" id="ratioAvg">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">区间最高</div>
+                        <div class="stat-value" id="ratioMax">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">区间最低</div>
+                        <div class="stat-value" id="ratioMin">-</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="site-footer">
+        数据来源于公开市场，仅供参考，不构成投资建议
+    </footer>
+</div>
+
+<script>
+(function(){
+    /* ---- State ---- */
+    var currentMetal = '黄 金';
+    var currentRange = '7d';
+    var currentRatioRange = '30d';
+
+    /* ---- Chart Instances ---- */
+    var mainChart = echarts.init(document.getElementById('mainChart'));
+    var ratioChart = echarts.init(document.getElementById('ratioChart'));
+
+    var noMainEl = document.getElementById('noMainData');
+    var noRatioEl = document.getElementById('noRatioData');
+    var priceLevelsEl = document.getElementById('priceLevels');
+
+    /* ---- Colors ---- */
+    var C = {
+        up: '#ef4444',      // red for rise (Chinese convention)
+        down: '#22c55e',    // green for fall
+        line: '#6366f1',
+        ratio: '#f59e0b',
+        grid: '#f1f5f9',
+        roundLine: '#94a3b8'
+    };
+
+    /* ---- Utility ---- */
+    function fmt(v, digits) { return v == null ? '-' : Number(v).toFixed(digits || 2); }
+
+    /* ================================================================
+       MAIN CHART: K-Line (candlestick) or Line (intraday)
+       ================================================================ */
+    function loadMainChart() {
+        noMainEl.style.display = 'none';
+        priceLevelsEl.style.display = 'none';
+
+        fetch('/api/price-trend?data_type=' + encodeURIComponent(currentMetal) + '&range=' + currentRange)
+            .then(function(r){ return r.json(); })
+            .then(function(resp){
+                if (!resp.success || !resp.data || resp.data.length === 0) {
+                    noMainEl.style.display = 'block';
+                    mainChart.clear();
+                    clearStats();
+                    return;
+                }
+
+                if (resp.chart_type === 'line') {
+                    renderIntradayLine(resp.data);
+                } else {
+                    renderCandlestick(resp.data);
+                }
+            })
+            .catch(function(e){
+                console.error('loadMainChart', e);
+                noMainEl.style.display = 'block';
+                mainChart.clear();
+            });
+    }
+
+    /* ---- Intraday Line Chart (1d) ---- */
+    function renderIntradayLine(data) {
+        var times = data.map(function(d){ return d.time; });
+        var prices = data.map(function(d){ return d.price; });
+        var validPrices = prices.filter(function(p){ return p != null; });
+
+        var option = {
+            tooltip: {
+                trigger: 'axis',
+                formatter: function(p){ return p[0].axisValue + '<br/>回收价：' + fmt(p[0].data) + ' 元/克'; }
+            },
+            xAxis: {
+                type: 'category',
+                data: times,
+                axisLabel: { rotate: 45, fontSize: 11 }
+            },
+            yAxis: {
+                type: 'value',
+                name: '元/克',
+                scale: true
+            },
+            series: [{
+                data: prices,
+                type: 'line',
+                smooth: true,
+                lineStyle: { color: C.line, width: 2 },
+                itemStyle: { color: C.line },
+                areaStyle: {
+                    color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+                        colorStops: [{ offset: 0, color: C.line + '30' }, { offset: 1, color: C.line + '05' }]
+                    }
+                }
+            }],
+            grid: { left: '8%', right: '4%', bottom: '15%', top: '8%' },
+            dataZoom: [{ type: 'inside', start: 0, end: 100 }]
+        };
+
+        // Add round number mark lines
+        if (validPrices.length > 0) {
+            var markLines = buildRoundNumberLines(validPrices);
+            if (markLines.length > 0) {
+                option.series[0].markLine = {
+                    silent: true,
+                    symbol: 'none',
+                    lineStyle: { color: C.roundLine, type: 'dashed', width: 1 },
+                    label: { position: 'insideEndTop', fontSize: 10, color: C.roundLine },
+                    data: markLines
+                };
+            }
+            priceLevelsEl.style.display = 'flex';
+        }
+
+        mainChart.setOption(option, true);
+        updateStatsFromLine(validPrices);
+    }
+
+    /* ---- Candlestick Chart (7d+) ---- */
+    function renderCandlestick(data) {
+        var dates = data.map(function(d){ return d.date; });
+        // ECharts candlestick: [open, close, low, high]
+        var ohlc = data.map(function(d){ return [d.open, d.close, d.low, d.high]; });
+        var closes = data.map(function(d){ return d.close; });
+        var allPrices = [];
+        data.forEach(function(d){
+            if (d.high != null) allPrices.push(d.high);
+            if (d.low != null) allPrices.push(d.low);
+        });
+
+        var option = {
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: { type: 'cross' },
+                formatter: function(params) {
+                    var p = params[0];
+                    if (!p || !p.data) return '';
+                    var d = p.data;
+                    return p.axisValue + '<br/>' +
+                        '开盘：' + fmt(d[1]) + '<br/>' +
+                        '收盘：' + fmt(d[2]) + '<br/>' +
+                        '最低：' + fmt(d[3]) + '<br/>' +
+                        '最高：' + fmt(d[4]) + '<br/>';
+                }
+            },
+            xAxis: {
+                type: 'category',
+                data: dates,
+                axisLabel: { rotate: dates.length > 30 ? 45 : 0, fontSize: 11 }
+            },
+            yAxis: {
+                type: 'value',
+                name: '元/克',
+                scale: true,
+                splitLine: { lineStyle: { color: C.grid } }
+            },
+            series: [
+                {
+                    type: 'candlestick',
+                    data: ohlc,
+                    itemStyle: {
+                        color: C.up,          // body fill when close > open (up)
+                        color0: C.down,       // body fill when close < open (down)
+                        borderColor: C.up,
+                        borderColor0: C.down
+                    },
+                    markPoint: {
+                        data: buildHighLowMarks(data),
+                        symbolSize: 40,
+                        label: { fontSize: 10 }
+                    },
+                    markLine: {
+                        silent: true,
+                        symbol: 'none',
+                        lineStyle: { color: C.roundLine, type: 'dashed', width: 1 },
+                        label: { position: 'insideEndTop', fontSize: 10, color: C.roundLine },
+                        data: buildRoundNumberLines(allPrices)
+                    }
+                },
+                {
+                    type: 'line',
+                    data: closes,
+                    smooth: true,
+                    lineStyle: { color: C.line, width: 1.5, opacity: 0.6 },
+                    itemStyle: { opacity: 0 },
+                    symbol: 'none',
+                    z: 0
+                }
+            ],
+            grid: { left: '8%', right: '4%', bottom: '18%', top: '10%' },
+            dataZoom: [
+                { type: 'inside', start: 0, end: 100 },
+                { type: 'slider', start: 0, end: 100, height: 24, bottom: 5 }
+            ]
+        };
+
+        priceLevelsEl.style.display = 'flex';
+        mainChart.setOption(option, true);
+        updateStatsFromOHLC(data);
+    }
+
+    /* ---- Price Level Helpers ---- */
+    function buildHighLowMarks(data) {
+        if (!data || data.length < 2) return [];
+        var highIdx = 0, lowIdx = 0;
+        data.forEach(function(d, i){
+            if (d.high != null && (data[highIdx].high == null || d.high > data[highIdx].high)) highIdx = i;
+            if (d.low != null && (data[lowIdx].low == null || d.low < data[lowIdx].low)) lowIdx = i;
+        });
+        var marks = [];
+        marks.push({
+            name: '最高 ' + fmt(data[highIdx].high),
+            coord: [highIdx, data[highIdx].high],
+            value: fmt(data[highIdx].high),
+            itemStyle: { color: C.up },
+            label: { color: C.up }
+        });
+        marks.push({
+            name: '最低 ' + fmt(data[lowIdx].low),
+            coord: [lowIdx, data[lowIdx].low],
+            value: fmt(data[lowIdx].low),
+            symbolRotate: 180,
+            itemStyle: { color: C.down },
+            label: { color: C.down, position: 'bottom' }
+        });
+        return marks;
+    }
+
+    function buildRoundNumberLines(prices) {
+        if (!prices || prices.length === 0) return [];
+        var min = Math.min.apply(null, prices);
+        var max = Math.max.apply(null, prices);
+        var range = max - min;
+
+        // Determine step based on price range
+        var step;
+        if (max > 100) {
+            step = range > 100 ? 50 : (range > 20 ? 10 : 5);
+        } else {
+            step = range > 10 ? 5 : (range > 2 ? 1 : 0.5);
+        }
+
+        var lines = [];
+        var start = Math.ceil(min / step) * step;
+        for (var v = start; v <= max; v += step) {
+            // Only show if within visible range with some padding
+            if (v >= min - range * 0.05 && v <= max + range * 0.05) {
+                lines.push({ yAxis: v, label: { formatter: fmt(v) } });
+            }
+        }
+        // Limit to avoid clutter
+        if (lines.length > 8) {
+            var newStep = step * 2;
+            lines = [];
+            start = Math.ceil(min / newStep) * newStep;
+            for (var v2 = start; v2 <= max; v2 += newStep) {
+                lines.push({ yAxis: v2, label: { formatter: fmt(v2) } });
+            }
+        }
+        return lines;
+    }
+
+    /* ---- Stats ---- */
+    function clearStats() {
+        ['statChange', 'statHigh', 'statLow', 'statAmplitude'].forEach(function(id){
+            var el = document.getElementById(id);
+            el.textContent = '-';
+            el.className = 'stat-value';
+        });
+    }
+
+    function updateStatsFromOHLC(data) {
+        if (!data || data.length === 0) { clearStats(); return; }
+        var first = data[0], last = data[data.length - 1];
+        var highs = data.map(function(d){ return d.high; }).filter(function(v){ return v != null; });
+        var lows = data.map(function(d){ return d.low; }).filter(function(v){ return v != null; });
+        var high = Math.max.apply(null, highs);
+        var low = Math.min.apply(null, lows);
+
+        var change = (last.close != null && first.open != null) ? last.close - first.open : null;
+        var changePct = (change != null && first.open) ? (change / first.open * 100) : null;
+
+        var changeEl = document.getElementById('statChange');
+        if (change != null) {
+            var sign = change >= 0 ? '+' : '';
+            changeEl.textContent = sign + fmt(change) + ' (' + sign + fmt(changePct) + '%)';
+            changeEl.className = 'stat-value ' + (change > 0 ? 'text-up' : change < 0 ? 'text-down' : '');
+        } else {
+            changeEl.textContent = '-';
+        }
+
+        document.getElementById('statHigh').textContent = fmt(high);
+        document.getElementById('statLow').textContent = fmt(low);
+
+        var amp = (low > 0) ? ((high - low) / low * 100) : null;
+        document.getElementById('statAmplitude').textContent = amp != null ? fmt(amp) + '%' : '-';
+    }
+
+    function updateStatsFromLine(prices) {
+        if (!prices || prices.length === 0) { clearStats(); return; }
+        var first = prices[0], last = prices[prices.length - 1];
+        var high = Math.max.apply(null, prices);
+        var low = Math.min.apply(null, prices);
+        var change = last - first;
+        var changePct = first ? (change / first * 100) : null;
+
+        var changeEl = document.getElementById('statChange');
+        var sign = change >= 0 ? '+' : '';
+        changeEl.textContent = sign + fmt(change) + ' (' + sign + fmt(changePct) + '%)';
+        changeEl.className = 'stat-value ' + (change > 0 ? 'text-up' : change < 0 ? 'text-down' : '');
+
+        document.getElementById('statHigh').textContent = fmt(high);
+        document.getElementById('statLow').textContent = fmt(low);
+        var amp = low > 0 ? ((high - low) / low * 100) : null;
+        document.getElementById('statAmplitude').textContent = amp != null ? fmt(amp) + '%' : '-';
+    }
+
+    /* ================================================================
+       GOLD/SILVER RATIO CHART
+       ================================================================ */
+    function loadRatioChart() {
+        noRatioEl.style.display = 'none';
+        document.getElementById('ratioStats').style.display = 'none';
+
+        fetch('/api/gold-silver-ratio?range=' + currentRatioRange)
+            .then(function(r){ return r.json(); })
+            .then(function(resp){
+                if (!resp.success || !resp.data || resp.data.length === 0) {
+                    noRatioEl.style.display = 'block';
+                    ratioChart.clear();
+                    return;
+                }
+
+                var dates = resp.data.map(function(d){ return d.date; });
+                var ratios = resp.data.map(function(d){ return d.ratio; });
+
+                var option = {
+                    tooltip: {
+                        trigger: 'axis',
+                        formatter: function(p){
+                            return p[0].axisValue + '<br/>金银比：' + fmt(p[0].data);
+                        }
+                    },
+                    xAxis: {
+                        type: 'category',
+                        data: dates,
+                        axisLabel: { rotate: dates.length > 30 ? 45 : 0, fontSize: 11 }
+                    },
+                    yAxis: {
+                        type: 'value',
+                        name: '金银比',
+                        scale: true,
+                        splitLine: { lineStyle: { color: C.grid } }
+                    },
+                    series: [{
+                        data: ratios,
+                        type: 'line',
+                        smooth: true,
+                        lineStyle: { color: C.ratio, width: 2.5 },
+                        itemStyle: { color: C.ratio },
+                        areaStyle: {
+                            color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+                                colorStops: [
+                                    { offset: 0, color: C.ratio + '30' },
+                                    { offset: 1, color: C.ratio + '05' }
+                                ]
+                            }
+                        },
+                        markLine: {
+                            silent: true,
+                            symbol: 'none',
+                            data: [
+                                {
+                                    yAxis: 80,
+                                    lineStyle: { color: C.up, type: 'dashed' },
+                                    label: { formatter: '偏高 (80)', color: C.up, fontSize: 10 }
+                                },
+                                {
+                                    yAxis: 60,
+                                    lineStyle: { color: C.down, type: 'dashed' },
+                                    label: { formatter: '偏低 (60)', color: C.down, fontSize: 10 }
+                                }
+                            ]
+                        }
+                    }],
+                    grid: { left: '8%', right: '4%', bottom: '15%', top: '8%' },
+                    dataZoom: [{ type: 'inside', start: 0, end: 100 }]
+                };
+
+                ratioChart.setOption(option, true);
+
+                // Stats
+                if (resp.stats) {
+                    document.getElementById('ratioStats').style.display = 'block';
+                    document.getElementById('ratioCurrent').textContent = fmt(resp.stats.current);
+                    document.getElementById('ratioAvg').textContent = fmt(resp.stats.avg);
+                    document.getElementById('ratioMax').textContent = fmt(resp.stats.max);
+                    document.getElementById('ratioMin').textContent = fmt(resp.stats.min);
+
+                    // Highlight if out of normal range
+                    var curEl = document.getElementById('ratioCurrent');
+                    if (resp.stats.current > 80) curEl.className = 'stat-value text-up';
+                    else if (resp.stats.current < 60) curEl.className = 'stat-value text-down';
+                    else curEl.className = 'stat-value';
+                }
+            })
+            .catch(function(e){
+                console.error('loadRatioChart', e);
+                noRatioEl.style.display = 'block';
+                ratioChart.clear();
+            });
+    }
+
+    /* ================================================================
+       EVENT BINDINGS
+       ================================================================ */
+    document.addEventListener('DOMContentLoaded', function(){
+        // Metal tabs
+        document.querySelectorAll('[data-metal]').forEach(function(btn){
+            btn.addEventListener('click', function(){
+                currentMetal = this.getAttribute('data-metal');
+                document.querySelectorAll('[data-metal]').forEach(function(b){
+                    b.classList.toggle('active', b.getAttribute('data-metal') === currentMetal);
+                });
+                loadMainChart();
+            });
+        });
+
+        // Range tabs (main chart)
+        document.querySelectorAll('[data-range]').forEach(function(btn){
+            btn.addEventListener('click', function(){
+                currentRange = this.getAttribute('data-range');
+                document.querySelectorAll('[data-range]').forEach(function(b){
+                    b.classList.toggle('active', b.getAttribute('data-range') === currentRange);
+                });
+                loadMainChart();
+            });
+        });
+
+        // Ratio range tabs
+        document.querySelectorAll('[data-ratio-range]').forEach(function(btn){
+            btn.addEventListener('click', function(){
+                currentRatioRange = this.getAttribute('data-ratio-range');
+                document.querySelectorAll('[data-ratio-range]').forEach(function(b){
+                    b.classList.toggle('active', b.getAttribute('data-ratio-range') === currentRatioRange);
+                });
+                loadRatioChart();
+            });
+        });
+
+        // Initial load
+        loadMainChart();
+        loadRatioChart();
+
+        // Auto refresh
+        setInterval(function(){
+            if (!document.hidden) {
+                loadMainChart();
+                loadRatioChart();
+            }
+        }, 120000);
+
+        // Resize
+        window.addEventListener('resize', function(){
+            mainChart.resize();
+            ratioChart.resize();
+        });
+
+        document.addEventListener('visibilitychange', function(){
+            if (!document.hidden) {
+                loadMainChart();
+                loadRatioChart();
+            }
+        });
+    });
+})();
+</script>
+</body>
+</html>

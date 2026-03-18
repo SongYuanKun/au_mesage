@@ -13,6 +13,10 @@
                 <span class="nav-link-icon">📈</span>
                 <span>趋势图表</span>
             </a>
+            <a href="/analysis" class="nav-link" data-page="analysis">
+                <span class="nav-link-icon">🕯️</span>
+                <span>行情分析</span>
+            </a>
         </div>
         <button class="nav-toggle" id="navToggle" aria-label="菜单">
             <span></span><span></span><span></span>
@@ -26,7 +30,7 @@
     var links = document.querySelectorAll('.nav-link');
     links.forEach(function(link){
         var page = link.getAttribute('data-page');
-        if ((page === 'index' && path === '/') || (page === 'history' && path === '/history')) {
+        if ((page === 'index' && path === '/') || (page === 'history' && path === '/history') || (page === 'analysis' && path === '/analysis')) {
             link.classList.add('active');
         }
     });

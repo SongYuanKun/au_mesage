@@ -30,13 +30,14 @@ class MySQLManager:
 
         query = """
                 INSERT INTO price_data
-                    (trade_date, trade_time, data_type, real_time_price, recycle_price)
-                VALUES (%s, %s, %s, %s, %s) \
+                    (trade_date, trade_time, data_type, real_time_price, recycle_price, high_price, low_price)
+                VALUES (%s, %s, %s, %s, %s, %s, %s) \
                 """
 
         values = [
             (item['trade_date'], item['trade_time'], item['data_type'],
-             item['real_time_price'], item['recycle_price'])
+             item['real_time_price'], item['recycle_price'],
+             item.get('high_price', 0), item.get('low_price', 0))
             for item in data_list
         ]
 
@@ -311,6 +312,103 @@ class MySQLManager:
             return cursor.fetchall()
         except Error as e:
             logging.error(f"获取近N天每日价格失败 (type={data_type}): {e}")
+            return []
+        finally:
+            if connection:
+                connection.close()
+
+    def get_ohlc_trend(self, data_type: str, start_date: str, end_date: str) -> List[Dict]:
+        """
+        获取日K线数据（开盘/最高/最低/收盘），用于K线图。
+        使用 GROUP_CONCAT 技巧获取每天的首尾价格。
+        """
+        query = """
+                SELECT
+                    trade_date AS date,
+                    CAST(SUBSTRING_INDEX(GROUP_CONCAT(recycle_price ORDER BY created_at ASC), ',', 1) AS DECIMAL(10,4)) AS open_price,
+                    MAX(recycle_price) AS high_price,
+                    MIN(recycle_price) AS low_price,
+                    CAST(SUBSTRING_INDEX(GROUP_CONCAT(recycle_price ORDER BY created_at DESC), ',', 1) AS DECIMAL(10,4)) AS close_price
+                FROM price_data
+                WHERE data_type = %s
+                  AND recycle_price > 0
+                  AND trade_date BETWEEN %s AND %s
+                GROUP BY trade_date
+                ORDER BY trade_date ASC
+        """
+        params = (data_type, start_date, end_date)
+        connection = None
+        try:
+            connection = self.connection_pool.get_connection()
+            cursor = connection.cursor(dictionary=True)
+            cursor.execute(query, params)
+            return cursor.fetchall()
+        except Error as e:
+            logging.error(f"获取OHLC趋势数据失败 (type={data_type}): {e}")
+            return []
+        finally:
+            if connection:
+                connection.close()
+
+    def get_intraday_trend(self, data_type: str, date_str: str) -> List[Dict]:
+        """获取指定日期的分钟级别走势数据（用于日内图表）"""
+        query = """
+                SELECT trade_time AS time, recycle_price, real_time_price, created_at
+                FROM price_data
+                WHERE data_type = %s
+                  AND recycle_price > 0
+                  AND trade_date = %s
+                ORDER BY created_at ASC
+        """
+        params = (data_type, date_str)
+        connection = None
+        try:
+            connection = self.connection_pool.get_connection()
+            cursor = connection.cursor(dictionary=True)
+            cursor.execute(query, params)
+            return cursor.fetchall()
+        except Error as e:
+            logging.error(f"获取日内趋势数据失败 (type={data_type}, date={date_str}): {e}")
+            return []
+        finally:
+            if connection:
+                connection.close()
+
+    def get_gold_silver_ratio(self, start_date: str, end_date: str) -> List[Dict]:
+        """
+        获取金银比走势数据。
+        每天取最后一条回收价格，计算 gold_close / silver_close。
+        """
+        query = """
+                SELECT g.date, g.close_price AS gold_close, s.close_price AS silver_close,
+                       ROUND(g.close_price / s.close_price, 2) AS ratio
+                FROM (
+                    SELECT trade_date AS date,
+                           CAST(SUBSTRING_INDEX(GROUP_CONCAT(recycle_price ORDER BY created_at DESC), ',', 1) AS DECIMAL(10,4)) AS close_price
+                    FROM price_data
+                    WHERE data_type = '黄 金' AND recycle_price > 0
+                      AND trade_date BETWEEN %s AND %s
+                    GROUP BY trade_date
+                ) g
+                JOIN (
+                    SELECT trade_date AS date,
+                           CAST(SUBSTRING_INDEX(GROUP_CONCAT(recycle_price ORDER BY created_at DESC), ',', 1) AS DECIMAL(10,4)) AS close_price
+                    FROM price_data
+                    WHERE data_type = '白 银' AND recycle_price > 0
+                      AND trade_date BETWEEN %s AND %s
+                    GROUP BY trade_date
+                ) s ON g.date = s.date
+                ORDER BY g.date ASC
+        """
+        params = (start_date, end_date, start_date, end_date)
+        connection = None
+        try:
+            connection = self.connection_pool.get_connection()
+            cursor = connection.cursor(dictionary=True)
+            cursor.execute(query, params)
+            return cursor.fetchall()
+        except Error as e:
+            logging.error(f"获取金银比数据失败: {e}")
             return []
         finally:
             if connection:

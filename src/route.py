@@ -205,6 +205,192 @@ def create_app(mysql_manager: MySQLManager):
             logging.error(f"获取近7天回收价格失败: {e}")
             return jsonify({'success': False, 'error': '服务器内部错误'}), 500
 
+    @app.route('/api/price-trend', methods=['GET'])
+    def api_price_trend():
+        """
+        返回价格趋势数据，支持多时间维度。
+        range: 1d / 7d / 30d / 90d / 1y / all
+        1d 返回分钟级日内数据，其余返回日K线OHLC数据。
+        """
+        try:
+            data_type = request.args.get('data_type')
+            range_str = request.args.get('range', '7d')
+            if not data_type:
+                return jsonify({'success': False, 'error': '缺少 data_type 参数'}), 400
+
+            from datetime import timedelta
+            today = datetime.now(BEIJING_TZ).date()
+
+            # 1d: 日内分钟级走势
+            if range_str == '1d':
+                cache_key = f'trend_1d_{data_type}'
+                cached = cache_get(cache_key, ttl=30)
+                if cached is not None:
+                    return jsonify(cached)
+                rows = mysql_manager.get_intraday_trend(data_type, today.strftime('%Y-%m-%d'))
+                data = []
+                for r in rows:
+                    data.append({
+                        'time': str(r.get('time', '')),
+                        'price': float(r['recycle_price']) if r.get('recycle_price') else None,
+                        'created_at': str(r.get('created_at', ''))
+                    })
+                resp = {'success': True, 'range': '1d', 'chart_type': 'line', 'data': data}
+                cache_set(cache_key, resp)
+                return jsonify(resp)
+
+            # 其余：日K线OHLC
+            range_days = {'7d': 6, '30d': 29, '90d': 89, '1y': 364}
+            if range_str == 'all':
+                start_date = '2000-01-01'
+            elif range_str in range_days:
+                start_date = (today - timedelta(days=range_days[range_str])).strftime('%Y-%m-%d')
+            else:
+                return jsonify({'success': False, 'error': '无效的 range 参数，可选: 1d/7d/30d/90d/1y/all'}), 400
+
+            cache_key = f'trend_{range_str}_{data_type}'
+            ttl = 60 if range_str in ('7d', '30d') else 300
+            cached = cache_get(cache_key, ttl=ttl)
+            if cached is not None:
+                return jsonify(cached)
+
+            end_date = today.strftime('%Y-%m-%d')
+            rows = mysql_manager.get_ohlc_trend(data_type, start_date, end_date)
+            data = []
+            for r in rows:
+                data.append({
+                    'date': str(r['date']),
+                    'open': float(r['open_price']) if r.get('open_price') else None,
+                    'high': float(r['high_price']) if r.get('high_price') else None,
+                    'low': float(r['low_price']) if r.get('low_price') else None,
+                    'close': float(r['close_price']) if r.get('close_price') else None,
+                })
+            resp = {'success': True, 'range': range_str, 'chart_type': 'candlestick', 'data': data}
+            cache_set(cache_key, resp)
+            return jsonify(resp)
+        except Exception as e:
+            logging.error(f"价格趋势接口错误: {e}")
+            return jsonify({'success': False, 'error': '服务器内部错误'}), 500
+
+    @app.route('/api/gold-silver-ratio', methods=['GET'])
+    def api_gold_silver_ratio():
+        """返回金银比走势数据"""
+        try:
+            range_str = request.args.get('range', '30d')
+            from datetime import timedelta
+            today = datetime.now(BEIJING_TZ).date()
+
+            range_days = {'7d': 6, '30d': 29, '90d': 89, '1y': 364}
+            if range_str == 'all':
+                start_date = '2000-01-01'
+            elif range_str in range_days:
+                start_date = (today - timedelta(days=range_days[range_str])).strftime('%Y-%m-%d')
+            else:
+                return jsonify({'success': False, 'error': '无效的 range 参数'}), 400
+
+            cache_key = f'gs_ratio_{range_str}'
+            ttl = 60 if range_str in ('7d', '30d') else 300
+            cached = cache_get(cache_key, ttl=ttl)
+            if cached is not None:
+                return jsonify(cached)
+
+            end_date = today.strftime('%Y-%m-%d')
+            rows = mysql_manager.get_gold_silver_ratio(start_date, end_date)
+            data = []
+            for r in rows:
+                data.append({
+                    'date': str(r['date']),
+                    'ratio': float(r['ratio']) if r.get('ratio') else None,
+                    'gold_close': float(r['gold_close']) if r.get('gold_close') else None,
+                    'silver_close': float(r['silver_close']) if r.get('silver_close') else None,
+                })
+
+            # 计算统计信息
+            ratios = [d['ratio'] for d in data if d['ratio'] is not None]
+            stats = {}
+            if ratios:
+                stats = {
+                    'current': ratios[-1],
+                    'avg': round(sum(ratios) / len(ratios), 2),
+                    'max': max(ratios),
+                    'min': min(ratios),
+                }
+
+            resp = {'success': True, 'range': range_str, 'data': data, 'stats': stats}
+            cache_set(cache_key, resp)
+            return jsonify(resp)
+        except Exception as e:
+            logging.error(f"金银比接口错误: {e}")
+            return jsonify({'success': False, 'error': '服务器内部错误'}), 500
+
+    @app.route('/analysis', methods=['GET'])
+    def analysis_page():
+        """渲染行情分析页面"""
+        return render_template('analysis.html')
+
+    @app.route('/api/alert-channels', methods=['GET'])
+    def alert_channels():
+        """返回已配置的推送渠道"""
+        from webhook_notifier import get_configured_channels
+        return jsonify({'success': True, 'channels': get_configured_channels()})
+
+    @app.route('/api/price-alert/push', methods=['POST'])
+    def price_alert_push():
+        """
+        增强版价格提醒：支持多通道推送。
+        请求体: { data_type, target, op: 'gte'|'lte', channels: ['wechat','telegram','email'] }
+        立即检查当前价格并推送（适合外部定时调用），或返回当前状态。
+        """
+        try:
+            data = request.get_json()
+            data_type = data.get('data_type')
+            target = data.get('target')
+            op = data.get('op', 'gte')
+            channels = data.get('channels', [])
+
+            if not data_type or target is None:
+                return jsonify({'success': False, 'error': '缺少参数: data_type 或 target'}), 400
+            target = float(target)
+
+            price = mysql_manager.get_latest_market_price(data_type)
+            if price is None:
+                return jsonify({'success': False, 'error': '无法获取最新价格'}), 404
+
+            price_f = float(price)
+            triggered = (op == 'gte' and price_f >= target) or (op == 'lte' and price_f <= target)
+
+            result = {
+                'success': True,
+                'current_price': price_f,
+                'target': target,
+                'op': op,
+                'triggered': triggered,
+                'sent_channels': []
+            }
+
+            if triggered and channels:
+                from webhook_notifier import notify_all, send_wechat, send_telegram, send_email
+                op_text = '达到或超过' if op == 'gte' else '达到或低于'
+                title = f'{data_type}价格提醒'
+                content = f'当前价格 {price_f} 元/克，已{op_text}目标价 {target} 元/克'
+
+                channel_fns = {'wechat': send_wechat, 'telegram': send_telegram, 'email': send_email}
+                sent = []
+                for ch in channels:
+                    fn = channel_fns.get(ch)
+                    if fn:
+                        try:
+                            if fn(title, content):
+                                sent.append(ch)
+                        except Exception as e:
+                            logging.error(f"推送失败 ({ch}): {e}")
+                result['sent_channels'] = sent
+
+            return jsonify(result)
+        except Exception as e:
+            logging.error(f"价格提醒推送错误: {e}")
+            return jsonify({'success': False, 'error': '服务器内部错误'}), 500
+
     @app.route('/api/price-alert/subscribe', methods=['GET'])
     def price_alert_subscribe():
         data_type = request.args.get('data_type')
@@ -235,6 +421,16 @@ def create_app(mysql_manager: MySQLManager):
                     yield 'event: alert\n'
                     yield f'data: {payload_alert}\n\n'
                     alerted = True
+                    # Also push to configured webhook channels
+                    try:
+                        from webhook_notifier import notify_all
+                        op_text = '达到或超过' if op == 'gte' else '达到或低于'
+                        notify_all(
+                            f'{data_type}价格提醒',
+                            f'当前价格 {float(price)} 元/克，已{op_text}目标价 {target} 元/克'
+                        )
+                    except Exception:
+                        pass
                     if auto_close:
                         break
                 yield 'event: ping\n'
