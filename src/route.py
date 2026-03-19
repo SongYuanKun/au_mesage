@@ -522,6 +522,40 @@ def create_app(mysql_manager: MySQLManager):
             logging.error(f"计算价格差异接口错误: {e}")
             return jsonify({'error': '服务器内部错误'}), 500
 
+    @app.route('/api/exchange-rate', methods=['GET'])
+    def api_exchange_rate():
+        """返回最新汇率，优先用内存缓存，回退到数据库"""
+        try:
+            base = request.args.get('base', 'USD').upper()
+            target = request.args.get('target', 'CNY').upper()
+
+            # 先查内存缓存（ExchangeRateCollector 维护）
+            rate = None
+            try:
+                from collectors.exchange_rate import get_usd_cny_rate
+                if base == 'USD' and target == 'CNY':
+                    rate = get_usd_cny_rate()
+            except ImportError:
+                pass
+
+            # 回退到数据库
+            if rate is None:
+                rate = mysql_manager.get_latest_exchange_rate(base, target)
+
+            if rate is None:
+                return jsonify({'success': False, 'error': f'暂无 {base}/{target} 汇率数据'}), 404
+
+            return jsonify({
+                'success': True,
+                'base': base,
+                'target': target,
+                'rate': rate,
+                'updated_at': datetime.now(BEIJING_TZ).isoformat()
+            })
+        except Exception as e:
+            logging.error(f"汇率接口错误: {e}")
+            return jsonify({'success': False, 'error': '服务器内部错误'}), 500
+
     @app.route('/api/health', methods=['GET'])
     def health_check():
         """服务健康检查接口"""

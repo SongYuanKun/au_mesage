@@ -30,14 +30,16 @@ class MySQLManager:
 
         query = """
                 INSERT INTO price_data
-                    (trade_date, trade_time, data_type, real_time_price, recycle_price, high_price, low_price)
-                VALUES (%s, %s, %s, %s, %s, %s, %s) \
+                    (trade_date, trade_time, data_type, real_time_price, recycle_price,
+                     high_price, low_price, source, currency)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) \
                 """
 
         values = [
             (item['trade_date'], item['trade_time'], item['data_type'],
              item['real_time_price'], item['recycle_price'],
-             item.get('high_price', 0), item.get('low_price', 0))
+             item.get('high_price', 0), item.get('low_price', 0),
+             item.get('source', 'playwright'), item.get('currency', 'CNY'))
             for item in data_list
         ]
 
@@ -439,6 +441,112 @@ class MySQLManager:
             return results
         except Error as e:
             logging.error(f"获取时间范围内数据失败 (type={data_type}, start={start_time}, end={end_time}): {e}")
+            return []
+        finally:
+            if connection:
+                connection.close()
+
+    # ----------------------------------------------------------------
+    # 新表操作：exchange_rate / daily_ohlc
+    # ----------------------------------------------------------------
+
+    def upsert_exchange_rate(self, base: str, target: str, rate: float, source: str):
+        """插入或更新汇率记录"""
+        query = """
+                INSERT INTO exchange_rate (base_currency, target_currency, rate, source)
+                VALUES (%s, %s, %s, %s)
+        """
+        connection = None
+        try:
+            connection = self.connection_pool.get_connection()
+            cursor = connection.cursor()
+            cursor.execute(query, (base, target, rate, source))
+            connection.commit()
+        except Error as e:
+            logging.error(f"写入汇率失败: {e}")
+            if connection:
+                connection.rollback()
+        finally:
+            if connection:
+                connection.close()
+
+    def get_latest_exchange_rate(self, base: str, target: str) -> Optional[float]:
+        """获取最新汇率"""
+        query = """
+                SELECT rate FROM exchange_rate
+                WHERE base_currency = %s AND target_currency = %s
+                ORDER BY created_at DESC LIMIT 1
+        """
+        connection = None
+        try:
+            connection = self.connection_pool.get_connection()
+            cursor = connection.cursor()
+            cursor.execute(query, (base, target))
+            row = cursor.fetchone()
+            return float(row[0]) if row else None
+        except Error as e:
+            logging.error(f"获取汇率失败 ({base}/{target}): {e}")
+            return None
+        finally:
+            if connection:
+                connection.close()
+
+    def upsert_daily_ohlc(self, trade_date: str, data_type: str, source: str,
+                          currency: str, open_price: float, high_price: float,
+                          low_price: float, close_price: float, volume: float = None):
+        """插入或更新日线OHLC（同一 date+type+source 只保留最新）"""
+        query = """
+                INSERT INTO daily_ohlc
+                    (trade_date, data_type, source, currency,
+                     open_price, high_price, low_price, close_price, volume)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE
+                    open_price = VALUES(open_price),
+                    high_price = VALUES(high_price),
+                    low_price  = VALUES(low_price),
+                    close_price = VALUES(close_price),
+                    volume = VALUES(volume),
+                    created_at = CURRENT_TIMESTAMP
+        """
+        connection = None
+        try:
+            connection = self.connection_pool.get_connection()
+            cursor = connection.cursor()
+            cursor.execute(query, (trade_date, data_type, source, currency,
+                                   open_price, high_price, low_price, close_price, volume))
+            connection.commit()
+        except Error as e:
+            logging.error(f"写入日线OHLC失败 ({data_type},{trade_date}): {e}")
+            if connection:
+                connection.rollback()
+        finally:
+            if connection:
+                connection.close()
+
+    def get_daily_ohlc(self, data_type: str, source: str,
+                       start_date: str, end_date: str, currency: str = None) -> List[Dict]:
+        """查询 daily_ohlc 表中的日线数据"""
+        query = """
+                SELECT trade_date AS date, open_price, high_price, low_price, close_price,
+                       volume, currency, source
+                FROM daily_ohlc
+                WHERE data_type = %s AND source = %s
+                  AND trade_date BETWEEN %s AND %s
+        """
+        params = [data_type, source, start_date, end_date]
+        if currency:
+            query += " AND currency = %s"
+            params.append(currency)
+        query += " ORDER BY trade_date ASC"
+
+        connection = None
+        try:
+            connection = self.connection_pool.get_connection()
+            cursor = connection.cursor(dictionary=True)
+            cursor.execute(query, params)
+            return cursor.fetchall()
+        except Error as e:
+            logging.error(f"查询日线OHLC失败 ({data_type},{source}): {e}")
             return []
         finally:
             if connection:

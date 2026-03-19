@@ -1,13 +1,16 @@
 import logging
 import os
+import sys
+
+# collectors 目录与 app.py 同在 src/，确保可导入
+sys.path.insert(0, os.path.dirname(__file__))
 
 from mysql_manager import MySQLManager
-from playwright_collector import PlaywrightDataCollector
+from collectors.manager import CollectorManager
 from route import create_app
 
 
 def setup_logging():
-    """配置日志系统"""
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -19,7 +22,6 @@ def setup_logging():
 
 
 def load_config():
-    """从环境变量加载配置"""
     return {
         'mysql': {
             'host': os.environ.get('MYSQL_HOST', 'localhost'),
@@ -35,22 +37,14 @@ def load_config():
 
 
 def main():
-    """主程序入口"""
-    # 初始化和配置
     setup_logging()
     config = load_config()
 
-    # 初始化MySQL管理器
     mysql_manager = MySQLManager(config['mysql'])
 
-    # 初始化Playwright数据采集器
-    data_collector = PlaywrightDataCollector(mysql_manager)
+    collector_manager = CollectorManager(mysql_manager)
+    collector_manager.start_all()
 
-    # 启动数据采集服务
-    data_collector.start_collection()
-    logging.info("Playwright数据采集服务已启动")
-
-    # 创建并启动Flask应用
     app = create_app(mysql_manager)
 
     try:
@@ -63,7 +57,7 @@ def main():
     except KeyboardInterrupt:
         logging.info("收到停止信号，正在关闭服务...")
     finally:
-        data_collector.stop_collection()
+        collector_manager.stop_all()
         logging.info("服务已安全退出")
 
 
