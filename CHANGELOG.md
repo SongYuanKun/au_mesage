@@ -5,6 +5,14 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.1.1] - 2026-03-20
+
+### 变更
+- 同步更新 README：多采集器架构（`CollectorManager`）、主要 API 一览、环境变量、可选 Playwright、页面路由与模块说明
+- 调整性能与 FAQ 表述，与默认 API 采集、可选浏览器采集一致
+- 明确 **MySQL 为外部数据库**：文档与 `.env.example` 说明；`docker-compose` 顶部注释；Cursor 规则 `.cursor/rules/database-external.mdc`（不在 Docker 中增加数据库服务）
+- 新增 **`docker-compose.mysql.yml`**：本地可选「应用 + 内置 MySQL」；配套 `.env.mysql.example`、`scripts/docker-local-mysql.sh`
+
 ## [1.1.0] - 2026-03-07
 
 ### 新增

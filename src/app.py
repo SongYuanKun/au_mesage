@@ -11,11 +11,15 @@ from route import create_app
 
 
 def setup_logging():
+    base = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    log_dir = os.path.join(base, 'logs')
+    os.makedirs(log_dir, exist_ok=True)
+    log_path = os.path.join(log_dir, 'price_service.log')
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         handlers=[
-            logging.FileHandler('../price_service.log'),
+            logging.FileHandler(log_path),
             logging.StreamHandler()
         ]
     )

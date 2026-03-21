@@ -19,7 +19,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-3. 安装 Playwright 浏览器：
+3. （可选）若启用 `ENABLE_PLAYWRIGHT=true`，需安装 Playwright 浏览器：
 
 ```bash
 playwright install chromium

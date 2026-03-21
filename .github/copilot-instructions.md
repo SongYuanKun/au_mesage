@@ -3,56 +3,46 @@
 下面是让 AI 编码助理立即上手本仓库的精华说明。请只基于代码可见内容做修改。
 
 ## 一眼看懂架构
-- 服务由两部分组成：数据采集（`src/playwright_collector.py`）与 HTTP API（Flask，`src/app.py` + `src/route.py`）。
-- 数据流：Playwright 抓取 -> 内存缓冲 `data_buffer` -> 周期性调用 `MySQLManager.batch_insert_data` 写入 MySQL 表 `price_data` -> Flask API 从 MySQL 读取并返回给前端（`templates/index.html`）。
-- 配置：所有配置通过**环境变量**管理（参见 `.env.example`），不使用配置文件。
+- **采集**：`src/collectors/manager.py` 中的 `CollectorManager` 统一启动多个采集器线程（`gold_api`、`exchange_rate`、`fawazahmed0` 等）；`ENABLE_PLAYWRIGHT=true` 时再挂载 `src/collectors/playwright_collector.py`。
+- **数据流**：各采集器写入 MySQL（如 `price_data`、汇率相关表）→ Flask（`src/route.py`）查询并返回 JSON / 渲染 `templates/`。
+- **数据库**：生产用**外部 MySQL** + `docker-compose.yml`（仅应用）。本地联调可用 `docker-compose.mysql.yml` + `.env.mysql` 起内置 MySQL。
+- **配置**：环境变量（见 `.env.example`），无独立配置文件。
 
-## 关键文件与示例
-- 入口与启动：`src/app.py`（`main()` 启动采集器并 run Flask）
-- 路由与 API：`src/route.py`（接口：`/api/latest-price`, `/api/recent-history`, `/api/calculate`, `/api/health`, `/api/last-1-hour`, `/api/last-7-days`, `/api/price-alert/subscribe`）
-- 数据库层：`src/mysql_manager.py`（使用 `mysql.connector.pooling.MySQLConnectionPool`）
-- 采集器：`src/playwright_collector.py`（无头浏览器抓取、线程后台运行）
-- 自定义 JSON 编码：`src/CustomJSONEncoder.py`
-- 前端：`templates/index.html`（主页）、`templates/history.html`（历史趋势）
+## 关键文件
+- 入口：`src/app.py`（`MySQLManager`、`CollectorManager.start_all()`、`create_app().run()`）
+- 路由：`src/route.py`（页面 `/`、`/history`、`/analysis`；API 含 `price-overview`、`price-trend`、`gold-silver-ratio`、`exchange-rate`、`price-alert/*` 等）
+- 数据库：`src/mysql_manager.py`
+- 推送：`src/webhook_notifier.py`（企业微信 / Telegram / 邮件，可选）
+- JSON：`src/CustomJSONEncoder.py`
+- 前端：`templates/`、`static/css/main.css`
 
 ## 运行与调试
 ```bash
-# 本地开发
-python -m venv .venv
-source .venv/bin/activate
+python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-playwright install chromium
-cp .env.example .env  # 编辑 .env 填入实际配置
+cp .env.example .env
+# 仅当 ENABLE_PLAYWRIGHT=true 时需要：
+# playwright install chromium
 python src/app.py
-
-# Docker
-docker compose up --build
 ```
 
-## 环境变量（.env）
-| 变量 | 必填 | 默认值 | 说明 |
-|------|------|--------|------|
-| `MYSQL_HOST` | 否 | `localhost` | MySQL 地址 |
-| `MYSQL_USER` | 否 | `root` | MySQL 用户 |
-| `MYSQL_PASSWORD` | **是** | - | MySQL 密码 |
-| `MYSQL_DATABASE` | 否 | `price_data` | 数据库名 |
-| `API_HOST` | 否 | `0.0.0.0` | Flask 绑定地址 |
-| `API_PORT` | 否 | `8083` | Flask 端口 |
-| `WEBSITE_URL` | **是** | - | 采集目标网站 |
+## 环境变量（节选）
+| 变量 | 说明 |
+|------|------|
+| `MYSQL_*` / `API_*` | 数据库与 Flask 监听 |
+| `ENABLE_PLAYWRIGHT` | 默认 `false`；`true` 时启用站点 Playwright 采集 |
+| `WEBSITE_URL` | Playwright 启用时：目标站点 |
+| `GOLD_API_INTERVAL` | 国际金价 API 采集间隔（秒） |
+| `WECHAT_WEBHOOK_URL` 等 | 价格提醒推送（可选） |
 
 ## 项目约定
-- **时区**：所有时间戳使用北京时区（`Asia/Shanghai`）
-- **数据过滤**：SQL 查询必须包含 `recycle_price > 0`
-- **data_type 值**：`黄 金`、`白 银`（含空格，精确匹配）
-- **响应格式**：`{success: bool, data/error: ...}`
-- **连接池**：复用 `mysql_manager.connection_pool`，不要在高频路径创建新池
+- **时区**：业务日期时间多用北京时区 `Asia/Shanghai`（见 `route.py`）
+- **data_type**：如 `黄 金`、`白 银`（含空格，与库内一致）
+- **API 风格**：多数接口为 `{ "success": true/false, "data": ... }`；部分计算器接口返回字段与 `success` 混用，改前对照 `route.py`
 
 ## 测试 API
 ```bash
 curl http://localhost:8083/api/health
-curl http://localhost:8083/api/latest-price
+curl http://localhost:8083/api/price-overview
 curl "http://localhost:8083/api/latest-price?data_type=黄%20金"
-curl -X POST http://localhost:8083/api/calculate \
-  -H "Content-Type: application/json" \
-  -d '{"product_price": 500, "weight": 10, "data_type": "黄 金"}'
 ```

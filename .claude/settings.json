@@ -21,7 +21,18 @@
       "Bash(MYSQL_HOST=127.0.0.1 MYSQL_USER=auuser MYSQL_PASSWORD=au123456 MYSQL_DATABASE=gold_price API_PORT=8083 WEBSITE_URL=https://i.jzj9999.com/quoteh5/ python3 src/app.py)",
       "Bash(curl -s -o /dev/null -w \"HTTP: %{http_code}\\\\n\" http://127.0.0.1:8083/api/health)",
       "Bash(python3 -c \":*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "WebSearch",
+      "WebFetch(domain:gold-api.com)",
+      "WebFetch(domain:goldpricez.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:freegoldapi.com)",
+      "WebFetch(domain:api.gold-api.com)",
+      "WebFetch(domain:gold-price-api.omkar.cloud)",
+      "Bash(curl -s -w \"\\\\nHTTP_STATUS:%{http_code}\" \"https://gold-price-api.omkar.cloud/price\")",
+      "Bash(curl -s -w \"\\\\nHTTP_STATUS:%{http_code}\" \"https://api.gold-api.com/price/XAU\")",
+      "Bash(curl -s -w \"\\\\nHTTP_STATUS:%{http_code}\" \"https://freegoldapi.com/data/latest.json\")",
+      "Bash(curl -s -w \"\\\\nHTTP_STATUS:%{http_code}\" \"https://goldpricez.com/api/rates/currency/USD/measure/ounce\")"
     ]
   }
 }

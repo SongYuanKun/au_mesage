@@ -1,0 +1,10 @@
+---
+description: 生产用外部 MySQL；本地可选用内置 MySQL Compose
+alwaysApply: true
+---
+
+# 数据库部署约定
+
+- **生产 / 默认**：使用**外部 MySQL**（RDS、独立主机等），用 `docker-compose.yml` 只跑应用，通过 `MYSQL_HOST` 等连接。
+- **本地联调**：可选用 `docker-compose.mysql.yml` 在同一 Compose 中启动 **MySQL 容器 + 应用**，配套 `.env.mysql`（见 `.env.mysql.example`）。数据卷为 `mysql_data`，勿用于生产。
+- 修改编排时：`docker-compose.yml` **不要**加入数据库服务；内置库仅放在 `docker-compose.mysql.yml`。

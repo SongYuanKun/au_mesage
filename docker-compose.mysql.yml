@@ -1,0 +1,59 @@
+# 应用 + 内置 MySQL（仅本地/开发联调；生产请用外部库 + docker-compose.yml）
+# 使用：docker compose --env-file .env.mysql -f docker-compose.mysql.yml up --build -d
+# 首次请复制：cp .env.mysql.example .env.mysql 并设置 MYSQL_PASSWORD
+name: au-mesage-mysql
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: my-au-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-price_data}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./scripts/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    ports:
+      - "3306:3306"
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 40s
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: my-au:latest
+    container_name: my-au
+    restart: unless-stopped
+    env_file:
+      - .env.mysql
+    environment:
+      MYSQL_HOST: mysql
+      TZ: Asia/Shanghai
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "8083:8083"
+    volumes:
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  mysql_data:

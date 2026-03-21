@@ -1,3 +1,7 @@
+# 方案 A：仅应用容器，MySQL 为外部实例（云 RDS / 自建主机等）
+# 启动：docker compose up --build -d   （需本机 .env，见 .env.example）
+#
+# 若需要 Compose 内自带 MySQL，请使用 docker-compose.mysql.yml + .env.mysql
 services:
   app:
     build:
@@ -10,6 +14,8 @@ services:
       - .env
     environment:
       - TZ=Asia/Shanghai
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "8083:8083"
     volumes:

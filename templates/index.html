@@ -85,33 +85,159 @@
                         <button class="type-tab" data-calc-type="白 银">银</button>
                     </div>
                 </div>
-                <p class="card-desc">输入商品价格和克重，自动计算与回收价的差额</p>
 
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label class="form-label" for="productPrice">商品总价（元）</label>
-                        <input type="number" id="productPrice" class="form-input"
-                               placeholder="如 5800" step="0.01" inputmode="decimal">
+                <!-- Calculator mode tabs -->
+                <div class="range-tabs range-tabs-sm" style="margin-bottom:.75rem;">
+                    <button class="range-tab active" data-calc-mode="diff">价差计算</button>
+                    <button class="range-tab" data-calc-mode="pnl">盈亏计算</button>
+                    <button class="range-tab" data-calc-mode="breakeven">回本价</button>
+                    <button class="range-tab" data-calc-mode="dca">定投模拟</button>
+                </div>
+
+                <!-- Mode: 价差计算 (original) -->
+                <div id="calcModeDiff" class="calc-mode-panel">
+                    <p class="card-desc">输入商品价格和克重，自动计算与回收价的差额</p>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label" for="productPrice">商品总价（元）</label>
+                            <input type="number" id="productPrice" class="form-input"
+                                   placeholder="如 5800" step="0.01" inputmode="decimal">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="weight">克重（克）</label>
+                            <input type="number" id="weight" class="form-input"
+                                   placeholder="如 10.5" step="0.01" inputmode="decimal">
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label class="form-label" for="weight">克重（克）</label>
-                        <input type="number" id="weight" class="form-input"
-                               placeholder="如 10.5" step="0.01" inputmode="decimal">
+                    <div class="result-panel" id="result">
+                        <div class="result-grid">
+                            <div class="result-item">
+                                <div class="result-item-label">每克价格</div>
+                                <div class="result-item-value" id="pricePerGram">-</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-item-label">大盘回收价</div>
+                                <div class="result-item-value" id="marketPrice">-</div>
+                            </div>
+                        </div>
+                        <div class="result-total neutral" id="differenceDisplay">差额：--</div>
                     </div>
                 </div>
 
-                <div class="result-panel" id="result">
-                    <div class="result-grid">
-                        <div class="result-item">
-                            <div class="result-item-label">每克价格</div>
-                            <div class="result-item-value" id="pricePerGram">-</div>
+                <!-- Mode: 盈亏计算 -->
+                <div id="calcModePnl" class="calc-mode-panel" style="display:none;">
+                    <p class="card-desc">输入买入价和持有克重，计算当前盈亏</p>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label" for="pnlBuyPrice">买入价（元/克）</label>
+                            <input type="number" id="pnlBuyPrice" class="form-input"
+                                   placeholder="如 580" step="0.01" inputmode="decimal">
                         </div>
-                        <div class="result-item">
-                            <div class="result-item-label">大盘回收价</div>
-                            <div class="result-item-value" id="marketPrice">-</div>
+                        <div class="form-group">
+                            <label class="form-label" for="pnlWeight">持有克重（克）</label>
+                            <input type="number" id="pnlWeight" class="form-input"
+                                   placeholder="如 50" step="0.01" inputmode="decimal">
                         </div>
                     </div>
-                    <div class="result-total neutral" id="differenceDisplay">差额：--</div>
+                    <div class="result-panel" id="pnlResult">
+                        <div class="result-grid">
+                            <div class="result-item">
+                                <div class="result-item-label">当前回收价</div>
+                                <div class="result-item-value" id="pnlCurrentPrice">-</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-item-label">盈亏比例</div>
+                                <div class="result-item-value" id="pnlPercent">-</div>
+                            </div>
+                        </div>
+                        <div class="result-grid">
+                            <div class="result-item">
+                                <div class="result-item-label">持仓成本</div>
+                                <div class="result-item-value" id="pnlCost">-</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-item-label">当前市值</div>
+                                <div class="result-item-value" id="pnlMarketVal">-</div>
+                            </div>
+                        </div>
+                        <div class="result-total neutral" id="pnlDisplay">盈亏：--</div>
+                    </div>
+                </div>
+
+                <!-- Mode: 回本价 -->
+                <div id="calcModeBreakeven" class="calc-mode-panel" style="display:none;">
+                    <p class="card-desc">已知购买总价和克重，计算需要达到多少回收价才能回本</p>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label" for="beTotalCost">购买总价（元）</label>
+                            <input type="number" id="beTotalCost" class="form-input"
+                                   placeholder="如 30000" step="0.01" inputmode="decimal">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="beWeight">克重（克）</label>
+                            <input type="number" id="beWeight" class="form-input"
+                                   placeholder="如 50" step="0.01" inputmode="decimal">
+                        </div>
+                    </div>
+                    <div class="result-panel" id="beResult">
+                        <div class="result-grid">
+                            <div class="result-item">
+                                <div class="result-item-label">回本价</div>
+                                <div class="result-item-value" id="beBreakevenPrice">-</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-item-label">当前回收价</div>
+                                <div class="result-item-value" id="beCurrentPrice">-</div>
+                            </div>
+                        </div>
+                        <div class="result-total neutral" id="beDisplay">距回本：--</div>
+                    </div>
+                </div>
+
+                <!-- Mode: 定投模拟 -->
+                <div id="calcModeDca" class="calc-mode-panel" style="display:none;">
+                    <p class="card-desc">模拟定期定额买入策略，计算平均成本和当前盈亏</p>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label" for="dcaAmount">每次投入（元）</label>
+                            <input type="number" id="dcaAmount" class="form-input"
+                                   placeholder="如 1000" step="1" inputmode="decimal">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="dcaMonths">定投月数</label>
+                            <input type="number" id="dcaMonths" class="form-input"
+                                   placeholder="如 12" step="1" inputmode="numeric">
+                        </div>
+                    </div>
+                    <div class="form-group" style="margin-top:.75rem;">
+                        <label class="form-label" for="dcaStartPrice">起始价格（元/克，留空用当前价）</label>
+                        <input type="number" id="dcaStartPrice" class="form-input"
+                               placeholder="留空使用当前回收价" step="0.01" inputmode="decimal">
+                    </div>
+                    <button class="btn btn-primary" style="margin-top:.75rem;width:100%;" id="btnDcaCalc">模拟计算</button>
+                    <div class="result-panel" id="dcaResult">
+                        <div class="result-grid">
+                            <div class="result-item">
+                                <div class="result-item-label">总投入</div>
+                                <div class="result-item-value" id="dcaTotalCost">-</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-item-label">累计克重</div>
+                                <div class="result-item-value" id="dcaTotalWeight">-</div>
+                            </div>
+                        </div>
+                        <div class="result-grid">
+                            <div class="result-item">
+                                <div class="result-item-label">平均成本</div>
+                                <div class="result-item-value" id="dcaAvgCost">-</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-item-label">当前市值</div>
+                                <div class="result-item-value" id="dcaMarketVal">-</div>
+                            </div>
+                        </div>
+                        <div class="result-total neutral" id="dcaDisplay">模拟盈亏：--</div>
+                    </div>
                 </div>
             </div>
 
@@ -157,6 +283,8 @@
 (function(){
     var calcType = '黄 金';
     var alertType = '黄 金';
+    var calcMode = 'diff';
+    var latestPrices = {}; // { '黄 金': {recycle_price:xxx}, '白 银': ... }
 
     function debounce(fn, wait) {
         var timer;
@@ -167,30 +295,46 @@
         };
     }
 
+    function fmt(v, d) { return v == null ? '-' : Number(v).toFixed(d || 2); }
+
     /* ---- Price Overview (both metals at once) ---- */
     function loadOverview() {
         fetch('/api/price-overview')
             .then(function(r){ return r.json(); })
             .then(function(resp){
                 if (!resp.success || !resp.data) return;
-                resp.data.forEach(function(item){
-                    var key = null;
-                    if (item.data_type === '黄 金') key = 'gold';
-                    else if (item.data_type === '白 银') key = 'silver';
-                    if (!key) return;
-                    fillCard(key, item);
-                });
+                // Build lookup by data_type
+                var byType = {};
+                resp.data.forEach(function(item){ byType[item.data_type] = item; });
+
+                // Gold: prefer 黄 金 (domestic), fallback XAU (international)
+                var goldItem = byType['黄 金'] || byType['XAU'];
+                var silverItem = byType['白 银'] || byType['XAG'];
+                if (goldItem) { latestPrices[calcType] = goldItem; fillCard('gold', goldItem, goldItem.data_type); }
+                if (silverItem) { latestPrices[silverItem.data_type] = silverItem; fillCard('silver', silverItem, silverItem.data_type); }
+                // Also store by both keys for calculator
+                if (goldItem) latestPrices['黄 金'] = latestPrices['XAU'] = goldItem;
+                if (silverItem) latestPrices['白 银'] = latestPrices['XAG'] = silverItem;
             })
             .catch(function(e){ console.error('overview error', e); });
     }
 
-    function fillCard(key, d) {
+    function fillCard(key, d, dtype) {
         var priceEl = document.getElementById(key + '-price');
         var badgeEl = document.getElementById(key + '-badge');
         var realtimeEl = document.getElementById(key + '-realtime');
         var highEl = document.getElementById(key + '-high');
         var lowEl = document.getElementById(key + '-low');
         var timeEl = document.getElementById(key + '-time');
+
+        var isIntl = (dtype === 'XAU' || dtype === 'XAG' || dtype === 'XPT' || dtype === 'XPD');
+        var unit = isIntl ? 'USD/oz' : '元/克';
+        // Update unit display
+        var unitEl = document.getElementById(key + '-price');
+        if (unitEl && unitEl.nextElementSibling) unitEl.nextElementSibling.textContent = unit;
+        // Update label
+        var labelEl = unitEl ? unitEl.previousElementSibling : null;
+        if (labelEl) labelEl.textContent = isIntl ? '国际价格' : '回收价格';
 
         priceEl.textContent = d.recycle_price ? d.recycle_price.toFixed(2) : '--';
         realtimeEl.textContent = d.real_time_price ? d.real_time_price.toFixed(2) : '--';
@@ -205,6 +349,10 @@
             badgeEl.textContent = '暂无昨日数据';
             badgeEl.className = 'price-badge neutral';
         }
+
+        // Update stat key labels for international data
+        var statKeys = document.querySelectorAll('#card-' + key + ' .price-stat-key');
+        if (statKeys.length >= 1) statKeys[0].textContent = isIntl ? '实时价' : '大盘价';
 
         if (d.updated_at) {
             var t = new Date(d.updated_at);
@@ -241,6 +389,97 @@
     }
 
     var debouncedCalc = debounce(calculateDifference, 300);
+
+    /* ---- PnL Calculator ---- */
+    function calculatePnl() {
+        var bp = parseFloat(document.getElementById('pnlBuyPrice').value);
+        var w = parseFloat(document.getElementById('pnlWeight').value);
+        var el = document.getElementById('pnlResult');
+        if (isNaN(bp) || isNaN(w) || w <= 0 || bp <= 0) { el.style.display = 'none'; return; }
+        var p = latestPrices[calcType];
+        if (!p || !p.recycle_price) { el.style.display = 'none'; return; }
+        var cur = p.recycle_price;
+        var cost = bp * w, mktVal = cur * w, pnl = mktVal - cost, pct = (pnl / cost * 100);
+        document.getElementById('pnlCurrentPrice').textContent = fmt(cur);
+        document.getElementById('pnlCost').textContent = fmt(cost, 0) + '元';
+        document.getElementById('pnlMarketVal').textContent = fmt(mktVal, 0) + '元';
+        var sign = pnl >= 0 ? '+' : '';
+        document.getElementById('pnlPercent').textContent = sign + fmt(pct) + '%';
+        document.getElementById('pnlPercent').style.color = pnl > 0 ? '#16a34a' : pnl < 0 ? '#dc2626' : '';
+        var dd = document.getElementById('pnlDisplay');
+        dd.textContent = '盈亏：' + sign + fmt(pnl) + ' 元';
+        dd.className = 'result-total ' + (pnl > 0 ? 'positive' : pnl < 0 ? 'negative' : 'neutral');
+        el.style.display = 'block';
+    }
+    var debouncedPnl = debounce(calculatePnl, 300);
+
+    /* ---- Break-even Calculator ---- */
+    function calculateBreakeven() {
+        var tc = parseFloat(document.getElementById('beTotalCost').value);
+        var w = parseFloat(document.getElementById('beWeight').value);
+        var el = document.getElementById('beResult');
+        if (isNaN(tc) || isNaN(w) || w <= 0 || tc <= 0) { el.style.display = 'none'; return; }
+        var bePrice = tc / w;
+        var p = latestPrices[calcType];
+        var cur = p && p.recycle_price ? p.recycle_price : null;
+        document.getElementById('beBreakevenPrice').textContent = fmt(bePrice) + ' 元/克';
+        document.getElementById('beCurrentPrice').textContent = cur ? fmt(cur) + ' 元/克' : '-';
+        var dd = document.getElementById('beDisplay');
+        if (cur) {
+            var diff = cur - bePrice;
+            var sign = diff >= 0 ? '+' : '';
+            dd.textContent = '距回本：' + sign + fmt(diff) + ' 元/克 (' + sign + fmt(diff / bePrice * 100) + '%)';
+            dd.className = 'result-total ' + (diff >= 0 ? 'positive' : 'negative');
+        } else {
+            dd.textContent = '距回本：暂无当前价格';
+            dd.className = 'result-total neutral';
+        }
+        el.style.display = 'block';
+    }
+    var debouncedBe = debounce(calculateBreakeven, 300);
+
+    /* ---- DCA Simulator ---- */
+    function calculateDca() {
+        var amt = parseFloat(document.getElementById('dcaAmount').value);
+        var months = parseInt(document.getElementById('dcaMonths').value);
+        var el = document.getElementById('dcaResult');
+        if (isNaN(amt) || isNaN(months) || amt <= 0 || months <= 0) { el.style.display = 'none'; return; }
+        var p = latestPrices[calcType];
+        var curPrice = p && p.recycle_price ? p.recycle_price : null;
+        var startPrice = parseFloat(document.getElementById('dcaStartPrice').value);
+        if (isNaN(startPrice) || startPrice <= 0) startPrice = curPrice;
+        if (!startPrice) { el.style.display = 'none'; return; }
+
+        // Simulate: price follows random walk with slight upward bias around start price
+        var totalCost = 0, totalWeight = 0;
+        var simPrices = [];
+        for (var i = 0; i < months; i++) {
+            // Simple linear interpolation between start and current (if available) + some noise
+            var t = months > 1 ? i / (months - 1) : 0;
+            var endPrice = curPrice || startPrice;
+            var price = startPrice + (endPrice - startPrice) * t;
+            // Add ±3% variation per period for realism
+            var noise = (Math.random() - 0.5) * 0.06 * price;
+            price = Math.max(price * 0.8, price + noise);
+            simPrices.push(price);
+            var grams = amt / price;
+            totalCost += amt;
+            totalWeight += grams;
+        }
+        var avgCost = totalCost / totalWeight;
+        var mktVal = curPrice ? totalWeight * curPrice : totalWeight * simPrices[simPrices.length - 1];
+        var pnl = mktVal - totalCost;
+
+        document.getElementById('dcaTotalCost').textContent = fmt(totalCost, 0) + '元';
+        document.getElementById('dcaTotalWeight').textContent = fmt(totalWeight, 2) + '克';
+        document.getElementById('dcaAvgCost').textContent = fmt(avgCost) + '元/克';
+        document.getElementById('dcaMarketVal').textContent = fmt(mktVal, 0) + '元';
+        var sign = pnl >= 0 ? '+' : '';
+        var dd = document.getElementById('dcaDisplay');
+        dd.textContent = '模拟盈亏：' + sign + fmt(pnl) + '元 (' + sign + fmt(pnl / totalCost * 100) + '%)';
+        dd.className = 'result-total ' + (pnl > 0 ? 'positive' : pnl < 0 ? 'negative' : 'neutral');
+        el.style.display = 'block';
+    }
 
     /* ---- Alert Subscription (SSE) ---- */
     var alertSource = null;
@@ -294,8 +533,27 @@
 
         document.getElementById('productPrice').addEventListener('input', debouncedCalc);
         document.getElementById('weight').addEventListener('input', debouncedCalc);
+        document.getElementById('pnlBuyPrice').addEventListener('input', debouncedPnl);
+        document.getElementById('pnlWeight').addEventListener('input', debouncedPnl);
+        document.getElementById('beTotalCost').addEventListener('input', debouncedBe);
+        document.getElementById('beWeight').addEventListener('input', debouncedBe);
+        document.getElementById('btnDcaCalc').addEventListener('click', calculateDca);
         document.getElementById('btnSubscribe').addEventListener('click', subscribeAlert);
         document.getElementById('btnUnsubscribe').addEventListener('click', unsubscribeAlert);
+
+        // Calculator mode tabs
+        document.querySelectorAll('[data-calc-mode]').forEach(function(btn){
+            btn.addEventListener('click', function(){
+                calcMode = this.getAttribute('data-calc-mode');
+                document.querySelectorAll('[data-calc-mode]').forEach(function(b){
+                    b.classList.toggle('active', b.getAttribute('data-calc-mode') === calcMode);
+                });
+                var modes = {diff:'calcModeDiff', pnl:'calcModePnl', breakeven:'calcModeBreakeven', dca:'calcModeDca'};
+                Object.keys(modes).forEach(function(k){
+                    document.getElementById(modes[k]).style.display = k === calcMode ? 'block' : 'none';
+                });
+            });
+        });
 
         document.querySelectorAll('[data-calc-type]').forEach(function(btn){
             btn.addEventListener('click', function(){
@@ -303,7 +561,7 @@
                 document.querySelectorAll('[data-calc-type]').forEach(function(b){
                     b.classList.toggle('active', b.getAttribute('data-calc-type') === calcType);
                 });
-                debouncedCalc();
+                debouncedCalc(); debouncedPnl(); debouncedBe();
             });
         });
 

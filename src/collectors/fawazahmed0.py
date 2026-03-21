@@ -57,19 +57,8 @@ class Fawazahmed0Collector(BaseCollector):
                         close_price=price,
                     )
 
-                    # CNY 价格也写入 price_data，与国内数据统一查询
-                    if currency == 'cny':
-                        rows_price_data.append({
-                            'trade_date': api_date,
-                            'trade_time': '00:00:00',
-                            'data_type': symbol,
-                            'real_time_price': price,
-                            'recycle_price': price,
-                            'high_price': 0,
-                            'low_price': 0,
-                            'source': self.name,
-                            'currency': 'CNY',
-                        })
+                    # fawazahmed0 数据仅写入 daily_ohlc 表，不写 price_data
+                    # 避免 CNY/盎司 价格与 gold_api 的 USD/盎司 混在同一 data_type
 
                 logger.info(f"[{self.name}] {symbol} 日线数据已写入，日期 {api_date}")
 

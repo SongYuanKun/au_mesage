@@ -27,6 +27,7 @@ eggs/
 .env
 .env.*
 !.env.example
+!.env.mysql.example
 
 # Local config (敏感信息)
 my_config.ini
