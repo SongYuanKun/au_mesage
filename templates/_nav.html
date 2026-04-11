@@ -1,9 +1,17 @@
+<script src="{{ url_for('static', filename='js/price-unit.js') }}"></script>
 <nav class="site-nav">
     <div class="nav-inner">
         <a href="/" class="nav-brand">
             <span class="nav-brand-icon">Au</span>
             <span>金价监控</span>
         </a>
+        <div class="nav-unit-wrap" data-au-unit-wrap role="group" aria-label="国际贵金属价格单位">
+            <span class="nav-unit-label">国际价</span>
+            <div class="nav-unit-seg">
+                <button type="button" class="nav-unit-btn" data-au-unit="usd_oz" title="美元/金衡盎司">USD/盎司</button>
+                <button type="button" class="nav-unit-btn" data-au-unit="cny_g" title="人民币/克">人民币/克</button>
+            </div>
+        </div>
         <div class="nav-links" id="navLinks">
             <a href="/" class="nav-link" data-page="index">
                 <span class="nav-link-icon">📊</span>

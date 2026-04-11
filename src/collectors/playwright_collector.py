@@ -55,8 +55,9 @@ class PlaywrightCollector(BaseCollector):
                 )
                 self.page = context.new_page()
                 self.page.set_default_timeout(30000)
-                self.page.goto(self.website_url)
-                self.page.wait_for_load_state('networkidle')
+                # SPA 长时间长连时 networkidle 可能永不触发，改用 domcontentloaded + 等待表格
+                self.page.goto(self.website_url, wait_until='domcontentloaded')
+                self.page.wait_for_selector('.quote-price-table .price-table-row', timeout=30000)
                 logger.info("[playwright] 浏览器初始化完成，开始监控数据...")
 
                 while self.is_running:
@@ -77,18 +78,19 @@ class PlaywrightCollector(BaseCollector):
 
     def _refresh_and_get_data(self) -> list:
         try:
-            self.page.reload()
-            self.page.wait_for_load_state('networkidle')
-            self.page.wait_for_selector('.quote-price-table .price-table-row', timeout=10000)
+            self.page.reload(wait_until='domcontentloaded')
+            self.page.wait_for_selector('.quote-price-table .price-table-row', timeout=15000)
             elements = self.page.query_selector_all('.quote-price-table .price-table-row')
             extracted = []
 
             for element in elements:
                 try:
+                    # 行结构：el-col-8 品名 + 三个 el-col-6（回购/销售/最高+现价等，第四列可能含两个价）
                     name_el = element.query_selector('.symbol-name')
                     product_name = name_el.inner_text().strip() if name_el else '未知商品'
 
                     def get_price(nth):
+                        # nth 为 el-row 下第 n 个子节点；第 1 列为 el-col-8，价从第 2 列起为 el-col-6
                         el = element.query_selector(
                             f'.el-col-6:nth-child({nth}) .symbol-price-rise,'
                             f'.el-col-6:nth-child({nth}) .symbol-price-fall,'
@@ -98,6 +100,7 @@ class PlaywrightCollector(BaseCollector):
                         cleaned = ''.join(c for c in raw if c.isdigit() or c in '.-')
                         return float(cleaned) if cleaned else 0.0
 
+                    # 与页面列顺序一致：回购、销售、最高（第四列多价时取首个匹配，一般为最高价）
                     buyback = get_price(2)
                     selling = get_price(3)
                     high = get_price(4)

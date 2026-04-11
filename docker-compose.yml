@@ -1,7 +1,12 @@
-# 方案 A：仅应用容器，MySQL 为外部实例（云 RDS / 自建主机等）
-# 启动：docker compose up --build -d   （需本机 .env，见 .env.example）
+# 方案 A：仅应用容器，MySQL 为外部独立实例（云 RDS / 其他主机 / 宿主机上的 MySQL）
+# 启动：docker compose up --build -d   （需项目根目录 .env，见 .env.example）
 #
-# 若需要 Compose 内自带 MySQL，请使用 docker-compose.mysql.yml + .env.mysql
+# 重要：容器内 127.0.0.1 不是宿主机。若库在宿主机、映射 3306，请设
+#   MYSQL_HOST=host.docker.internal
+# 若库在局域网/云上，填可解析的主机名或 IP（与 README「方式 A」一致）。
+# 库须已执行 scripts/init.sql，且账号可远程连接。
+#
+# 若需要 Compose 内自带 MySQL，请使用 docker-compose.mysql.yml + .env.mysql（勿与本文件同时占用同一库端口策略混用）
 services:
   app:
     build:
@@ -14,6 +19,11 @@ services:
       - .env
     environment:
       - TZ=Asia/Shanghai
+      # 与 .env 一致；可在命令前覆盖（容器内 localhost 不是宿主机，连宿主机 MySQL 用 host.docker.internal）
+      - MYSQL_HOST=${MYSQL_HOST}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:

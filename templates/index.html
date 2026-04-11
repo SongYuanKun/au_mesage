@@ -281,10 +281,31 @@
 
 <script>
 (function(){
+    if (typeof AuPriceUnit === 'undefined') {
+        console.error('[au] 未加载 static/js/price-unit.js，单位切换不可用');
+    }
     var calcType = '黄 金';
     var alertType = '黄 金';
     var calcMode = 'diff';
     var latestPrices = {}; // { '黄 金': {recycle_price:xxx}, '白 银': ... }
+    var usdCnyRate = null; // 用于 USD/盎司 → 元/克
+
+    function getMetalDtypeForCalc() {
+        if (!latestPrices._dt) return null;
+        return calcType === '黄 金' ? latestPrices._dt.gold : latestPrices._dt.silver;
+    }
+    function priceNumSuffix(dtype) {
+        if (typeof AuPriceUnit === 'undefined') return ' 元/克';
+        if (!dtype || !AuPriceUnit.isIntlDtype(dtype)) return ' 元/克';
+        return AuPriceUnit.getPreference() === 'cny_g' ? ' 元/克' : ' USD/oz';
+    }
+    function effectiveRecycle(p, dtype) {
+        if (typeof AuPriceUnit === 'undefined' || !p || p.recycle_price == null) return null;
+        if (AuPriceUnit.isIntlDtype(dtype) && AuPriceUnit.getPreference() === 'cny_g' && usdCnyRate) {
+            return AuPriceUnit.usdOzToCnyPerGram(p.recycle_price, usdCnyRate);
+        }
+        return p.recycle_price;
+    }
 
     function debounce(fn, wait) {
         var timer;
@@ -299,27 +320,69 @@
 
     /* ---- Price Overview (both metals at once) ---- */
     function loadOverview() {
-        fetch('/api/price-overview')
-            .then(function(r){ return r.json(); })
-            .then(function(resp){
+        if (typeof AuPriceUnit === 'undefined') return;
+        var needRate = AuPriceUnit.getPreference() === 'cny_g';
+        function fetchRateOnce() {
+            return AuPriceUnit.getUsdCnyRate().catch(function () { return null; });
+        }
+        function fetchRateWithRetries() {
+            if (!needRate) return Promise.resolve(null);
+            return fetchRateOnce().then(function (rate) {
+                if (rate != null) return rate;
+                return new Promise(function (resolve) {
+                    setTimeout(function () {
+                        AuPriceUnit.invalidateRateCache();
+                        fetchRateOnce().then(function (r2) {
+                            if (r2 != null) return resolve(r2);
+                            setTimeout(function () {
+                                AuPriceUnit.invalidateRateCache();
+                                fetchRateOnce().then(resolve);
+                            }, 500);
+                        });
+                    }, 300);
+                });
+            });
+        }
+        fetchRateWithRetries()
+            .then(function (rate) {
+                usdCnyRate = rate;
+                return fetch('/api/price-overview');
+            })
+            .then(function (r) {
+                return r.json();
+            })
+            .then(function (resp) {
                 if (!resp.success || !resp.data) return;
-                // Build lookup by data_type
                 var byType = {};
-                resp.data.forEach(function(item){ byType[item.data_type] = item; });
+                resp.data.forEach(function (item) {
+                    byType[item.data_type] = item;
+                });
 
-                // Gold: prefer 黄 金 (domestic), fallback XAU (international)
                 var goldItem = byType['黄 金'] || byType['XAU'];
                 var silverItem = byType['白 银'] || byType['XAG'];
-                if (goldItem) { latestPrices[calcType] = goldItem; fillCard('gold', goldItem, goldItem.data_type); }
-                if (silverItem) { latestPrices[silverItem.data_type] = silverItem; fillCard('silver', silverItem, silverItem.data_type); }
-                // Also store by both keys for calculator
+                latestPrices._dt = {
+                    gold: goldItem ? goldItem.data_type : null,
+                    silver: silverItem ? silverItem.data_type : null
+                };
+                if (goldItem) {
+                    fillCard('gold', goldItem, goldItem.data_type);
+                }
+                if (silverItem) {
+                    latestPrices[silverItem.data_type] = silverItem;
+                    fillCard('silver', silverItem, silverItem.data_type);
+                }
                 if (goldItem) latestPrices['黄 金'] = latestPrices['XAU'] = goldItem;
                 if (silverItem) latestPrices['白 银'] = latestPrices['XAG'] = silverItem;
+                debouncedPnl();
+                debouncedBe();
             })
-            .catch(function(e){ console.error('overview error', e); });
+            .catch(function (e) {
+                console.error('overview error', e);
+            });
     }
 
     function fillCard(key, d, dtype) {
+        if (typeof AuPriceUnit === 'undefined') return;
         var priceEl = document.getElementById(key + '-price');
         var badgeEl = document.getElementById(key + '-badge');
         var realtimeEl = document.getElementById(key + '-realtime');
@@ -327,36 +390,41 @@
         var lowEl = document.getElementById(key + '-low');
         var timeEl = document.getElementById(key + '-time');
 
-        var isIntl = (dtype === 'XAU' || dtype === 'XAG' || dtype === 'XPT' || dtype === 'XPD');
-        var unit = isIntl ? 'USD/oz' : '元/克';
-        // Update unit display
+        var isIntl = AuPriceUnit.isIntlDtype(dtype);
+        var showCny = isIntl && AuPriceUnit.getPreference() === 'cny_g' && usdCnyRate != null;
+        var f = showCny ? AuPriceUnit.usdOzToCnyGramFactor(usdCnyRate) : null;
+        function conv(v) {
+            if (v == null || v === '') return null;
+            return showCny ? Number(v) * f : Number(v);
+        }
+        var unit = showCny ? '元/克' : isIntl ? 'USD/oz' : '元/克';
         var unitEl = document.getElementById(key + '-price');
         if (unitEl && unitEl.nextElementSibling) unitEl.nextElementSibling.textContent = unit;
-        // Update label
         var labelEl = unitEl ? unitEl.previousElementSibling : null;
         if (labelEl) labelEl.textContent = isIntl ? '国际价格' : '回收价格';
 
-        priceEl.textContent = d.recycle_price ? d.recycle_price.toFixed(2) : '--';
-        realtimeEl.textContent = d.real_time_price ? d.real_time_price.toFixed(2) : '--';
-        highEl.textContent = d.today_high ? d.today_high.toFixed(2) : '--';
-        lowEl.textContent = d.today_low ? d.today_low.toFixed(2) : '--';
+        priceEl.textContent = conv(d.recycle_price) != null ? conv(d.recycle_price).toFixed(2) : '--';
+        realtimeEl.textContent = conv(d.real_time_price) != null ? conv(d.real_time_price).toFixed(2) : '--';
+        highEl.textContent = conv(d.today_high) != null ? conv(d.today_high).toFixed(2) : '--';
+        lowEl.textContent = conv(d.today_low) != null ? conv(d.today_low).toFixed(2) : '--';
 
         if (d.change != null && d.change_pct != null) {
-            var sign = d.change >= 0 ? '+' : '';
-            badgeEl.textContent = sign + d.change.toFixed(2) + '  ' + sign + d.change_pct.toFixed(2) + '%';
+            var ch = showCny && f != null ? d.change * f : d.change;
+            var sign = ch >= 0 ? '+' : '';
+            badgeEl.textContent = sign + ch.toFixed(2) + '  ' + sign + d.change_pct.toFixed(2) + '%';
             badgeEl.className = 'price-badge ' + (d.change > 0 ? 'up' : d.change < 0 ? 'down' : 'neutral');
         } else {
             badgeEl.textContent = '暂无昨日数据';
             badgeEl.className = 'price-badge neutral';
         }
 
-        // Update stat key labels for international data
         var statKeys = document.querySelectorAll('#card-' + key + ' .price-stat-key');
         if (statKeys.length >= 1) statKeys[0].textContent = isIntl ? '实时价' : '大盘价';
 
         if (d.updated_at) {
             var t = new Date(d.updated_at);
-            timeEl.textContent = '更新于 ' + t.toLocaleTimeString('zh-CN', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+            timeEl.textContent =
+                '更新于 ' + t.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         }
     }
 
@@ -398,9 +466,12 @@
         if (isNaN(bp) || isNaN(w) || w <= 0 || bp <= 0) { el.style.display = 'none'; return; }
         var p = latestPrices[calcType];
         if (!p || !p.recycle_price) { el.style.display = 'none'; return; }
-        var cur = p.recycle_price;
+        var dtype = getMetalDtypeForCalc();
+        var cur = effectiveRecycle(p, dtype);
+        if (cur == null) { el.style.display = 'none'; return; }
         var cost = bp * w, mktVal = cur * w, pnl = mktVal - cost, pct = (pnl / cost * 100);
-        document.getElementById('pnlCurrentPrice').textContent = fmt(cur);
+        var suf = priceNumSuffix(dtype);
+        document.getElementById('pnlCurrentPrice').textContent = fmt(cur) + suf;
         document.getElementById('pnlCost').textContent = fmt(cost, 0) + '元';
         document.getElementById('pnlMarketVal').textContent = fmt(mktVal, 0) + '元';
         var sign = pnl >= 0 ? '+' : '';
@@ -421,14 +492,16 @@
         if (isNaN(tc) || isNaN(w) || w <= 0 || tc <= 0) { el.style.display = 'none'; return; }
         var bePrice = tc / w;
         var p = latestPrices[calcType];
-        var cur = p && p.recycle_price ? p.recycle_price : null;
+        var dtype = getMetalDtypeForCalc();
+        var cur = p && p.recycle_price != null ? effectiveRecycle(p, dtype) : null;
         document.getElementById('beBreakevenPrice').textContent = fmt(bePrice) + ' 元/克';
-        document.getElementById('beCurrentPrice').textContent = cur ? fmt(cur) + ' 元/克' : '-';
+        document.getElementById('beCurrentPrice').textContent = cur != null ? fmt(cur) + priceNumSuffix(dtype) : '-';
         var dd = document.getElementById('beDisplay');
-        if (cur) {
+        if (cur != null) {
             var diff = cur - bePrice;
             var sign = diff >= 0 ? '+' : '';
-            dd.textContent = '距回本：' + sign + fmt(diff) + ' 元/克 (' + sign + fmt(diff / bePrice * 100) + '%)';
+            var suf = priceNumSuffix(dtype);
+            dd.textContent = '距回本：' + sign + fmt(diff) + suf + ' (' + sign + fmt(diff / bePrice * 100) + '%)';
             dd.className = 'result-total ' + (diff >= 0 ? 'positive' : 'negative');
         } else {
             dd.textContent = '距回本：暂无当前价格';
@@ -445,7 +518,8 @@
         var el = document.getElementById('dcaResult');
         if (isNaN(amt) || isNaN(months) || amt <= 0 || months <= 0) { el.style.display = 'none'; return; }
         var p = latestPrices[calcType];
-        var curPrice = p && p.recycle_price ? p.recycle_price : null;
+        var dtype = getMetalDtypeForCalc();
+        var curPrice = p && p.recycle_price != null ? effectiveRecycle(p, dtype) : null;
         var startPrice = parseFloat(document.getElementById('dcaStartPrice').value);
         if (isNaN(startPrice) || startPrice <= 0) startPrice = curPrice;
         if (!startPrice) { el.style.display = 'none'; return; }
@@ -472,7 +546,8 @@
 
         document.getElementById('dcaTotalCost').textContent = fmt(totalCost, 0) + '元';
         document.getElementById('dcaTotalWeight').textContent = fmt(totalWeight, 2) + '克';
-        document.getElementById('dcaAvgCost').textContent = fmt(avgCost) + '元/克';
+        document.getElementById('dcaAvgCost').textContent =
+            fmt(avgCost) + (dtype && AuPriceUnit.isIntlDtype(dtype) ? priceNumSuffix(dtype) : ' 元/克');
         document.getElementById('dcaMarketVal').textContent = fmt(mktVal, 0) + '元';
         var sign = pnl >= 0 ? '+' : '';
         var dd = document.getElementById('dcaDisplay');
@@ -576,6 +651,13 @@
 
         setInterval(function(){ if (!document.hidden) loadOverview(); }, 30000);
         document.addEventListener('visibilitychange', function(){ if (!document.hidden) loadOverview(); });
+
+        window.addEventListener('au-price-unit-change', function () {
+            loadOverview();
+            debouncedCalc();
+            debouncedPnl();
+            debouncedBe();
+        });
     });
 })();
 </script>

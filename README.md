@@ -76,7 +76,20 @@ au_mesage/
 │
 ├── src/
 │   ├── app.py                    # 入口：MySQL、CollectorManager、Flask
-│   ├── route.py                  # 页面与 REST API
+│   ├── route.py                  # 应用工厂：注册 Blueprint
+│   ├── application/              # 用例层：与 HTTP 无关的响应组装、区间解析（可单测）
+│   │   ├── price_responses.py
+│   │   ├── trend_range.py
+│   │   ├── calculations.py       # /api/history、/api/calculate 的价差计算
+│   │   ├── exchange.py         # /api/exchange-rate：缓存优先再查库（可单测）
+│   │   └── health.py           # /api/health 响应体
+│   ├── routes/
+│   │   ├── pages_bp.py           # 页面路由（/、/history、/analysis）
+│   │   ├── api_bp.py             # 兼容导入 → routes.api
+│   │   └── api/                  # REST API 与 SSE（按领域拆分）
+│   │       ├── price_routes.py
+│   │       ├── alert_routes.py
+│   │       └── misc_routes.py
 │   ├── mysql_manager.py          # MySQL 连接池与查询
 │   ├── webhook_notifier.py       # 企业微信 / Telegram / 邮件推送
 │   ├── CustomJSONEncoder.py      # 自定义 JSON 序列化
@@ -163,27 +176,13 @@ WEBSITE_URL=https://your_website_url.com
 
 #### 6. 初始化数据库
 
-在 MySQL 中执行 `scripts/init.sql`：
+在目标库中执行 **`scripts/init.sql`**（会创建 `price_data`、`exchange_rate`、`daily_ohlc` 三张表，与代码一致）：
 
 ```bash
 mysql -h <host> -u <user> -p <database> < scripts/init.sql
 ```
 
-或在 MySQL 客户端中直接运行：
-
-```sql
-CREATE TABLE IF NOT EXISTS price_data (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  trade_date DATE NOT NULL,
-  trade_time TIME NOT NULL,
-  data_type VARCHAR(50) NOT NULL,
-  real_time_price DECIMAL(10, 4) DEFAULT 0,
-  recycle_price DECIMAL(10, 4) DEFAULT 0,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  INDEX idx_type_date (data_type, trade_date),
-  INDEX idx_created_at (created_at)
-);
-```
+表结构以仓库内 `scripts/init.sql` 为准；勿使用旧文档中的简化建表语句。
 
 #### 7. 启动应用
 
@@ -216,14 +215,23 @@ tail -f price_service.log
 
 ### 方式 A：仅应用 + 外部 MySQL（推荐生产）
 
-1. 复制 `cp .env.example .env`，填写可访问的 `MYSQL_HOST`、`MYSQL_PASSWORD` 等（库需已建表或自行执行 `scripts/init.sql`）。
-2. 若 MySQL 在宿主机：设 `MYSQL_HOST=host.docker.internal`（`docker-compose.yml` 已含 `extra_hosts`）。
+1. 复制 `cp .env.example .env`，填写可访问的 `MYSQL_HOST`、`MYSQL_PASSWORD` 等（库需已执行 `scripts/init.sql` 建表）。**仅应用容器 + 已有库（方案 B）** 可对照 **`.env.docker.app-only.example`**（含宿主机 / RDS 两种 `MYSQL_HOST` 写法）。宿主机本机 MySQL 还可参考 `.env.docker.host-mysql.example`。
+2. 若 MySQL 跑在**宿主机**或本机其他容器映射到宿主机端口：在 `.env` 中设 `MYSQL_HOST=host.docker.internal`（`docker-compose.yml` 已含 `extra_hosts`，便于容器访问宿主机）。
 
 ```bash
-docker compose up --build -d
+docker compose -f docker-compose.yml up --build -d
 ```
 
-应用：http://localhost:8083
+应用：http://localhost:8083（日志目录挂载为 `./logs`）
+
+**说明**：`docker-compose.yml` 会将 `MYSQL_HOST` / `MYSQL_USER` / `MYSQL_PASSWORD` / `MYSQL_DATABASE` 从环境变量传入容器（与根目录 `.env` 做插值合并）。若 MySQL 跑在宿主机（例如已用 `docker-compose.mysql.yml` 只起了 `mysql`、端口映射到 `3306`），容器内不能用 `127.0.0.1` 指宿主机，需使用 `MYSQL_HOST=host.docker.internal`，且账号库名须与该实例一致，例如：
+
+```bash
+MYSQL_HOST=host.docker.internal MYSQL_USER=root MYSQL_PASSWORD=<与 .env.mysql 一致> MYSQL_DATABASE=price_data \
+  docker compose -f docker-compose.yml up --build -d
+```
+
+仅使用 `.env` 且其中为 `MYSQL_HOST=127.0.0.1` 时，应用容器往往**连不上**宿主机数据库，请按上式覆盖或直接把 `.env` 中的 `MYSQL_HOST` 改为 `host.docker.internal`（并核对用户、库名）。
 
 ### 方式 B：应用 + 内置 MySQL（本地联调）
 
@@ -507,24 +515,44 @@ es.addEventListener('alert', ev => console.log('alert', JSON.parse(ev.data)));
 
 ## 📊 数据库模式
 
-### price_data 表结构
+以下与 **`scripts/init.sql`** 保持一致；应用写入逻辑见 `src/mysql_manager.py`。
 
-| 字段名 | 类型 | 约束 | 说明 |
-|--------|------|------|------|
-| `id` | INT | PRIMARY KEY, AUTO_INCREMENT | 主键，自增 |
-| `trade_date` | DATE | NOT NULL | 交易日期 |
-| `trade_time` | TIME | NOT NULL | 交易时间 |
-| `data_type` | VARCHAR(50) | NOT NULL | 数据类型（黄 金、白 银）|
-| `real_time_price` | DECIMAL(10,4) | DEFAULT 0 | 实时价格（元/克） |
-| `recycle_price` | DECIMAL(10,4) | DEFAULT 0 | 回收价格（元/克）|
-| `created_at` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
+### `price_data`（实时/站点与 API 价格流水）
 
-### 索引配置
+| 字段名 | 类型 | 说明 |
+|--------|------|------|
+| `id` | INT，自增主键 | 主键 |
+| `trade_date` / `trade_time` | DATE / TIME | 交易日期与时间 |
+| `data_type` | VARCHAR(50) | 数据类型（如黄金、白银） |
+| `real_time_price` / `recycle_price` | DECIMAL(10,4) | 实时价、回收价 |
+| `high_price` / `low_price` | DECIMAL(10,4) | 高低价 |
+| `source` | VARCHAR(30) | 数据来源（如 `gold_api`、`exchange_rate`、`fawazahmed0`、`playwright`） |
+| `currency` | VARCHAR(10) | 计价币种（如 CNY、USD） |
+| `created_at` | TIMESTAMP | 写入时间 |
 
-```sql
-INDEX idx_type_date (data_type, trade_date)  -- 用于 data_type + trade_date 查询
-INDEX idx_created_at (created_at)             -- 用于时间范围查询和排序
-```
+主要索引：`idx_type_created`、`idx_date_type_recycle`、`idx_type_date_created`、`idx_source`（见 `init.sql`）。
+
+### `exchange_rate`（汇率记录）
+
+| 字段名 | 类型 | 说明 |
+|--------|------|------|
+| `base_currency` / `target_currency` | VARCHAR(10) | 货币对 |
+| `rate` | DECIMAL(12,6) | 汇率 |
+| `source` | VARCHAR(30) | 来源标识 |
+| `created_at` | TIMESTAMP | 写入时间 |
+
+### `daily_ohlc`（日线 OHLC，如 Fawaz 等源）
+
+| 字段名 | 类型 | 说明 |
+|--------|------|------|
+| `trade_date` | DATE | 交易日 |
+| `data_type` / `source` | VARCHAR | 品种与来源 |
+| `currency` | VARCHAR(10) | 币种 |
+| `open_price` … `close_price` | DECIMAL(12,4) | OHLC |
+| `volume` | DECIMAL(20,4)，可空 | 成交量 |
+| `created_at` | TIMESTAMP | 更新时间 |
+
+唯一约束：`uk_date_type_source`（`trade_date`, `data_type`, `source`），供 `INSERT … ON DUPLICATE KEY UPDATE` 使用。
 
 ---
 
@@ -545,9 +573,9 @@ python src/app.py
 
 ---
 
-### 2. route.py（页面与 REST API）
+### 2. route.py 与 routes/（页面与 REST API）
 
-**职责**：渲染 `templates/` 下页面；实现价格、趋势、汇率、提醒等 JSON API；部分接口带短时 TTL 缓存（`route.py` 顶部 `_cache`）。
+**职责**：`route.create_app` 使用绝对路径挂载 `templates/`、`static/`，并注册 `routes/pages_bp.py`（`/`、`/history`、`/analysis`）与 `routes.api.create_api_blueprint`（`/api/*` 与 SSE，拆分为 `routes/api/{price,alert,misc}_routes.py`）；价格类 JSON 组装在 `application/price_responses.py`；趋势区间解析在 `application/trend_range.py`；进程内 TTL 缓存在 `routes/api/cache.py`（`TtlCache`）。
 
 **特性**：`CustomJSONProvider`；北京时间 `Asia/Shanghai` 用于日期与展示。
 
@@ -572,7 +600,9 @@ python src/app.py
 - `get_latest_data(data_type)`：获取特定类型的最新价格
 - `get_latest_data_by_type()`：获取所有类型的最新价格
 - `get_price_history(data_type, limit=30)`：获取历史价格数据
-- `batch_insert_data(data_list)`：批量插入数据
+- `batch_insert_data(data_list)`：批量写入 `price_data`
+- `upsert_exchange_rate` / `get_latest_exchange_rate`：汇率表
+- `upsert_daily_ohlc` / `get_daily_ohlc`：日线表
 - `get_connection()`：从连接池获取连接
 
 **连接池配置**：
@@ -883,6 +913,17 @@ grep "2025-11-24" price_service.log
 3. 提交更改：`git commit -am 'Add your feature'`
 4. 推送到分支：`git push origin feature/your-feature`
 5. 提交 Pull Request
+
+### 单元测试
+
+```bash
+python -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -r requirements-dev.txt
+PYTHONPATH=src pytest tests/ -v
+```
+
+当前覆盖进程内 TTL 缓存等可纯逻辑验证的模块；涉及 Flask/MySQL 的接口可后续用测试客户端与夹具扩展。
 
 ### 代码规范
 

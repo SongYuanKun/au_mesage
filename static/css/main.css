@@ -150,6 +150,48 @@ body {
 
 .nav-link-icon { font-size: 1rem; }
 
+/* 国际价单位切换（XAU/XAG 等） */
+.nav-unit-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 101;
+}
+.nav-unit-label {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+.nav-unit-seg {
+    display: inline-flex;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+    background: var(--bg-secondary);
+}
+.nav-unit-btn {
+    padding: 0.35rem 0.5rem;
+    font-size: 0.7rem;
+    font-weight: 500;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: var(--transition);
+    white-space: nowrap;
+}
+.nav-unit-btn:hover {
+    color: var(--text-primary);
+    background: var(--bg-tertiary);
+}
+.nav-unit-btn.active {
+    background: #eef2ff;
+    color: var(--primary);
+    font-weight: 600;
+}
+
 .nav-toggle {
     display: none;
     flex-direction: column;
@@ -895,10 +937,26 @@ body {
     .price-value { font-size: 2.25rem; }
     .chart-container { height: 260px; }
 
-    .nav-toggle { display: flex; }
+    .nav-toggle { display: flex; order: 1; margin-left: auto; }
+    .nav-brand { order: 0; }
+    .nav-unit-wrap {
+        order: 2;
+        flex-basis: 100%;
+        justify-content: center;
+        padding: 0.35rem 0 0.25rem;
+        border-top: 1px solid var(--border-color);
+        margin-top: 0.15rem;
+    }
+    .nav-inner {
+        flex-wrap: wrap;
+        height: auto;
+        min-height: 56px;
+        padding-bottom: 0.35rem;
+    }
     .nav-links {
+        order: 3;
         position: absolute;
-        top: 56px;
+        top: 100%;
         left: 0;
         right: 0;
         background: var(--bg-primary);

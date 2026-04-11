@@ -66,7 +66,7 @@
                     <button class="type-tab" data-spread-metal="XAG">白银</button>
                 </div>
             </div>
-            <p class="card-desc">卖出价 − 回收价 = 价差。价差收窄时可能是较好的买入时机。</p>
+            <p class="card-desc">卖出价取大盘实时价，回收价取回收价字段；二者之差为价差。国际现货等数据源往往只写一个价，两线会重合；启用站点采集拿到买卖双价后才会分开。</p>
             <div id="spreadChart" class="chart-container"></div>
             <div id="noSpreadData" class="chart-placeholder" style="display:none;">
                 <div class="chart-placeholder-icon">📉</div>
@@ -158,6 +158,36 @@
 
     function fmt(v, d) { return v == null ? '-' : Number(v).toFixed(d || 2); }
 
+    function intlMetal(m) { return m === 'XAU' || m === 'XAG'; }
+    function intlYAxisLabel(metal) {
+        if (typeof AuPriceUnit === 'undefined') return '元/克';
+        if (!intlMetal(metal)) return '元/克';
+        return AuPriceUnit.getPreference() === 'cny_g' ? '元/克' : 'USD/oz';
+    }
+    /** 将接口返回的 USD/盎司序列转为元/克（用于展示） */
+    function convertIntlTrendRows(rows, mode) {
+        if (!rows || !rows.length) return Promise.resolve(rows);
+        if (typeof AuPriceUnit === 'undefined') return Promise.resolve(rows);
+        return AuPriceUnit.getUsdCnyRate()
+            .then(function (rate) {
+                var f = AuPriceUnit.usdOzToCnyGramFactor(rate);
+                return rows.map(function (row) {
+                    var o = Object.assign({}, row);
+                    if (mode === 'line') {
+                        if (o.price != null) o.price = Number(o.price) * f;
+                        if (o.recycle_price != null) o.recycle_price = Number(o.recycle_price) * f;
+                        if (o.real_time_price != null) o.real_time_price = Number(o.real_time_price) * f;
+                    } else {
+                        ['open', 'high', 'low', 'close'].forEach(function (k) {
+                            if (o[k] != null) o[k] = Number(o[k]) * f;
+                        });
+                    }
+                    return o;
+                });
+            })
+            .catch(function () { return rows; });
+    }
+
     /* ================================================================
        TECHNICAL INDICATOR CALCULATIONS (pure functions)
        ================================================================ */
@@ -235,13 +265,22 @@
                 if (!resp.success || !resp.data || resp.data.length === 0) {
                     noMainEl.style.display = 'block'; mainChart.clear(); clearStats(); lastOhlcData = null; return;
                 }
-                if (resp.chart_type === 'line') {
-                    lastOhlcData = null;
-                    renderIntradayLine(resp.data);
-                } else {
-                    lastOhlcData = resp.data;
-                    renderCandlestick(resp.data);
-                }
+                var isIntl = intlMetal(currentMetal);
+                var wantCny = typeof AuPriceUnit !== 'undefined' && isIntl && AuPriceUnit.getPreference() === 'cny_g';
+                var mode = resp.chart_type === 'line' ? 'line' : 'ohlc';
+                var p = wantCny ? convertIntlTrendRows(resp.data, mode) : Promise.resolve(resp.data);
+                p.then(function(data){
+                    if (!data || !data.length) {
+                        noMainEl.style.display = 'block'; mainChart.clear(); clearStats(); lastOhlcData = null; return;
+                    }
+                    if (resp.chart_type === 'line') {
+                        lastOhlcData = null;
+                        renderIntradayLine(data);
+                    } else {
+                        lastOhlcData = data;
+                        renderCandlestick(data);
+                    }
+                });
             })
             .catch(function(e){ console.error('loadMainChart', e); noMainEl.style.display = 'block'; mainChart.clear(); });
     }
@@ -265,8 +304,7 @@
                     lineStyle:{color:C.ma20,width:1}, itemStyle:{color:C.ma20} });
             }
         }
-        var isIntl = (currentMetal === 'XAU' || currentMetal === 'XAG');
-        var yUnit = isIntl ? 'USD/oz' : '元/克';
+        var yUnit = intlYAxisLabel(currentMetal);
         var grids = [{ left:'8%', right:'4%', bottom:'15%', top:'8%' }];
         var xAxes = [{ type:'category', data:times, axisLabel:{rotate:45,fontSize:11} }];
         var yAxes = [{ type:'value', name:yUnit, scale:true }];
@@ -285,11 +323,10 @@
         var closes = data.map(function(d){ return d.close; });
 
         var series = [];
-        var isIntlC = (currentMetal === 'XAU' || currentMetal === 'XAG');
         var grids = [{ left:'8%', right:'4%', top:'6%', height:'48%' }];
         var xAxes = [{ type:'category', data:dates, gridIndex:0,
             axisLabel:{show:false} }];
-        var yAxes = [{ type:'value', scale:true, gridIndex:0, name: isIntlC ? 'USD/oz' : '元/克', splitLine:{lineStyle:{color:C.grid}} }];
+        var yAxes = [{ type:'value', scale:true, gridIndex:0, name: intlYAxisLabel(currentMetal), splitLine:{lineStyle:{color:C.grid}} }];
         var dataZooms = [
             { type:'inside', xAxisIndex: [0], start:0, end:100 },
             { type:'slider', xAxisIndex: [0], height:20, bottom:5, start:0, end:100 }
@@ -431,14 +468,41 @@
                 if (!resp.success || !resp.data || resp.data.length < 2) {
                     noSpreadEl.style.display = 'block'; spreadChart.clear(); return;
                 }
-                var d = resp.data;
-                // price-trend 1d returns {time, price}, candlestick returns {date, open, high, low, close}
+                var raw = resp.data;
                 var isLine = resp.chart_type === 'line';
+                var isIntl = intlMetal(spreadMetal);
+                var wantCny = typeof AuPriceUnit !== 'undefined' && isIntl && AuPriceUnit.getPreference() === 'cny_g';
+                var mode = isLine ? 'line' : 'ohlc';
+                var convP = wantCny ? convertIntlTrendRows(raw, mode) : Promise.resolve(raw);
+                convP.then(function(d){
+                // price-trend 1d returns {time, price}, candlestick returns {date, open, high, low, close}
                 var times = d.map(function(r){ return isLine ? r.time : r.date; });
-                var sells = d.map(function(r){ return isLine ? r.price : r.close; });
-                var buys = d.map(function(r){ return isLine ? r.price : r.open; });
+                // 日线 K：close≈卖、open≈买（均来自当日 recycle 序列的首尾）；日内：大盘价 vs 回收价
+                var sells = d.map(function(r){
+                    if (isLine) {
+                        var rt = r.real_time_price, rp = r.recycle_price, px = r.price;
+                        if (rt != null) return Number(rt);
+                        if (rp != null) return Number(rp);
+                        return px != null ? Number(px) : null;
+                    }
+                    return r.close;
+                });
+                var buys = d.map(function(r){
+                    if (isLine) {
+                        var rp = r.recycle_price, px = r.price;
+                        if (rp != null) return Number(rp);
+                        return px != null ? Number(px) : null;
+                    }
+                    return r.open;
+                });
                 var spreads = d.map(function(r){
-                    if (isLine) return null; // no spread for line data (single price)
+                    if (isLine) {
+                        var s = r.real_time_price != null ? Number(r.real_time_price) : null;
+                        var b = r.recycle_price != null ? Number(r.recycle_price) : null;
+                        if (s == null && r.price != null) s = Number(r.price);
+                        if (b == null && r.price != null) b = Number(r.price);
+                        return (s != null && b != null) ? +Math.abs(s - b).toFixed(4) : null;
+                    }
                     var s = r.close, b = r.open;
                     return (s != null && b != null) ? +Math.abs(s - b).toFixed(4) : null;
                 });
@@ -448,7 +512,7 @@
                     legend: { data:['卖出价','回收价','价差'], bottom:0, textStyle:{fontSize:10} },
                     xAxis: { type:'category', data:times, axisLabel:{rotate:45,fontSize:10} },
                     yAxis: [
-                        { type:'value', name:'元/克', scale:true },
+                        { type:'value', name: intlYAxisLabel(spreadMetal), scale:true },
                         { type:'value', name:'价差', scale:true, splitLine:{show:false} }
                     ],
                     series: [
@@ -470,6 +534,7 @@
                     document.getElementById('spreadMax').textContent = fmt(Math.max.apply(null,validSpreads));
                     document.getElementById('spreadMin').textContent = fmt(Math.min.apply(null,validSpreads));
                 }
+                });
             })
             .catch(function(e){ console.error('spread',e); noSpreadEl.style.display='block'; spreadChart.clear(); });
     }
@@ -620,6 +685,10 @@
         });
 
         loadMainChart(); loadSpreadChart(); loadRatioChart(); loadPremium();
+        window.addEventListener('au-price-unit-change', function () {
+            loadMainChart();
+            loadSpreadChart();
+        });
         setInterval(function(){ if(!document.hidden){loadMainChart();loadSpreadChart();loadPremium();} }, 120000);
         setInterval(function(){ if(!document.hidden) loadRatioChart(); }, 300000);
         window.addEventListener('resize',function(){mainChart.resize();spreadChart.resize();ratioChart.resize();});

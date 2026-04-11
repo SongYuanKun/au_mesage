@@ -37,6 +37,9 @@ config.local.ini
 logs/
 *.log
 
+# Local AI / assistant workspace (not project source)
+.workbuddy/
+
 # IDE
 .vscode/
 .idea/
