@@ -4,12 +4,12 @@ import os
 from flask import Flask
 
 from CustomJSONEncoder import CustomJSONProvider
-from mysql_manager import MySQLManager
-from routes.api_bp import create_api_blueprint
+from db import DatabaseManager
+from routes.api import create_api_blueprint
 from routes.pages_bp import create_pages_blueprint
 
 
-def create_app(mysql_manager: MySQLManager) -> Flask:
+def create_app(mysql_manager: DatabaseManager) -> Flask:
     _base = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     app = Flask(
         __name__,

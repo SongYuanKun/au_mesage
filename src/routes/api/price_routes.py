@@ -22,12 +22,12 @@ from application.trend_range import (
     parse_range_for_gold_silver_ratio,
     parse_range_for_price_trend_ohlc,
 )
-from mysql_manager import MySQLManager
+from db import DatabaseManager
 
 from .cache import BEIJING_TZ, api_ttl_cache
 
 
-def register_price_routes(bp: Blueprint, mysql_manager: MySQLManager) -> None:
+def register_price_routes(bp: Blueprint, mysql_manager: DatabaseManager) -> None:
     @bp.route("/api/price-overview", methods=["GET"])
     def price_overview():
         """返回金/银的综合概览：当前价、涨跌、今日高低（单条SQL + 10s缓存）"""
@@ -122,21 +122,21 @@ def register_price_routes(bp: Blueprint, mysql_manager: MySQLManager) -> None:
 
     @bp.route("/api/last-1-hour", methods=["GET"])
     def api_last_1_hour():
-        """返回指定 data_type 的近 30 分钟内的所有数据"""
+        """返回指定 data_type 的近 1 小时内的所有数据"""
         try:
             data_type = request.args.get("data_type")
             if not data_type:
                 return jsonify({"success": False, "error": "缺少 data_type 参数"}), 400
 
             beijing_now = datetime.now(BEIJING_TZ)
-            thirty_minutes_ago = beijing_now - timedelta(minutes=30)
+            one_hour_ago = beijing_now - timedelta(hours=1)
 
             utc_now = beijing_now.astimezone(pytz.UTC)
-            utc_thirty_minutes_ago = thirty_minutes_ago.astimezone(pytz.UTC)
+            utc_one_hour_ago = one_hour_ago.astimezone(pytz.UTC)
 
             history_data = mysql_manager.get_price_history_by_time_range(
                 data_type,
-                utc_thirty_minutes_ago.strftime("%Y-%m-%d %H:%M:%S"),
+                utc_one_hour_ago.strftime("%Y-%m-%d %H:%M:%S"),
                 utc_now.strftime("%Y-%m-%d %H:%M:%S"),
             )
 
@@ -145,7 +145,7 @@ def register_price_routes(bp: Blueprint, mysql_manager: MySQLManager) -> None:
             else:
                 return jsonify({"success": True, "data": []})
         except Exception as e:
-            logging.error(f"获取近30分钟数据失败: {e}")
+            logging.error(f"获取近1小时数据失败: {e}")
             return jsonify({"success": False, "error": "服务器内部错误"}), 500
 
     @bp.route("/api/last-7-days", methods=["GET"])

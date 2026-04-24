@@ -16,12 +16,12 @@ from application.exchange import (
     build_exchange_rate_success_payload,
 )
 from application.health import build_health_payload
-from mysql_manager import MySQLManager
+from db import DatabaseManager
 
 from .cache import BEIJING_TZ
 
 
-def register_misc_routes(bp: Blueprint, mysql_manager: MySQLManager) -> None:
+def register_misc_routes(bp: Blueprint, mysql_manager: DatabaseManager) -> None:
     @bp.route("/api/history", methods=["POST"])
     def history():
         try:

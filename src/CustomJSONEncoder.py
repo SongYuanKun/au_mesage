@@ -1,7 +1,7 @@
-from flask import Flask
-from flask.json.provider import DefaultJSONProvider
 from datetime import datetime, date, timedelta
 from decimal import Decimal
+
+from flask.json.provider import DefaultJSONProvider
 
 
 class CustomJSONProvider(DefaultJSONProvider):
@@ -24,8 +24,3 @@ class CustomJSONProvider(DefaultJSONProvider):
 
         # 对于其他类型，调用父类默认处理
         return super().default(obj)
-
-
-# 应用配置示例
-app = Flask(__name__)
-app.json = CustomJSONProvider(app)

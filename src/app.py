@@ -5,7 +5,7 @@ import sys
 # collectors 目录与 app.py 同在 src/，确保可导入
 sys.path.insert(0, os.path.dirname(__file__))
 
-from mysql_manager import MySQLManager
+from db import DatabaseManager
 from collectors.manager import CollectorManager
 from route import create_app
 
@@ -44,7 +44,7 @@ def main():
     setup_logging()
     config = load_config()
 
-    mysql_manager = MySQLManager(config['mysql'])
+    mysql_manager = DatabaseManager(config['mysql'])
 
     collector_manager = CollectorManager(mysql_manager)
     collector_manager.start_all()

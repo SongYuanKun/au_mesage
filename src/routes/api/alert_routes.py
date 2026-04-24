@@ -8,10 +8,10 @@ import time
 
 from flask import Blueprint, Response, jsonify, request, stream_with_context
 
-from mysql_manager import MySQLManager
+from db import DatabaseManager
 
 
-def register_alert_routes(bp: Blueprint, mysql_manager: MySQLManager) -> None:
+def register_alert_routes(bp: Blueprint, mysql_manager: DatabaseManager) -> None:
     @bp.route("/api/alert-channels", methods=["GET"])
     def alert_channels():
         """返回已配置的推送渠道"""
@@ -91,7 +91,15 @@ def register_alert_routes(bp: Blueprint, mysql_manager: MySQLManager) -> None:
 
         def sse_stream():
             alerted = False
+            start_time = time.time()
+            timeout_seconds = 30 * 60  # 30分钟超时
             while True:
+                # 超时检查
+                if time.time() - start_time > timeout_seconds:
+                    yield "event: timeout\n"
+                    yield "data: 订阅超时，请重新订阅\n\n"
+                    break
+
                 price = mysql_manager.get_latest_market_price(data_type)
                 if price is None:
                     yield "event: error\n"

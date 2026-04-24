@@ -27,7 +27,6 @@ class Fawazahmed0Collector(BaseCollector):
 
     def fetch(self) -> list:
         date_str = self.today_str()
-        rows_price_data = []
 
         for symbol, target_currencies in SYMBOLS:
             try:
@@ -65,4 +64,5 @@ class Fawazahmed0Collector(BaseCollector):
             except (URLError, Exception) as e:
                 logger.warning(f"[{self.name}] 获取 {symbol} 失败: {e}")
 
-        return rows_price_data
+        # 数据仅写入 daily_ohlc 表，不写 price_data
+        return []
