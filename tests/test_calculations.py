@@ -18,6 +18,15 @@ def test_history_comparison_zero_market():
     out = build_history_comparison_response(100.0, 10.0, 0)
     assert out["difference_percentage"] == 0
 
+def test_history_comparison_none_market():
+    out = build_history_comparison_response(100.0, 10.0, None)
+    assert out["difference_percentage"] == 0
+    assert out["market_price"] is None
+
+def test_history_comparison_zero_weight():
+    out = build_history_comparison_response(100.0, 0, 95.0)
+    assert out["price_per_gram"] == 0
+    assert out["difference_percentage"] == 0
 
 def test_purchase_calculate_rounding():
     out = build_purchase_calculate_response(1000.0, 3.0, 300.0)

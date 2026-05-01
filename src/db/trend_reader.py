@@ -3,31 +3,11 @@
 import logging
 from typing import List, Dict, Optional
 
-from mysql.connector import Error
-
-from db.pool import ConnectionPool
+from db.base import BaseDB
 
 
-class TrendReader:
+class TrendReader(BaseDB):
     """趋势查询：ohlc / intraday / gold_silver_ratio / last_n_days"""
-
-    def __init__(self, pool: ConnectionPool):
-        self.pool = pool
-
-    def _exec(self, query, params=None):
-        """执行查询并自动归还连接。"""
-        conn = None
-        try:
-            conn = self.pool.get_connection()
-            cursor = conn.cursor(dictionary=True)
-            cursor.execute(query, params or ())
-            return cursor.fetchall()
-        except Error as e:
-            logging.error(f"趋势查询失败: {e}")
-            return []
-        finally:
-            if conn:
-                conn.close()
 
     def get_last_n_days_daily_price(self, data_type: str, start_date: str, end_date: str) -> List[Dict]:
         """获取日期范围内每天最后一条回收价格"""

@@ -34,7 +34,11 @@ def register_alert_routes(bp: Blueprint, mysql_manager: DatabaseManager) -> None
 
             if not data_type or target is None:
                 return jsonify({"success": False, "error": "缺少参数: data_type 或 target"}), 400
-            target = float(target)
+            
+            try:
+                target = float(target)
+            except (ValueError, TypeError):
+                return jsonify({"success": False, "error": "参数格式错误: target 必须是数字"}), 400
 
             price = mysql_manager.get_latest_market_price(data_type)
             if price is None:

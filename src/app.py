@@ -1,9 +1,5 @@
 import logging
 import os
-import sys
-
-# collectors 目录与 app.py 同在 src/，确保可导入
-sys.path.insert(0, os.path.dirname(__file__))
 
 from db import DatabaseManager
 from collectors.manager import CollectorManager

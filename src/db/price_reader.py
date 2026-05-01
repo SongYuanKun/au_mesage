@@ -3,64 +3,11 @@
 import logging
 from typing import List, Dict, Optional
 
-from mysql.connector import Error
-
-from db.pool import ConnectionPool
+from db.base import BaseDB
 
 
-class PriceReader:
+class PriceReader(BaseDB):
     """价格查询：overview / latest / history / daily / time_range"""
-
-    def __init__(self, pool: ConnectionPool):
-        self.pool = pool
-
-    def _exec(self, query, params=None, dictionary=True):
-        """执行查询并自动归还连接。"""
-        conn = None
-        try:
-            conn = self.pool.get_connection()
-            cursor = conn.cursor(dictionary=dictionary)
-            cursor.execute(query, params or ())
-            if dictionary:
-                return cursor.fetchall()
-            return cursor.fetchall()
-        except Error as e:
-            logging.error(f"查询失败: {e}")
-            return [] if dictionary else None
-        finally:
-            if conn:
-                conn.close()
-
-    def _exec_one(self, query, params=None):
-        """执行查询返回单行。"""
-        conn = None
-        try:
-            conn = self.pool.get_connection()
-            cursor = conn.cursor(dictionary=True)
-            cursor.execute(query, params or ())
-            return cursor.fetchone()
-        except Error as e:
-            logging.error(f"查询失败: {e}")
-            return None
-        finally:
-            if conn:
-                conn.close()
-
-    def _exec_value(self, query, params=None):
-        """执行查询返回单值。"""
-        conn = None
-        try:
-            conn = self.pool.get_connection()
-            cursor = conn.cursor()
-            cursor.execute(query, params or ())
-            row = cursor.fetchone()
-            return row[0] if row else None
-        except Error as e:
-            logging.error(f"查询失败: {e}")
-            return None
-        finally:
-            if conn:
-                conn.close()
 
     def query_data(self, start_date: str, end_date: str, data_type: Optional[str] = None):
         """查询价格数据"""

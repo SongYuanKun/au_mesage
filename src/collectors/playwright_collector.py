@@ -5,6 +5,7 @@ PlaywrightCollector — 通过 Playwright 抓取金紫荆网站国内零售价
 import logging
 import os
 import time
+import threading
 from datetime import datetime
 
 import pytz
@@ -24,12 +25,12 @@ class PlaywrightCollector(BaseCollector):
         super().__init__(mysql_manager)
         self.website_url = os.environ.get('WEBSITE_URL', 'https://i.jzj9999.com/quoteh5/')
         self.data_buffer = []
+        self.data_lock = threading.Lock()
         self.browser = None
         self.page = None
 
     def start(self):
         """Playwright 需要独立线程管理浏览器生命周期，覆盖父类 start"""
-        import threading
         self.is_running = True
         self._thread = threading.Thread(target=self._run_playwright, daemon=True)
         self._thread.start()
@@ -64,7 +65,8 @@ class PlaywrightCollector(BaseCollector):
                     try:
                         data = self._refresh_and_get_data()
                         if data:
-                            self.data_buffer.extend(data)
+                            with self.data_lock:
+                                self.data_buffer.extend(data)
                             logger.info(f"[playwright] 获取 {len(data)} 条数据，缓冲区 {len(self.data_buffer)} 条")
                         time.sleep(self.interval)
                     except Exception as e:
@@ -128,14 +130,21 @@ class PlaywrightCollector(BaseCollector):
     def _save_job(self):
         while self.is_running:
             time.sleep(30)
-            if self.data_buffer:
-                try:
+            to_store = []
+            with self.data_lock:
+                if self.data_buffer:
                     to_store = self.data_buffer.copy()
-                    self.mysql_manager.batch_insert_data(to_store)
                     self.data_buffer = []
+            
+            if to_store:
+                try:
+                    self.mysql_manager.batch_insert_data(to_store)
                     logger.info(f"[playwright] 存储 {len(to_store)} 条数据")
                 except Exception as e:
                     logger.error(f"[playwright] 存储错误: {e}")
+                    # 如果存储失败，考虑把数据加回去，但要注意顺序或重复
+                    with self.data_lock:
+                        self.data_buffer = to_store + self.data_buffer
 
     def stop(self):
         self.is_running = False

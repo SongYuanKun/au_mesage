@@ -1,80 +1,58 @@
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
-*.so
-*.egg
-*.egg-info/
-.Python
+.pytest_cache/
+.coverage
+coverage/
+.mypy_cache/
+.ruff_cache/
+.tox/
 
-# Virtual Environment
-.venv/
+# Virtual environments
 venv/
-env/
-ENV/
+.venv/
 
-# Distribution / packaging
-build/
-dist/
-sdist/
-wheels/
-develop-eggs/
-eggs/
-.eggs/
-.installed.cfg
-
-# Environment variables
+# Environment files (keep examples)
 .env
 .env.*
 !.env.example
-!.env.mysql.example
+!.env.*.example
 
-# Local config (敏感信息)
+# Local configs / secrets
 my_config.ini
-config.local.ini
 
-# Logs
-logs/
-*.log
+# Generated analysis artifacts
+src/graphify-out/
 
 # Local AI / assistant workspace (not project source)
 .workbuddy/
 .trae/
 
-# IDE
-.vscode/
-.idea/
-.vs/
-*.iml
-*.iws
-*.ipr
-*.swp
-*.swo
-*~
-*.sublime-project
-*.sublime-workspace
-out/
+# IDE / editor
+.cursor/
+.claude/
 
-# OS
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
 .DS_Store
-Thumbs.db
-
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
-
-# Type checking & linting
-.mypy_cache/
-.ruff_cache/
-
-# Jupyter
-.ipynb_checkpoints/
-
-# Database
-*.db
-*.sqlite
-*.sqlite3
-
-# Knowledge graph output
-src/graphify-out/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

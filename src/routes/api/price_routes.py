@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from datetime import datetime, timedelta
 
 import pytz
@@ -99,6 +100,11 @@ def register_price_routes(bp: Blueprint, mysql_manager: DatabaseManager) -> None
             date_str = request.args.get(
                 "date", datetime.now(BEIJING_TZ).strftime("%Y-%m-%d")
             )
+            
+            # 简单的日期格式校验 YYYY-MM-DD
+            if not re.match(r"^\d{4}-\d{2}-\d{2}$", date_str):
+                return jsonify({"success": False, "error": "日期格式错误，应为 YYYY-MM-DD"}), 400
+                
             data_type = request.args.get("data_type")
 
             history_data = mysql_manager.get_daily_history(date_str, data_type)
