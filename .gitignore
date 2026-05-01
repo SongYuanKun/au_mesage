@@ -39,6 +39,7 @@ logs/
 
 # Local AI / assistant workspace (not project source)
 .workbuddy/
+.trae/
 
 # IDE
 .vscode/
