@@ -471,7 +471,9 @@
         noSpreadEl.style.display = 'none';
         document.getElementById('spreadStats').style.display = 'none';
 
-        fetchJson('/api/price-trend?data_type=' + encodeURIComponent(spreadMetal) + '&range=1d')
+        // 价差图需 Playwright 采集的 data_type；XAU/XAG（gold_api）买卖价相同，价差恒为 0
+        var spreadDataType = spreadMetal === 'XAU' ? '伦敦金' : (spreadMetal === 'XAG' ? '白 银' : spreadMetal);
+        fetchJson('/api/price-trend?data_type=' + encodeURIComponent(spreadDataType) + '&range=1d')
             .then(function(resp){
                 if (!resp.success || !resp.data || resp.data.length < 2) {
                     noSpreadEl.style.display = 'block'; spreadChart.clear(); return;

@@ -24,8 +24,8 @@ class CollectorManager:
         self.collectors.append(ExchangeRateCollector(self.mysql_manager))
         self.collectors.append(Fawazahmed0Collector(self.mysql_manager))
 
-        # Playwright 采集器：通过环境变量控制，默认关闭
-        if os.environ.get('ENABLE_PLAYWRIGHT', 'false').lower() == 'true':
+        # Playwright 采集器：通过环境变量控制，默认开启
+        if os.environ.get('ENABLE_PLAYWRIGHT', 'true').lower() != 'false':
             try:
                 from collectors.playwright_collector import PlaywrightCollector
                 self.collectors.append(PlaywrightCollector(self.mysql_manager))
