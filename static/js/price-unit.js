@@ -32,7 +32,11 @@
         invalidateRateCache();
         try {
             global.dispatchEvent(new CustomEvent('au-price-unit-change', { detail: { unit: u } }));
-        } catch (e) {}
+        } catch (e) {
+            if (typeof console !== 'undefined' && console.warn) {
+                console.warn('[AuPriceUnit] au-price-unit-change 派发失败', e);
+            }
+        }
     }
 
     function getUsdCnyRate() {
@@ -74,7 +78,9 @@
     }
 
     function isIntlDtype(dtype) {
-        return dtype === 'XAU' || dtype === 'XAG' || dtype === 'XPT' || dtype === 'XPD';
+        if (dtype == null || dtype === '') return false;
+        var d = String(dtype).trim().toUpperCase();
+        return d === 'XAU' || d === 'XAG' || d === 'XPT' || d === 'XPD';
     }
 
     global.AuPriceUnit = {

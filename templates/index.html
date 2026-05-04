@@ -318,6 +318,26 @@
 
     function fmt(v, d) { return v == null ? '-' : Number(v).toFixed(d || 2); }
 
+    function clearPriceCard(side) {
+        var key = side;
+        ['price','badge','realtime','high','low','time'].forEach(function(suf){
+            var el = document.getElementById(key + '-' + suf);
+            if (!el) return;
+            if (suf === 'badge') {
+                el.textContent = '--';
+                el.className = 'price-badge neutral';
+                return;
+            }
+            el.textContent = suf === 'time' ? '暂无数据' : '--';
+        });
+        var unitEl = document.getElementById(key + '-price');
+        if (unitEl && unitEl.nextElementSibling) unitEl.nextElementSibling.textContent = '元/克';
+        if (unitEl) {
+            var lab = unitEl.previousElementSibling;
+            if (lab) lab.textContent = '回收价格';
+        }
+    }
+
     /* ---- Price Overview (both metals at once) ---- */
     function loadOverview() {
         if (typeof AuPriceUnit === 'undefined') return;
@@ -349,35 +369,51 @@
                 return fetch('/api/price-overview');
             })
             .then(function (r) {
+                if (!r.ok) return Promise.reject(new Error('overview HTTP ' + r.status));
                 return r.json();
             })
             .then(function (resp) {
-                if (!resp.success || !resp.data) return;
+                if (!resp.success || !resp.data) {
+                    clearPriceCard('gold');
+                    clearPriceCard('silver');
+                    delete latestPrices['黄 金'];
+                    delete latestPrices['XAU'];
+                    delete latestPrices['白 银'];
+                    delete latestPrices['XAG'];
+                    delete latestPrices._dt;
+                    return;
+                }
                 var byType = {};
                 resp.data.forEach(function (item) {
                     byType[item.data_type] = item;
                 });
 
-                var goldItem = byType['黄 金'] || byType['XAU'];
-                var silverItem = byType['白 银'] || byType['XAG'];
+                /* 与国内条并存时优先国际盘（XAU/XAG），否则导航「USD/盎司↔人民币/克」对卡片永远不生效 */
+                var goldItem = byType['XAU'] || byType['黄 金'];
+                var silverItem = byType['XAG'] || byType['白 银'];
                 latestPrices._dt = {
                     gold: goldItem ? goldItem.data_type : null,
                     silver: silverItem ? silverItem.data_type : null
                 };
-                if (goldItem) {
-                    fillCard('gold', goldItem, goldItem.data_type);
-                }
-                if (silverItem) {
-                    latestPrices[silverItem.data_type] = silverItem;
-                    fillCard('silver', silverItem, silverItem.data_type);
-                }
-                if (goldItem) latestPrices['黄 金'] = latestPrices['XAU'] = goldItem;
-                if (silverItem) latestPrices['白 银'] = latestPrices['XAG'] = silverItem;
+                if (!goldItem) clearPriceCard('gold');
+                else fillCard('gold', goldItem, goldItem.data_type);
+                if (!silverItem) clearPriceCard('silver');
+                else fillCard('silver', silverItem, silverItem.data_type);
+                if (!goldItem) {
+                    delete latestPrices['黄 金'];
+                    delete latestPrices['XAU'];
+                } else latestPrices['黄 金'] = latestPrices['XAU'] = goldItem;
+                if (!silverItem) {
+                    delete latestPrices['白 银'];
+                    delete latestPrices['XAG'];
+                } else latestPrices['白 银'] = latestPrices['XAG'] = silverItem;
                 debouncedPnl();
                 debouncedBe();
             })
             .catch(function (e) {
                 console.error('overview error', e);
+                clearPriceCard('gold');
+                clearPriceCard('silver');
             });
     }
 
@@ -440,9 +476,12 @@
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ product_price: pp, weight: w, data_type: calcType })
         })
-        .then(function(r){ return r.json(); })
+        .then(function(r){
+            if (!r.ok) return Promise.reject(new Error('calculate HTTP ' + r.status));
+            return r.json();
+        })
         .then(function(res){
-            if (res.error) { resultEl.style.display = 'none'; return; }
+            if (!res || res.error) { resultEl.style.display = 'none'; return; }
             document.getElementById('pricePerGram').textContent = res.price_per_gram.toFixed(2);
             document.getElementById('marketPrice').textContent = res.market_price.toFixed(2);
 
@@ -453,7 +492,7 @@
             el.className = 'result-total ' + (diff > 0 ? 'negative' : diff < 0 ? 'positive' : 'neutral');
             resultEl.style.display = 'block';
         })
-        .catch(function(){ resultEl.style.display = 'none'; });
+        .catch(function(e){ console.warn('calculate', e); resultEl.style.display = 'none'; });
     }
 
     var debouncedCalc = debounce(calculateDifference, 300);
@@ -547,7 +586,7 @@
         document.getElementById('dcaTotalCost').textContent = fmt(totalCost, 0) + '元';
         document.getElementById('dcaTotalWeight').textContent = fmt(totalWeight, 2) + '克';
         document.getElementById('dcaAvgCost').textContent =
-            fmt(avgCost) + (dtype && AuPriceUnit.isIntlDtype(dtype) ? priceNumSuffix(dtype) : ' 元/克');
+            fmt(avgCost) + (dtype && typeof AuPriceUnit !== 'undefined' && AuPriceUnit.isIntlDtype(dtype) ? priceNumSuffix(dtype) : ' 元/克');
         document.getElementById('dcaMarketVal').textContent = fmt(mktVal, 0) + '元';
         var sign = pnl >= 0 ? '+' : '';
         var dd = document.getElementById('dcaDisplay');
@@ -579,6 +618,7 @@
         var target = parseFloat(document.getElementById('alertTarget').value);
         var op = document.getElementById('alertOp').value;
         if (isNaN(target)) { showAlertStatus('请输入有效的目标价格'); return; }
+        unsubscribeAlert();
         ensureNotifPermission();
         alertSource = new EventSource('/api/price-alert/subscribe?data_type=' + encodeURIComponent(alertType) +
             '&target=' + encodeURIComponent(target) + '&op=' + encodeURIComponent(op) + '&auto_close=true');
@@ -587,14 +627,18 @@
 
         alertSource.addEventListener('alert', function(ev){
             try {
+                if (!ev.data) return;
                 var d = JSON.parse(ev.data);
                 var opText = op === 'gte' ? '达到或超过' : '达到或低于';
                 showNotify('价格触发', '当前 ' + d.price + ' 元/克，已' + opText + ' ' + target);
                 showAlertStatus('已触发通知');
                 unsubscribeAlert();
-            } catch(e){}
+            } catch(err){ console.warn('alert sse parse', err); }
         });
-        alertSource.addEventListener('error', function(){ showAlertStatus('连接中断，请重试'); });
+        alertSource.addEventListener('error', function(){
+            if (!alertSource) return;
+            if (alertSource.readyState === EventSource.CLOSED) showAlertStatus('连接中断，请重试');
+        });
     }
 
     function unsubscribeAlert() {
@@ -602,8 +646,8 @@
         document.getElementById('btnUnsubscribe').disabled = true;
     }
 
-    /* ---- Init ---- */
-    document.addEventListener('DOMContentLoaded', function(){
+    /* ---- Init ---- （避免脚本晚于 DOMContentLoaded 注册时永远不绑定单位切换监听） */
+    function initIndexPage() {
         loadOverview();
 
         document.getElementById('productPrice').addEventListener('input', debouncedCalc);
@@ -658,7 +702,12 @@
             debouncedPnl();
             debouncedBe();
         });
-    });
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initIndexPage);
+    } else {
+        initIndexPage();
+    }
 })();
 </script>
 </body>

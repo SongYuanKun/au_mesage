@@ -158,6 +158,16 @@
 
     function fmt(v, d) { return v == null ? '-' : Number(v).toFixed(d || 2); }
 
+    function fetchJson(url) {
+        return fetch(url).then(function (r) {
+            if (!r.ok) return Promise.reject(new Error('HTTP ' + r.status));
+            return r.json();
+        }).then(function (j) {
+            if (j == null || typeof j !== 'object') return Promise.reject(new Error('invalid JSON'));
+            return j;
+        });
+    }
+
     function intlMetal(m) { return m === 'XAU' || m === 'XAG'; }
     function intlYAxisLabel(metal) {
         if (typeof AuPriceUnit === 'undefined') return '元/克';
@@ -259,8 +269,7 @@
        ================================================================ */
     function loadMainChart() {
         noMainEl.style.display = 'none';
-        fetch('/api/price-trend?data_type=' + encodeURIComponent(currentMetal) + '&range=' + currentRange)
-            .then(function(r){ return r.json(); })
+        fetchJson('/api/price-trend?data_type=' + encodeURIComponent(currentMetal) + '&range=' + currentRange)
             .then(function(resp){
                 if (!resp.success || !resp.data || resp.data.length === 0) {
                     noMainEl.style.display = 'block'; mainChart.clear(); clearStats(); lastOhlcData = null; return;
@@ -462,8 +471,7 @@
         noSpreadEl.style.display = 'none';
         document.getElementById('spreadStats').style.display = 'none';
 
-        fetch('/api/price-trend?data_type=' + encodeURIComponent(spreadMetal) + '&range=1d')
-            .then(function(r){ return r.json(); })
+        fetchJson('/api/price-trend?data_type=' + encodeURIComponent(spreadMetal) + '&range=1d')
             .then(function(resp){
                 if (!resp.success || !resp.data || resp.data.length < 2) {
                     noSpreadEl.style.display = 'block'; spreadChart.clear(); return;
@@ -544,8 +552,7 @@
        ================================================================ */
     function loadRatioChart() {
         noRatioEl.style.display='none'; document.getElementById('ratioStats').style.display='none';
-        fetch('/api/gold-silver-ratio?range='+currentRatioRange)
-            .then(function(r){return r.json();})
+        fetchJson('/api/gold-silver-ratio?range=' + encodeURIComponent(currentRatioRange))
             .then(function(resp){
                 if(!resp.success||!resp.data||!resp.data.length){noRatioEl.style.display='block';ratioChart.clear();return;}
                 var dates=resp.data.map(function(d){return d.date;}), ratios=resp.data.map(function(d){return d.ratio;});
@@ -581,14 +588,14 @@
     function loadPremium() {
         var el = document.getElementById('premiumInfo');
         Promise.all([
-            fetch('/api/price-overview').then(function(r){return r.json();}),
-            fetch('/api/exchange-rate').then(function(r){return r.json();})
+            fetchJson('/api/price-overview'),
+            fetchJson('/api/exchange-rate?base=USD&target=CNY')
         ]).then(function(results){
             var overview = results[0], rateResp = results[1];
-            if (!overview.success || !rateResp.success) {
+            var usdCny = rateResp.rate != null ? Number(rateResp.rate) : NaN;
+            if (!overview.success || !rateResp.success || !Array.isArray(overview.data) || !isFinite(usdCny) || usdCny <= 0) {
                 el.innerHTML = '<div class="premium-empty">数据不足，无法计算溢价</div>'; return;
             }
-            var usdCny = rateResp.rate;
             // Find XAU (international, USD) and 黄 金 (domestic, CNY)
             var xau = null, domestic = null, xag = null, domesticAg = null;
             overview.data.forEach(function(item){
@@ -603,14 +610,14 @@
             if (xau && domestic) {
                 var intlCnyPerGram = xau.recycle_price * usdCny / 31.1035;
                 var premiumGold = domestic.recycle_price - intlCnyPerGram;
-                var premiumPctGold = (premiumGold / intlCnyPerGram * 100);
+                var premiumPctGold = intlCnyPerGram ? (premiumGold / intlCnyPerGram * 100) : 0;
                 html += buildPremiumCard('黄金', intlCnyPerGram, domestic.recycle_price, premiumGold, premiumPctGold);
             }
             // Silver
             if (xag && domesticAg) {
                 var intlCnyPerGramAg = xag.recycle_price * usdCny / 31.1035;
                 var premiumAg = domesticAg.recycle_price - intlCnyPerGramAg;
-                var premiumPctAg = (premiumAg / intlCnyPerGramAg * 100);
+                var premiumPctAg = intlCnyPerGramAg ? (premiumAg / intlCnyPerGramAg * 100) : 0;
                 html += buildPremiumCard('白银', intlCnyPerGramAg, domesticAg.recycle_price, premiumAg, premiumPctAg);
             }
             if (!xau && !xag) {

@@ -48,11 +48,18 @@ class PriceReader(BaseDB):
         return list(reversed(rows))
 
     def get_latest_market_price(self, data_type: str) -> Optional[float]:
-        """获取指定data_type的最新市场价格"""
+        """
+        最新「可比价」：与页面主推的回收口径一致；优先大盘实时价，
+        缺失或为 0 时回退 recycle_price，避免仅有回收价时 SSE/历史对比失败。
+        """
         return self._exec_value(
-            "SELECT real_time_price FROM price_data "
-            "WHERE data_type = %s AND recycle_price > 0 ORDER BY created_at DESC LIMIT 1",
-            (data_type,))
+            (
+                "SELECT COALESCE(NULLIF(real_time_price, 0), recycle_price) "
+                "FROM price_data WHERE data_type = %s AND recycle_price > 0 "
+                "ORDER BY created_at DESC LIMIT 1"
+            ),
+            (data_type,),
+        )
 
     def get_daily_history(self, date: str, data_type: Optional[str] = None) -> List[Dict]:
         """获取指定日期的历史数据"""

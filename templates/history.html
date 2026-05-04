@@ -114,30 +114,57 @@
         };
     }
 
+    /** 与文案「近30分钟」一致：按 created_at 过滤，兜底保留全部一小时数据 */
+    function filterLast30Minutes(rows) {
+        if (!rows || !rows.length) return [];
+        var cutoff = Date.now() - 30 * 60 * 1000;
+        var filtered = rows.filter(function (it) {
+            if (!it.created_at) return false;
+            var t = Date.parse(it.created_at);
+            return !isNaN(t) && t >= cutoff;
+        });
+        return filtered.length ? filtered : rows;
+    }
+
     async function fetchToday() {
         noDailyEl.style.display = 'none';
         try {
             var resp = await fetch('/api/last-1-hour?data_type=' + encodeURIComponent(currentType));
-            var j = await resp.json().catch(function(){ return null; });
-            if (!resp.ok || !j) { noDailyEl.style.display = 'block'; todayChart.clear(); return; }
-            if (j.success && Array.isArray(j.data) && j.data.length > 0) {
-                var times = j.data.map(function(it){ return it.created_at || ''; });
-                var prices = j.data.map(function(it){ return it.recycle_price == null ? null : Number(it.recycle_price); });
+            var j = await resp.json().catch(function () { return null; });
+            if (!resp.ok || !j || j.success === false) {
+                noDailyEl.style.display = 'block';
+                todayChart.clear();
+                return;
+            }
+            if (Array.isArray(j.data) && j.data.length > 0) {
+                var sliceRows = filterLast30Minutes(j.data);
+                var times = sliceRows.map(function (it) { return it.created_at || ''; });
+                var prices = sliceRows.map(function (it) {
+                    return it.recycle_price == null ? null : Number(it.recycle_price);
+                });
                 todayChart.setOption(makeLineOption(times, prices, chartColors.today, '回收价格'), true);
                 document.getElementById('lastRefresh').textContent = '最后更新：' + new Date().toLocaleTimeString('zh-CN');
             } else {
-                noDailyEl.style.display = 'block'; todayChart.clear();
+                noDailyEl.style.display = 'block';
+                todayChart.clear();
             }
-        } catch(e) {
+        } catch (e) {
             console.error('fetchToday', e);
-            noDailyEl.style.display = 'block'; todayChart.clear();
+            noDailyEl.style.display = 'block';
+            todayChart.clear();
         }
     }
 
     async function fetchLast7() {
         try {
             var resp = await fetch('/api/last-7-days?data_type=' + encodeURIComponent(currentType));
-            var j = await resp.json();
+            var j = await resp.json().catch(function () { return null; });
+            if (!resp.ok || !j) {
+                noChartEl.style.display = 'block';
+                trendChart.clear();
+                renderStats([]);
+                return;
+            }
             if (j.success && Array.isArray(j.data) && j.data.length > 0) {
                 noChartEl.style.display = 'none';
                 var dates = j.data.map(function(d){ return d.date; });
@@ -149,7 +176,7 @@
             }
         } catch(e) {
             console.error('fetchLast7', e);
-            noChartEl.style.display = 'block'; trendChart.clear();
+            noChartEl.style.display = 'block'; trendChart.clear(); renderStats([]);
         }
     }
 
