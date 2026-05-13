@@ -18,6 +18,7 @@ import os
 import json
 import smtplib
 from email.mime.text import MIMEText
+from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 from urllib.error import URLError
 
@@ -32,8 +33,22 @@ def _post_json(url, payload, timeout=10):
         resp = urlopen(req, timeout=timeout)
         return resp.status == 200
     except (URLError, Exception) as e:
-        logger.error(f"POST 请求失败 ({url}): {e}")
+        safe = _safe_url_for_log(url)
+        logger.error(f"POST 请求失败 ({safe}): {e}")
         return False
+
+
+def _safe_url_for_log(url: str) -> str:
+    try:
+        u = urlparse(url)
+        host = u.netloc or "unknown"
+        if host.endswith("api.telegram.org"):
+            return f"{u.scheme}://{host}/bot***/sendMessage"
+        if "work.weixin.qq.com" in host or "weixin" in host or "wechat" in host:
+            return f"{u.scheme}://{host}/webhook"
+        return f"{u.scheme}://{host}{u.path}"
+    except Exception:
+        return "redacted-url"
 
 
 def send_wechat(title, content):

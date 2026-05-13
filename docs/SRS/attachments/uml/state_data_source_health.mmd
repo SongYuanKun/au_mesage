@@ -1,0 +1,10 @@
+stateDiagram-v2
+  [*] --> Normal
+  Normal --> Delayed: freshness_p95 > 120s
+  Delayed --> Normal: freshness_p95 <= 120s
+  Delayed --> Error: freshness_p95 > 600s
+  Normal --> Error: 连续失败>=阈值
+  Error --> Recovering: 触发恢复/切换备源
+  Recovering --> Normal: 连续成功>=阈值
+  Recovering --> Error: 再次失败
+

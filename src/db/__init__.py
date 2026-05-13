@@ -41,8 +41,14 @@ class DatabaseManager:
             open_price, high_price, low_price, close_price, volume)
 
     # ── 价格查询委托 ──────────────────────────────────────
-    def query_data(self, start_date: str, end_date: str, data_type: Optional[str] = None):
-        return self.reader.query_data(start_date, end_date, data_type)
+    def query_data(
+        self,
+        start_date: str,
+        end_date: str,
+        data_type: Optional[str] = None,
+        limit: Optional[int] = None,
+    ):
+        return self.reader.query_data(start_date, end_date, data_type, limit)
 
     def get_latest_data_by_type(self):
         return self.reader.get_latest_data_by_type()
@@ -62,8 +68,17 @@ class DatabaseManager:
     def get_price_overview_data(self, today_str: str, yesterday_str: str) -> List[Dict]:
         return self.reader.get_price_overview_data(today_str, yesterday_str)
 
+    def get_price_overview_data_fallback(self) -> List[Dict]:
+        return self.reader.get_price_overview_data_fallback()
+
     def get_price_history_by_time_range(self, data_type: str, start_time: str, end_time: str) -> List[Dict]:
         return self.reader.get_price_history_by_time_range(data_type, start_time, end_time)
+
+    def get_latest_updates_by_group(self) -> List[Dict]:
+        return self.reader.get_latest_updates_by_group()
+
+    def get_counts_last_hour_by_group(self) -> List[Dict]:
+        return self.reader.get_counts_last_hour_by_group()
 
     # ── 趋势查询委托 ──────────────────────────────────────
     def get_last_n_days_daily_price(self, data_type: str, start_date: str, end_date: str) -> List[Dict]:

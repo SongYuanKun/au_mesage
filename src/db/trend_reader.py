@@ -1,7 +1,6 @@
 """趋势与K线数据读取操作。"""
 
-import logging
-from typing import List, Dict, Optional
+from typing import List, Dict
 
 from db.base import BaseDB
 

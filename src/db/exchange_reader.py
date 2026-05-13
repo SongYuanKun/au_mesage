@@ -1,6 +1,5 @@
 """汇率数据读取操作。"""
 
-import logging
 from typing import Optional
 
 from db.base import BaseDB

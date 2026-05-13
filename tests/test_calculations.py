@@ -11,7 +11,7 @@ def test_history_comparison():
     assert out["price_per_gram"] == 100.0
     assert out["market_price"] == 95.0
     assert out["difference"] == 5.0
-    assert abs(out["difference_percentage"] - (5.0 / 95.0 * 100)) < 1e-9
+    assert abs(out["difference_percentage"] - (5.0 / 95.0 * 100)) < 1e-4
 
 
 def test_history_comparison_zero_market():

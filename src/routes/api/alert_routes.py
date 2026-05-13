@@ -8,6 +8,7 @@ import time
 
 from flask import Blueprint, Response, jsonify, request, stream_with_context
 
+from api_errors import ApiError
 from db import DatabaseManager
 
 
@@ -25,60 +26,56 @@ def register_alert_routes(bp: Blueprint, mysql_manager: DatabaseManager) -> None
         增强版价格提醒：支持多通道推送。
         请求体: { data_type, target, op: 'gte'|'lte', channels: ['wechat','telegram','email'] }
         """
+        data = request.get_json(silent=True) or {}
+        data_type = data.get("data_type")
+        target = data.get("target")
+        op = data.get("op", "gte")
+        channels = data.get("channels", [])
+
+        if not data_type or target is None:
+            raise ApiError.invalid_argument("缺少参数: data_type 或 target")
+
         try:
-            data = request.get_json()
-            data_type = data.get("data_type")
-            target = data.get("target")
-            op = data.get("op", "gte")
-            channels = data.get("channels", [])
+            target_f = float(target)
+        except (ValueError, TypeError):
+            raise ApiError.invalid_argument("参数格式错误: target 必须是数字")
 
-            if not data_type or target is None:
-                return jsonify({"success": False, "error": "缺少参数: data_type 或 target"}), 400
-            
-            try:
-                target = float(target)
-            except (ValueError, TypeError):
-                return jsonify({"success": False, "error": "参数格式错误: target 必须是数字"}), 400
+        price = mysql_manager.get_latest_market_price(data_type)
+        if price is None:
+            raise ApiError.not_found("无法获取最新价格")
 
-            price = mysql_manager.get_latest_market_price(data_type)
-            if price is None:
-                return jsonify({"success": False, "error": "无法获取最新价格"}), 404
+        price_f = float(price)
+        triggered = (op == "gte" and price_f >= target_f) or (op == "lte" and price_f <= target_f)
 
-            price_f = float(price)
-            triggered = (op == "gte" and price_f >= target) or (op == "lte" and price_f <= target)
+        result = {
+            "success": True,
+            "current_price": price_f,
+            "target": target_f,
+            "op": op,
+            "triggered": triggered,
+            "sent_channels": [],
+        }
 
-            result = {
-                "success": True,
-                "current_price": price_f,
-                "target": target,
-                "op": op,
-                "triggered": triggered,
-                "sent_channels": [],
-            }
+        if triggered and channels:
+            from webhook_notifier import send_email, send_telegram, send_wechat
 
-            if triggered and channels:
-                from webhook_notifier import send_email, send_telegram, send_wechat
+            op_text = "达到或超过" if op == "gte" else "达到或低于"
+            title = f"{data_type}价格提醒"
+            content = f"当前价格 {price_f} 元/克，已{op_text}目标价 {target_f} 元/克"
 
-                op_text = "达到或超过" if op == "gte" else "达到或低于"
-                title = f"{data_type}价格提醒"
-                content = f"当前价格 {price_f} 元/克，已{op_text}目标价 {target} 元/克"
+            channel_fns = {"wechat": send_wechat, "telegram": send_telegram, "email": send_email}
+            sent = []
+            for ch in channels:
+                fn = channel_fns.get(ch)
+                if fn:
+                    try:
+                        if fn(title, content):
+                            sent.append(ch)
+                    except Exception as e:
+                        logging.error(f"推送失败 ({ch}): {e}")
+            result["sent_channels"] = sent
 
-                channel_fns = {"wechat": send_wechat, "telegram": send_telegram, "email": send_email}
-                sent = []
-                for ch in channels:
-                    fn = channel_fns.get(ch)
-                    if fn:
-                        try:
-                            if fn(title, content):
-                                sent.append(ch)
-                        except Exception as e:
-                            logging.error(f"推送失败 ({ch}): {e}")
-                result["sent_channels"] = sent
-
-            return jsonify(result)
-        except Exception as e:
-            logging.error(f"价格提醒推送错误: {e}")
-            return jsonify({"success": False, "error": "服务器内部错误"}), 500
+        return jsonify(result)
 
     @bp.route("/api/price-alert/subscribe", methods=["GET"])
     def price_alert_subscribe():
@@ -86,12 +83,12 @@ def register_alert_routes(bp: Blueprint, mysql_manager: DatabaseManager) -> None
         target_raw = request.args.get("target")
         op = request.args.get("op", "gte")
         auto_close = request.args.get("auto_close", "true").lower() == "true"
+        if not data_type or target_raw is None:
+            raise ApiError.invalid_argument("缺少参数: data_type 或 target")
         try:
-            if not data_type or target_raw is None:
-                return jsonify({"success": False, "error": "缺少参数: data_type 或 target"}), 400
             target = float(target_raw)
         except Exception:
-            return jsonify({"success": False, "error": "参数格式错误"}), 400
+            raise ApiError.invalid_argument("参数格式错误")
 
         def sse_stream():
             alerted = False

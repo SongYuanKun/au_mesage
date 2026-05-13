@@ -2,7 +2,19 @@
 
 from __future__ import annotations
 
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from typing import Any, Dict
+
+
+def _to_decimal(v: Any) -> Decimal:
+    if isinstance(v, Decimal):
+        return v
+    return Decimal(str(v))
+
+
+def _round_decimal(v: Decimal, places: int) -> Decimal:
+    q = Decimal("1").scaleb(-places)
+    return v.quantize(q, rounding=ROUND_HALF_UP)
 
 
 def build_history_comparison_response(
@@ -20,24 +32,47 @@ def build_history_comparison_response(
             "market_price": market_price or 0,
             "difference": 0,
             "difference_percentage": 0,
+            "message": "",
         }
-        
-    price_per_gram = product_price / weight
-    
-    # Ensure market_price is numeric for calculations
+
     try:
-        m_price = float(market_price) if market_price is not None else 0.0
-    except (ValueError, TypeError):
-        m_price = 0.0
-        
+        pp = _to_decimal(product_price)
+        w = _to_decimal(weight)
+    except (InvalidOperation, ValueError, TypeError):
+        pp = Decimal("0")
+        w = Decimal("0")
+
+    if w <= 0:
+        return {
+            "price_per_gram": 0,
+            "market_price": market_price,
+            "difference": 0,
+            "difference_percentage": 0,
+            "message": "",
+        }
+
+    price_per_gram = pp / w
+
+    try:
+        m_price = _to_decimal(market_price) if market_price is not None else Decimal("0")
+    except (InvalidOperation, ValueError, TypeError):
+        m_price = Decimal("0")
+
     difference = price_per_gram - m_price
-    difference_percentage = (difference / m_price) * 100 if m_price > 0 else 0
-    
+    difference_percentage = (difference / m_price) * Decimal("100") if m_price > 0 else Decimal("0")
+
+    diff_abs = abs(difference)
+    msg = ""
+    if m_price > 0:
+        direction = "高" if difference > 0 else "低" if difference < 0 else "一致"
+        msg = f"购买价比大盘{direction} {float(_round_decimal(diff_abs, 2)):.2f} 元/克 ({float(_round_decimal(abs(difference_percentage), 2)):.2f}%)"
+
     return {
-        "price_per_gram": price_per_gram,
+        "price_per_gram": float(_round_decimal(price_per_gram, 4)),
         "market_price": market_price,
-        "difference": difference,
-        "difference_percentage": difference_percentage,
+        "difference": float(_round_decimal(difference, 4)),
+        "difference_percentage": float(_round_decimal(difference_percentage, 6)),
+        "message": msg,
     }
 
 
@@ -57,22 +92,37 @@ def build_purchase_calculate_response(
             "message_prefix": "购买价格差",
             "positive_message": "💡 比大盘价格贵",
             "negative_message": "💡 比大盘价格便宜",
+            "message": "",
         }
 
-    price_per_gram = product_price / weight
-    m_price = float(market_price) if market_price else 0.0
+    pp = _to_decimal(product_price)
+    w = _to_decimal(weight)
+    m_price = _to_decimal(market_price) if market_price is not None else Decimal("0")
+    price_per_gram = pp / w
     difference = price_per_gram - m_price
     message_prefix = "购买价格差"
     positive_message = "💡 比大盘价格贵"
     negative_message = "💡 比大盘价格便宜"
-    difference_percentage = (abs(difference) / m_price) * 100 if m_price > 0 else 0
+
+    difference_percentage = (abs(difference) / m_price) * Decimal("100") if m_price > 0 else Decimal("0")
+
+    if difference > 0:
+        direction = "高"
+    elif difference < 0:
+        direction = "低"
+    else:
+        direction = "一致"
+    msg = ""
+    if m_price > 0:
+        msg = f"购买价比大盘{direction} {float(_round_decimal(abs(difference), 2)):.2f} 元/克 ({float(_round_decimal(difference_percentage, 2)):.2f}%)"
     return {
-        "price_per_gram": round(price_per_gram, 4),
-        "market_price": round(market_price, 4),
-        "total_difference": round(difference * weight, 4),
-        "difference": round(difference, 4),
-        "difference_percentage": round(difference_percentage, 2),
+        "price_per_gram": float(_round_decimal(price_per_gram, 4)),
+        "market_price": float(_round_decimal(m_price, 4)),
+        "total_difference": float(_round_decimal(difference * w, 4)),
+        "difference": float(_round_decimal(difference, 4)),
+        "difference_percentage": float(_round_decimal(difference_percentage, 2)),
         "message_prefix": message_prefix,
         "positive_message": positive_message,
         "negative_message": negative_message,
+        "message": msg,
     }

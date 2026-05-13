@@ -2,11 +2,53 @@
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 
-def build_price_overview_payload(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
+def _as_naive_datetime(v: Any) -> datetime | None:
+    if v is None:
+        return None
+    if isinstance(v, datetime):
+        return v.replace(tzinfo=None)
+    if isinstance(v, str):
+        s = v.strip()
+        if not s:
+            return None
+        try:
+            return datetime.fromisoformat(s).replace(tzinfo=None)
+        except ValueError:
+            pass
+        for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M:%S.%f"):
+            try:
+                return datetime.strptime(s, fmt)
+            except ValueError:
+                continue
+    return None
+
+
+def _freshness_seconds(updated_at: Any, now: datetime) -> int | None:
+    u = _as_naive_datetime(updated_at)
+    if u is None:
+        return None
+    n = now.replace(tzinfo=None)
+    diff = (n - u).total_seconds()
+    if diff < 0:
+        diff = 0
+    return int(diff)
+
+
+def _data_status(freshness: int | None) -> str:
+    if freshness is None:
+        return "abnormal"
+    if freshness <= 120:
+        return "normal"
+    if freshness <= 600:
+        return "delayed"
+    return "abnormal"
+
+
+def build_price_overview_payload(rows: List[Dict[str, Any]], now: datetime) -> Dict[str, Any]:
     """对应 GET /api/price-overview 成功体中的 data 与外层 success。"""
     result: List[Dict[str, Any]] = []
     for r in rows:
@@ -14,6 +56,7 @@ def build_price_overview_payload(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
         yest = float(r["yesterday_close"]) if r.get("yesterday_close") is not None else None
         change = round(recycle - yest, 2) if yest is not None else None
         change_pct = round((change / yest) * 100, 2) if yest and yest != 0 else None
+        freshness = _freshness_seconds(r.get("updated_at"), now)
         result.append(
             {
                 "data_type": r["data_type"],
@@ -25,6 +68,9 @@ def build_price_overview_payload(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
                 "today_high": float(r.get("today_high", 0) or 0),
                 "today_low": float(r.get("today_low", 0) or 0),
                 "updated_at": str(r.get("updated_at", "")),
+                "source": r.get("source"),
+                "freshness_seconds": freshness,
+                "data_status": _data_status(freshness),
             }
         )
     return {"success": True, "data": result}

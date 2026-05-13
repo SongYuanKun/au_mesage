@@ -1,0 +1,57 @@
+flowchart TB
+  actor1([访客/投资者])
+  actor2([注册用户])
+  actor3([管理员])
+  actor4([运维])
+
+  subgraph User[用户端]
+    UC1([查看实时价格])
+    UC2([查看历史与趋势])
+    UC3([查看分析/金银比])
+    UC4([使用计算器])
+    UC5([创建目标价提醒])
+    UC6([导出数据])
+  end
+
+  subgraph Admin[管理端]
+    A1([配置数据源/优先级])
+    A2([配置通知通道])
+    A3([查看提醒历史])
+    A4([查看质量与运行指标])
+  end
+
+  subgraph Svc[后台服务]
+    S1([采集调度])
+    S2([数据标准化与入库])
+    S3([趋势/分析计算])
+    S4([提醒判定与推送])
+    S5([质量指标计算])
+  end
+
+  actor1 --> UC1
+  actor1 --> UC2
+  actor1 --> UC3
+  actor1 --> UC4
+  actor1 --> UC5
+
+  actor2 --> UC6
+
+  actor3 --> A1
+  actor3 --> A2
+  actor3 --> A3
+  actor3 --> A4
+
+  actor4 --> A4
+
+  UC1 --> S3
+  UC2 --> S3
+  UC3 --> S3
+  UC5 --> S4
+  UC6 --> S3
+  A1 --> S1
+  A4 --> S5
+  S1 --> S2
+  S2 --> S3
+  S3 --> S5
+  S4 --> S5
+

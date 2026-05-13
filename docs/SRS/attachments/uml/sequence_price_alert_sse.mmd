@@ -1,0 +1,24 @@
+sequenceDiagram
+  autonumber
+  participant U as 浏览器用户
+  participant FE as 前端页面
+  participant API as Flask API
+  participant DB as MySQL
+  participant COL as 采集器
+  participant NOTI as 通知通道
+
+  U->>FE: 输入品类/目标价/方向
+  FE->>API: GET /api/price-alert/subscribe?data_type=...&target=...&op=...
+  API-->>FE: event: ping
+  loop 周期推送
+    COL->>DB: 写入最新价格
+    API->>DB: 读取最新价
+    API-->>FE: event: price (当前价)
+    alt 满足触发条件
+      API-->>FE: event: alert (触发价/时间/原因)
+      opt 配置多通道
+        API->>NOTI: 发送通知(企业微信/Telegram/邮件)
+      end
+    end
+  end
+

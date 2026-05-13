@@ -1,0 +1,594 @@
+meta:
+  product: AU Metal Price Platform
+  doc_type: SRS
+  version: 0.3.0
+  status: Draft
+  owners:
+    - Product
+    - Engineering
+    - QA
+    - Ops
+  scope_note: "本SRS基于仓库现有文档与实现，补齐管理端与运维能力需求，确保可测试与可追溯。"
+
+source_documents:
+  - id: SRC-PRD
+    title: PRD（可交付迭代）
+    path: docs/PRD.md
+  - id: SRC-ANALYSIS
+    title: 产品分析评估
+    path: docs/Product_Analysis.md
+  - id: SRC-RESEARCH
+    title: 需求调研报告
+    path: docs/au_metal_price_platform_requirements_research_report.md
+  - id: SRC-USER-STORY
+    title: 用户故事地图与用例图
+    path: docs/au_metal_price_platform_user_story_map.md
+  - id: SRC-MOSCOW
+    title: 需求优先级矩阵
+    path: docs/au_metal_price_platform_requirements_priority_matrix.md
+  - id: SRC-TECH
+    title: 技术架构文档
+    path: docs/au_metal_price_platform_technical_architecture.md
+
+glossary:
+  - term: AU
+    definition: 黄金（此处泛指贵金属价格平台的黄金品类）
+  - term: XAU
+    definition: 黄金的国际代码，用于部分接口/图表品类标识
+  - term: XAG
+    definition: 白银的国际代码，用于部分接口/图表品类标识
+  - term: SSE
+    definition: Server-Sent Events，服务端到浏览器的单向事件推送
+  - term: OHLC
+    definition: 开盘/最高/最低/收盘价格数据结构
+  - term: 数据新鲜度
+    definition: 数据点时间到被API返回的延迟（秒）
+
+roles:
+  - id: ROLE-VISITOR
+    name: 访客
+    permissions:
+      - 浏览实时/历史/分析页面
+      - 使用计算器
+      - 使用浏览器内提醒订阅（匿名）
+  - id: ROLE-USER
+    name: 注册用户
+    permissions:
+      - 保存偏好设置
+      - 创建持久化提醒与通知通道配置
+      - 导出数据（受配额/限流）
+  - id: ROLE-ADMIN
+    name: 管理员
+    permissions:
+      - 配置数据源与采集策略
+      - 管理通知通道与告警
+      - 查看系统运行与质量指标
+  - id: ROLE-OPS
+    name: 运维
+    permissions:
+      - 查看健康度、日志与指标
+      - 执行降级/熔断与恢复操作
+
+functional_requirements:
+  - id: FR-UI-001
+    name: 实时价格卡片展示
+    module: 用户端-实时页
+    description: "在实时页同时展示黄金与白银的关键价格信息（当前价、涨跌、今日高低、更新时间、数据源）。"
+    acceptance:
+      - "进入实时页后3秒内完成两张卡片的首屏渲染（无数据时展示空态）。"
+      - "每张卡片至少展示：当前价、涨跌额/幅、今日高/低、更新时间、数据源名称。"
+    moscow: Must
+    effort: 2-3d
+    risks:
+      - "数据口径不一致导致展示字段含义不清。"
+    sources:
+      - "SRC-PRD#6.2 实时价格概览"
+
+  - id: FR-UI-002
+    name: 数据可信度状态展示
+    module: 用户端-实时页
+    description: "在价格卡片上展示数据状态（正常/延迟/异常），并可查看最近一小时缺失率与最近更新时间。"
+    acceptance:
+      - "当新鲜度P95≤120s显示正常；120s-600s显示延迟；>600s或连续失败显示异常。"
+      - "点击状态角标弹出说明：数据源、更新时间、缺失率、降级说明。"
+    moscow: Must
+    effort: 3-5d
+    risks:
+      - "缺少后端质量指标支持时难以精准判断状态。"
+    sources:
+      - "SRC-PRD#6.2.2 数据可信度提示"
+      - "SRC-ANALYSIS#5 用户体验缺口（可信度）"
+
+  - id: FR-UI-003
+    name: 近1小时分钟线趋势图
+    module: 用户端-实时页
+    description: "展示最近1小时分钟线趋势，支持悬浮提示与缩放。"
+    acceptance:
+      - "可选择黄金/白银并展示对应趋势。"
+      - "悬浮提示包含时间与价格；无数据时显示无数据提示。"
+    moscow: Must
+    effort: 2-4d
+    risks:
+      - "高频刷新导致前端性能问题。"
+    sources:
+      - "SRC-PRD#6.3.1 近1小时分钟线"
+      - "SRC-RESEARCH#2.2.2 实时性期望"
+
+  - id: FR-UI-004
+    name: 近7天日趋势图
+    module: 用户端-历史页
+    description: "展示近7天日趋势曲线，支持区间切换与对比展示。"
+    acceptance:
+      - "默认展示近7天；可切换区间后刷新图表。"
+      - "图表包含日期与价格，支持悬浮查看。"
+    moscow: Must
+    effort: 2-4d
+    risks:
+      - "日汇总口径（收盘/均值）需明确，否则引发误解。"
+    sources:
+      - "SRC-PRD#6.3.2 近7天日趋势"
+
+  - id: FR-UI-005
+    name: 区间OHLC（K线）展示
+    module: 用户端-历史页
+    description: "支持按区间展示OHLC数据的K线图（1d/7d/30d/90d/1y/all）。"
+    acceptance:
+      - "区间切换后请求对应OHLC数据并渲染K线。"
+      - "无OHLC数据时展示提示并不报错。"
+    moscow: Should
+    effort: 4-7d
+    risks:
+      - "数据源不提供OHLC或质量不足导致图表失真。"
+    sources:
+      - "SRC-PRD#6.3.3 区间趋势（OHLC）"
+
+  - id: FR-UI-006
+    name: 金银比分析
+    module: 用户端-分析页
+    description: "展示金银比曲线并支持与价格区间联动。"
+    acceptance:
+      - "区间切换后金银比曲线同步更新。"
+      - "提示金银比口径与计算公式。"
+    moscow: Must
+    effort: 2-4d
+    risks:
+      - "不同数据源价格口径不一致影响比率准确性。"
+    sources:
+      - "SRC-PRD#6.4.1 金银比"
+
+  - id: FR-UI-007
+    name: 购买价与大盘价差计算器
+    module: 用户端-工具
+    description: "输入总价、克重与品类，输出每克成本与当前大盘差额/百分比，并给出可解释文案。"
+    acceptance:
+      - "对非法输入（空/负数/过大）给出明确提示。"
+      - "输出包含：每克成本、参考大盘、差额、差额比例、解释文案。"
+    moscow: Must
+    effort: 2-3d
+    risks:
+      - "参考价格口径不一致导致结论误导。"
+    sources:
+      - "SRC-PRD#6.4.2 价差/溢价计算器"
+
+  - id: FR-UI-008
+    name: 历史点位对比计算
+    module: 用户端-工具
+    description: "支持选择历史时间点或区间，对比当前与历史价格差异，并输出解读。"
+    acceptance:
+      - "至少支持按日期选择一个历史点位并返回对比结果。"
+      - "无历史数据时提示用户调整范围。"
+    moscow: Should
+    effort: 3-5d
+    risks:
+      - "历史数据缺失导致对比失败。"
+    sources:
+      - "SRC-TECH#4.1 Price Calculation"
+
+  - id: FR-UI-009
+    name: 浏览器内目标价提醒创建
+    module: 用户端-提醒
+    description: "用户可选择品类、目标价与方向（≥/≤）创建浏览器内提醒订阅。"
+    acceptance:
+      - "创建后展示订阅中状态，并可一键取消。"
+      - "触发条件满足后展示弹窗提示并包含触发价与时间。"
+    moscow: Must
+    effort: 2-4d
+    risks:
+      - "浏览器后台/休眠导致提醒不可靠。"
+    sources:
+      - "SRC-PRD#6.5 价格提醒与通知"
+      - "SRC-RESEARCH#2.2.2 预警需求"
+
+  - id: FR-UI-010
+    name: SSE连接管理（心跳与断线重连）
+    module: 用户端-提醒
+    description: "SSE订阅需支持心跳、断线重连与可视化连接状态。"
+    acceptance:
+      - "收到ping事件时更新连接健康状态。"
+      - "断线后指数退避重连（最多N次），并提示用户。"
+    moscow: Must
+    effort: 3-5d
+    risks:
+      - "重连策略不当导致服务器连接风暴。"
+    sources:
+      - "SRC-TECH#4.2 Price Alert API (SSE)"
+
+  - id: FR-UI-011
+    name: 历史数据导出（CSV/JSON）
+    module: 用户端-历史页
+    description: "用户可按品类与时间范围导出历史数据（CSV/JSON），并显示导出进度与限流提示。"
+    acceptance:
+      - "导出文件包含时间戳、品类、价格字段与数据源字段。"
+      - "超过配额/限流阈值时返回明确提示，不出现长时间无响应。"
+    moscow: Should
+    effort: 3-6d
+    risks:
+      - "导出被滥用导致数据库压力与带宽成本上升。"
+    sources:
+      - "SRC-PRD#6.7 数据导出与 API"
+      - "SRC-RESEARCH#5.1.2 Should-have需求"
+
+  - id: FR-API-001
+    name: 价格概览API
+    module: 后端-API
+    description: "提供价格概览聚合接口，返回当前价、昨日收盘、今日高低、涨跌幅、更新时间、数据状态字段。"
+    acceptance:
+      - "接口响应包含success/data结构，字段命名一致且有类型约束。"
+      - "支持短TTL缓存，缓存失效后能回源查询。"
+    moscow: Must
+    effort: 2-4d
+    risks:
+      - "聚合逻辑复杂导致性能下降。"
+    sources:
+      - "SRC-TECH#3 Route Definitions"
+      - "SRC-PRD#6.2 实时价格概览"
+
+  - id: FR-API-002
+    name: 趋势与历史API集合
+    module: 后端-API
+    description: "提供最近1小时、最近7天、区间趋势等API，支持品类入参并保证口径一致。"
+    acceptance:
+      - "每个接口对无数据/非法入参返回可理解错误码与消息。"
+      - "区间趋势返回OHLC结构并保持时间排序。"
+    moscow: Must
+    effort: 4-7d
+    risks:
+      - "数据量增长导致查询慢，需要索引与分页策略。"
+    sources:
+      - "SRC-TECH#3 Route Definitions"
+      - "SRC-PRD#6.3 历史与趋势"
+
+  - id: FR-API-003
+    name: 金银比API
+    module: 后端-API
+    description: "提供金银比趋势数据接口，支持区间与时间粒度。"
+    acceptance:
+      - "输出包含时间序列与比率值，缺失数据可插值或标记为空。"
+    moscow: Must
+    effort: 2-4d
+    risks:
+      - "两品类时间对齐困难导致锯齿或缺口。"
+    sources:
+      - "SRC-PRD#6.4.1 金银比"
+
+  - id: FR-API-004
+    name: 计算器API
+    module: 后端-API
+    description: "提供购买价差计算与历史对比计算API，保证精度与可解释文案。"
+    acceptance:
+      - "计算使用定点或Decimal，避免浮点误差。"
+      - "返回包含message字段用于直接展示。"
+    moscow: Must
+    effort: 2-4d
+    risks:
+      - "输入校验不足导致异常或安全风险。"
+    sources:
+      - "SRC-TECH#4.1 Price Calculation"
+
+  - id: FR-API-005
+    name: SSE提醒订阅与触发API
+    module: 后端-API
+    description: "提供SSE订阅端点与触发检查端点，支持目标价条件与触发事件推送。"
+    acceptance:
+      - "SSE事件包含price/alert/ping，且格式符合EventSource规范。"
+      - "触发检查端点可主动检测并对满足条件的订阅发送alert事件。"
+    moscow: Must
+    effort: 4-6d
+    risks:
+      - "连接数上升带来资源占用与稳定性风险。"
+    sources:
+      - "SRC-TECH#4.2 Price Alert API (SSE)"
+      - "SRC-PRD#6.5 价格提醒与通知"
+
+  - id: FR-API-006
+    name: API错误码与错误消息规范
+    module: 后端-API
+    description: "为所有API统一错误码、错误消息与错误字段结构，并覆盖输入校验、限流、服务降级与内部错误。"
+    acceptance:
+      - "错误响应包含：success=false、error.code、error.message、error.details（可选）。"
+      - "同类错误在不同接口返回一致的code。"
+    moscow: Must
+    effort: 3-5d
+    risks:
+      - "历史接口兼容性变更影响前端与第三方使用方。"
+    sources:
+      - "SRC-PRD#9 验收标准"
+
+  - id: FR-SVC-001
+    name: 多数据源采集调度与容错
+    module: 后端-采集服务
+    description: "采集管理器并行运行多个采集器，支持超时、重试、失败熔断与可配置开关。"
+    acceptance:
+      - "单数据源失败不影响其它数据源采集。"
+      - "连续失败超过阈值时标记数据源异常并降级。"
+    moscow: Must
+    effort: 5-8d
+    risks:
+      - "第三方API限流/封禁导致长期失败。"
+    sources:
+      - "SRC-PRD#3 Data Collection Flow"
+      - "SRC-ANALYSIS#6 技术风险（采集与Web耦合）"
+
+  - id: FR-SVC-002
+    name: 数据标准化与入库
+    module: 后端-数据层
+    description: "将不同数据源字段映射为统一数据模型并写入数据库，确保唯一键约束与时间序一致。"
+    acceptance:
+      - "同一时间粒度的数据不重复写入（唯一键生效）。"
+      - "写入失败时记录原因并可重试。"
+    moscow: Must
+    effort: 4-6d
+    risks:
+      - "数据源字段变更导致解析失败。"
+    sources:
+      - "SRC-TECH#1 Architecture Design"
+
+  - id: FR-SVC-003
+    name: 数据质量指标计算
+    module: 后端-质量
+    description: "输出新鲜度、缺失率、采集成功率、异常值率等指标，供前端状态与运维使用。"
+    acceptance:
+      - "至少产出：freshness_p95_seconds、collector_success_rate、missing_rate。"
+      - "指标按品类与数据源分组可查询。"
+    moscow: Must
+    effort: 5-8d
+    risks:
+      - "指标口径不统一导致前端展示误判。"
+    sources:
+      - "SRC-PRD#11 数据指标定义"
+
+  - id: FR-ADM-001
+    name: 数据源配置与优先级管理
+    module: 管理端-数据源
+    description: "管理员可启用/禁用数据源、配置优先级与切换策略，并查看最近状态。"
+    acceptance:
+      - "修改配置后在5分钟内生效（或明确需要重启）。"
+      - "可查看每个数据源最近成功时间、失败次数与延迟。"
+    moscow: Should
+    effort: 6-10d
+    risks:
+      - "错误配置导致数据中断，需要回滚机制。"
+    sources:
+      - "SRC-USER-STORY#系统管理活动 数据源管理"
+      - "SRC-ANALYSIS#6 风险点（可运维性）"
+
+  - id: FR-ADM-002
+    name: 通知通道配置与测试
+    module: 管理端-通知
+    description: "管理员/运维可配置企业微信/Telegram/邮件通道并进行测试发送与送达记录。"
+    acceptance:
+      - "支持测试发送并记录成功/失败原因。"
+      - "失败时按策略重试并最终落库可查询。"
+    moscow: Should
+    effort: 5-8d
+    risks:
+      - "第三方通道策略变化导致失败率上升。"
+    sources:
+      - "SRC-PRD#6.5.2 通知通道"
+
+  - id: FR-ADM-003
+    name: 提醒历史与审计查询
+    module: 管理端-提醒
+    description: "提供提醒触发历史、通知送达状态与关键字段审计查询，支持按条件过滤与导出。"
+    acceptance:
+      - "可按时间范围、品类、通道、状态筛选。"
+      - "导出包含提醒条件、触发价、触发时间、送达状态。"
+    moscow: Could
+    effort: 6-10d
+    risks:
+      - "数据量增长导致查询慢，需要索引与归档策略。"
+    sources:
+      - "SRC-PRD#6.5.3 提醒历史"
+
+  - id: FR-ADM-004
+    name: 系统运行与质量指标看板
+    module: 管理端-运维
+    description: "提供采集成功率、延迟P95、缺失率、异常值率、API P95、SSE连接数、通知送达率的看板与告警配置入口。"
+    acceptance:
+      - "看板可按数据源/品类过滤，并支持最近1小时/24小时/7天视图。"
+      - "可配置告警阈值，并在触发时记录事件。"
+    moscow: Should
+    effort: 6-12d
+    risks:
+      - "指标口径与采集统计不一致导致误报/漏报。"
+    sources:
+      - "SRC-PRD#7.4 可观测"
+      - "SRC-ANALYSIS#6 技术实现路径（可观测）"
+
+  - id: FR-AUTH-001
+    name: 认证与权限控制
+    module: 平台-通用
+    description: "为管理端、导出与持久化提醒提供认证与权限控制（访客/注册用户/管理员/运维）。"
+    acceptance:
+      - "未登录用户不可访问管理端与敏感配置接口。"
+      - "权限不足返回403并记录审计日志。"
+    moscow: Should
+    effort: 6-12d
+    risks:
+      - "账户体系引入会增加开发与运维复杂度。"
+    sources:
+      - "SRC-PRD#4 目标用户与用户画像（分层）"
+      - "SRC-USER-STORY#账户管理活动"
+
+non_functional_requirements:
+  - id: NFR-PERF-001
+    name: 核心API性能SLO
+    category: Performance
+    description: "价格概览接口P95≤200ms（缓存命中）/≤800ms（不命中），趋势接口P95≤1.5s。"
+    acceptance:
+      - "在基准数据量下完成压测报告，满足SLO。"
+    moscow: Must
+    effort: 3-5d
+    risks:
+      - "索引缺失或聚合计算导致P95不达标。"
+    sources:
+      - "SRC-PRD#7.1 性能"
+
+  - id: NFR-AVA-001
+    name: 可用性与降级
+    category: Availability
+    description: "核心接口月可用性≥99.5%；数据源异常时提供清晰降级与恢复机制。"
+    acceptance:
+      - "模拟数据源中断时系统仍可返回最近可用数据并标记为延迟/异常。"
+    moscow: Must
+    effort: 5-8d
+    risks:
+      - "采集与Web耦合导致单点故障。"
+    sources:
+      - "SRC-PRD#7.2 可用性与稳定性"
+      - "SRC-ANALYSIS#6 风险点与建议演进"
+
+  - id: NFR-SEC-001
+    name: 密钥与敏感配置保护
+    category: Security
+    description: "第三方API Key/通知Token不得暴露在前端与日志中；敏感配置仅服务端环境变量或加密存储。"
+    acceptance:
+      - "代码扫描与人工检查确认无敏感信息泄露。"
+      - "生产日志不输出token/密钥明文。"
+    moscow: Must
+    effort: 2-4d
+    risks:
+      - "调试日志误输出导致泄露。"
+    sources:
+      - "SRC-PRD#7.3 安全"
+
+  - id: NFR-OBS-001
+    name: 可观测性（指标/日志/告警）
+    category: Observability
+    description: "采集成功率、延迟、缺失率、异常值率、接口P95、SSE连接数、通知送达率需可观测并具备告警阈值。"
+    acceptance:
+      - "提供仪表盘或导出接口，可按天/小时查看关键指标。"
+      - "采集连续失败/通知送达率下降触发告警。"
+    moscow: Must
+    effort: 6-10d
+    risks:
+      - "无统一指标体系导致前后端口径不一致。"
+    sources:
+      - "SRC-PRD#7.4 可观测"
+
+  - id: NFR-COM-001
+    name: 合规与免责声明
+    category: Compliance
+    description: "在页面与API文档中明确数据来源与免责声明；对抓取类数据源提供可配置开关与访问频控。"
+    acceptance:
+      - "页面底部展示免责声明与数据来源说明。"
+      - "抓取开关默认关闭，并具备频控配置。"
+    moscow: Should
+    effort: 2-4d
+    risks:
+      - "合规要求变化导致功能下线。"
+    sources:
+      - "SRC-ANALYSIS#4 成本与合规风险"
+
+  - id: NFR-SCL-001
+    name: 可扩展性（多实例与分布式缓存）
+    category: Scalability
+    description: "当部署为多实例时，缓存与状态需可共享（建议Redis），SSE连接与提醒状态需有可扩展方案。"
+    acceptance:
+      - "新增实例不导致缓存命中率显著下降；SSE连接数扩展不引发雪崩。"
+    moscow: Should
+    effort: 8-15d
+    risks:
+      - "引入Redis/队列后系统复杂度上升。"
+    sources:
+      - "SRC-ANALYSIS#6 风险点与建议演进"
+
+  - id: NFR-DATA-001
+    name: 数据保留与归档
+    category: Data
+    description: "定义价格数据、提醒历史、通知送达记录的保留周期与归档策略，避免数据库无限增长。"
+    acceptance:
+      - "提供归档/清理作业，可配置保留周期并产出执行日志。"
+    moscow: Should
+    effort: 4-8d
+    risks:
+      - "误清理导致历史数据缺失与用户投诉。"
+    sources:
+      - "SRC-PRD#12 风险评估与应对（数据量增长）"
+
+  - id: NFR-MNT-001
+    name: 可维护性（需求到代码到测试的追踪）
+    category: Maintainability
+    description: "每项需求在RTM中需关联到设计、代码与测试产物；CI中要求生成测试报告并可追溯。"
+    acceptance:
+      - "RTM中DesignRef/CodeRef/TestRef字段在交付前100%填写。"
+      - "CI产物包含测试报告链接或路径。"
+    moscow: Must
+    effort: 3-6d
+    risks:
+      - "缺少流程约束导致字段长期TBD。"
+    sources:
+      - "SRC-PRD#11 数据指标定义（可观测与追踪）"
+
+interfaces:
+  - id: IF-API-001
+    name: GET /api/price-overview
+    type: REST
+    description: "返回价格概览聚合数据（支持按品类过滤）。"
+    acceptance:
+      - "返回字段与SRS接口定义一致，包含data_type与更新时间字段。"
+    moscow: Must
+    effort: 1-2d
+    risks:
+      - "字段兼容性变更影响前端。"
+    sources:
+      - "SRC-TECH#3 Route Definitions"
+
+  - id: IF-API-002
+    name: GET /api/price-alert/subscribe
+    type: SSE
+    description: "浏览器订阅目标价提醒，事件类型包含price/alert/ping。"
+    acceptance:
+      - "SSE事件符合EventSource解析规范。"
+    moscow: Must
+    effort: 1-2d
+    risks:
+      - "代理/网关缓冲导致SSE中断。"
+    sources:
+      - "SRC-TECH#4.2 Price Alert API (SSE)"
+
+security_compliance:
+  - id: SEC-001
+    name: 基础限流与防滥用
+    description: "对核心API与SSE建立IP级限流与连接数上限，防止恶意刷接口与连接耗尽。"
+    acceptance:
+      - "超过阈值返回明确错误码并记录审计日志。"
+    moscow: Should
+    effort: 3-5d
+    risks:
+      - "误伤正常用户导致可用性下降。"
+    sources:
+      - "SRC-PRD#7.3 安全"
+
+  - id: SEC-002
+    name: 审计日志与关键操作追踪
+    description: "对管理端配置变更、通知通道变更、数据源切换、导出与登录等关键操作记录审计日志，并支持追溯查询。"
+    acceptance:
+      - "审计日志至少包含：操作者、时间、操作对象、前后值、请求来源。"
+      - "审计查询支持按时间与操作类型过滤。"
+    moscow: Should
+    effort: 4-8d
+    risks:
+      - "日志包含敏感信息需脱敏处理。"
+    sources:
+      - "SRC-PRD#7.3 安全"

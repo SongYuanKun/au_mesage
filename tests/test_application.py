@@ -1,6 +1,6 @@
 """application 层纯函数测试。"""
 
-from datetime import date
+from datetime import date, datetime
 
 from application.price_responses import (
     build_gold_silver_ratio_payload,
@@ -25,7 +25,7 @@ def test_build_price_overview_payload():
             "updated_at": "2025-01-01 12:00:00",
         }
     ]
-    out = build_price_overview_payload(rows)
+    out = build_price_overview_payload(rows, now=datetime(2025, 1, 1, 12, 0, 1))
     assert out["success"] is True
     assert len(out["data"]) == 1
     d = out["data"][0]
