@@ -153,5 +153,9 @@ pytest -q
 - PRD：`docs/PRD.md`
 - SRS：`docs/SRS/SRS.md`（由 `docs/SRS/requirements.yml` 生成）
 - SRS 附件：`docs/SRS/attachments/`
+- AI 辅助开发标准化流程 (SOP)：`docs/SOP/`
+  - [全生命周期SOP](docs/SOP/01_AI_Assisted_Development_SOP.md)
+  - [AI 操作手册与Prompt指令](docs/SOP/02_AI_Operation_Manual.md)
+  - [代码审查(CR)检查清单](docs/SOP/03_Code_Review_Checklist.md)
 - Bug 修复与审查记录：`docs/bugfix/`
 

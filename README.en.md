@@ -153,5 +153,9 @@ pytest -q
 - PRD: `docs/PRD.md`
 - SRS: `docs/SRS/SRS.md` (generated from `docs/SRS/requirements.yml`)
 - SRS attachments: `docs/SRS/attachments/`
+- AI-Assisted Development SOP: `docs/SOP/`
+  - [Full Lifecycle SOP](docs/SOP/01_AI_Assisted_Development_SOP.md)
+  - [AI Operation Manual & Prompts](docs/SOP/02_AI_Operation_Manual.md)
+  - [Code Review Checklist](docs/SOP/03_Code_Review_Checklist.md)
 - Bugfix & review notes: `docs/bugfix/`
 
