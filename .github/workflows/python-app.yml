@@ -57,3 +57,29 @@ jobs:
       - name: Unit tests
         run: |
           PYTHONPATH=src pytest tests/ -v
+
+  frontend:
+    name: Frontend (lint, typecheck, test, build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: TypeScript
+        run: npm run check
+
+      - name: Vitest + coverage
+        run: npm test -- --coverage
+
+      - name: Vite production build
+        run: npm run build
