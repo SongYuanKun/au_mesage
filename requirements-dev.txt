@@ -1,3 +1,4 @@
 # 开发与 CI：单元测试
 -r requirements.txt
 pytest>=7.0.0
+ruff>=0.5.0
