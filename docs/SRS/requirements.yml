@@ -1,7 +1,7 @@
 meta:
   product: AU Metal Price Platform
   doc_type: SRS
-  version: 0.3.0
+  version: 0.3.1
   status: Draft
   owners:
     - Product

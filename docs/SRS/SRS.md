@@ -1,14 +1,14 @@
 ---
 title: 需求规格说明书（SRS）
 product: AU Metal Price Platform
-version: 0.3.0
+version: 0.3.1
 status: Draft
 owners:
   - Product
   - Engineering
   - QA
   - Ops
-generated_at: 2026-05-13 01:18:29+0800
+generated_at: 2026-05-13 15:42:08+0800
 ---
 
 # AU Metal Price Platform｜需求规格说明书（SRS）
@@ -17,7 +17,7 @@ generated_at: 2026-05-13 01:18:29+0800
 
 | 版本 | 日期 | 变更人 | 说明 |
 |---|---|---|---|
-| 0.3.0 | 2026-05-13 | 自动生成 | 基于 requirements.yml 生成SRS |
+| 0.3.1 | 2026-05-13 | 自动生成 | 基于 requirements.yml 生成SRS |
 
 ## 02-项目背景
 

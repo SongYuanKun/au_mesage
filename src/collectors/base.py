@@ -50,15 +50,36 @@ class BaseCollector(ABC):
         logger.info(f"[{self.name}] 采集器已停止")
 
     def _run(self):
+        consecutive_failures = 0
+        max_backoff = 3600  # 最大退避 1 小时
+        failure_threshold = 5
+
         while self.is_running:
             try:
                 data = self.fetch()
                 if data:
                     self.mysql_manager.batch_insert_data(data)
                     logger.info(f"[{self.name}] 写入 {len(data)} 条数据")
+                
+                if consecutive_failures > 0:
+                    logger.info(f"[{self.name}] 采集器恢复正常")
+                consecutive_failures = 0
             except Exception as e:
-                logger.error(f"[{self.name}] 采集异常: {e}")
-            time.sleep(self.interval)
+                consecutive_failures += 1
+                logger.error(f"[{self.name}] 采集异常 (连续失败 {consecutive_failures} 次): {e}")
+                if consecutive_failures == failure_threshold:
+                    logger.error(f"[{self.name}] 达到失败阈值，采集器进入降级状态！")
+            
+            if consecutive_failures > 0:
+                current_sleep = min(max_backoff, self.interval * (2 ** (consecutive_failures - 1)))
+                logger.info(f"[{self.name}] 退避重试，休眠 {current_sleep}s ...")
+            else:
+                current_sleep = self.interval
+            
+            slept = 0
+            while slept < current_sleep and self.is_running:
+                time.sleep(1)
+                slept += 1
 
     @staticmethod
     def now_beijing():

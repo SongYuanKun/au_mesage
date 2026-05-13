@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS price_data (
   source VARCHAR(30) DEFAULT 'playwright' COMMENT '数据来源: gold_api/exchange_rate/fawazahmed0/playwright',
   currency VARCHAR(10) DEFAULT 'CNY' COMMENT '计价币种: CNY/USD',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_price_data (trade_date, trade_time, data_type, source, currency),
   INDEX idx_type_created (data_type, created_at DESC),
   INDEX idx_date_type_recycle (trade_date, data_type, recycle_price),
   INDEX idx_type_date_created (data_type, trade_date, created_at),

@@ -15,7 +15,7 @@ class PriceWriter(BaseDB):
             return
 
         query = """
-                INSERT INTO price_data
+                INSERT IGNORE INTO price_data
                     (trade_date, trade_time, data_type, real_time_price, recycle_price,
                      high_price, low_price, source, currency)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)

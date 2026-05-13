@@ -10,6 +10,7 @@ from flask import Blueprint, Response, jsonify, request, stream_with_context
 
 from api_errors import ApiError
 from db import DatabaseManager
+from routes.api.cache import api_ttl_cache
 
 
 def register_alert_routes(bp: Blueprint, mysql_manager: DatabaseManager) -> None:
@@ -101,7 +102,13 @@ def register_alert_routes(bp: Blueprint, mysql_manager: DatabaseManager) -> None
                     yield "data: 订阅超时，请重新订阅\n\n"
                     break
 
-                price = mysql_manager.get_latest_market_price(data_type)
+                cache_key = f"latest_price_{data_type}"
+                price = api_ttl_cache.get(cache_key, ttl=10)
+                if price is None:
+                    price = mysql_manager.get_latest_market_price(data_type)
+                    if price is not None:
+                        api_ttl_cache.set(cache_key, price)
+
                 if price is None:
                     yield "event: error\n"
                     yield "data: 无法获取最新市场价格\n\n"
