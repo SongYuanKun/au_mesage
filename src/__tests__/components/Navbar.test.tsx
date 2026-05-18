@@ -1,7 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
+import { BrowserRouter } from 'react-router-dom'
 import Navbar from '@/components/Navbar'
 import useThemeStore from '@/stores/themeStore'
+
+/** Wrap component with Router for NavLink support */
+function renderWithRouter(ui: React.ReactElement) {
+  return render(<BrowserRouter>{ui}</BrowserRouter>)
+}
 
 describe('Navbar', () => {
   beforeEach(() => {
@@ -12,21 +18,21 @@ describe('Navbar', () => {
   })
 
   it('should render the title and emoji', () => {
-    render(<Navbar />)
+    renderWithRouter(<Navbar />)
 
     expect(screen.getByText('实时金价监控')).toBeInTheDocument()
     expect(screen.getByText('🪙')).toBeInTheDocument()
   })
 
   it('should render a theme toggle button', () => {
-    render(<Navbar />)
+    renderWithRouter(<Navbar />)
 
     const button = screen.getByRole('button', { name: '切换主题' })
     expect(button).toBeInTheDocument()
   })
 
   it('should toggle theme when button is clicked', () => {
-    render(<Navbar />)
+    renderWithRouter(<Navbar />)
 
     const button = screen.getByRole('button', { name: '切换主题' })
     fireEvent.click(button)
@@ -37,7 +43,7 @@ describe('Navbar', () => {
   })
 
   it('should toggle back to light on second click', () => {
-    render(<Navbar />)
+    renderWithRouter(<Navbar />)
 
     const button = screen.getByRole('button', { name: '切换主题' })
     fireEvent.click(button)
@@ -49,9 +55,18 @@ describe('Navbar', () => {
   })
 
   it('should have navigation landmark', () => {
-    render(<Navbar />)
+    renderWithRouter(<Navbar />)
 
     const nav = screen.getByRole('navigation', { name: '主导航' })
     expect(nav).toBeInTheDocument()
+  })
+
+  it('should render navigation links', () => {
+    renderWithRouter(<Navbar />)
+
+    expect(screen.getByText('实时')).toBeInTheDocument()
+    expect(screen.getByText('历史')).toBeInTheDocument()
+    expect(screen.getByText('分析')).toBeInTheDocument()
+    expect(screen.getByText('提醒')).toBeInTheDocument()
   })
 })

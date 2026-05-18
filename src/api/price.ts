@@ -100,6 +100,30 @@ export interface PriceTrendResult {
   data: CandlestickData[] | LineData[];
 }
 
+/** 价差计算结果 */
+export interface CalculateResult {
+  real_time_price: number;
+  product_price_per_gram: number;
+  diff: number;
+  total_diff: number;
+}
+
+/** 历史对比结果 */
+export interface HistoryCompareResult {
+  purchase_price_per_gram: number;
+  current_price: number;
+  profit_per_gram: number;
+  total_profit: number;
+}
+
+/** 推送渠道信息 */
+export interface AlertChannel {
+  type: string;
+  name?: string;
+  status?: string;
+  [key: string]: unknown;
+}
+
 // --- API functions with retry & error handling ---
 
 export async function fetchPriceOverview(): Promise<PriceOverviewItem[]> {
@@ -165,6 +189,118 @@ export async function fetchLast7Days(
         return res.data.data;
       }
       throw new Error(res.data.message || "获取7日数据失败");
+    });
+  } catch (err) {
+    normalizeError(err);
+  }
+}
+
+// --- 新增 API 函数 ---
+
+/**
+ * 导出历史价格数据（文件下载）
+ */
+export async function fetchExportHistory(
+  dataType: string,
+  startDate: string,
+  endDate: string,
+  format: string
+): Promise<void> {
+  try {
+    const res = await api.get("/api/export/history", {
+      params: {
+        data_type: dataType,
+        start_date: startDate,
+        end_date: endDate,
+        format,
+      },
+      responseType: "blob",
+    });
+
+    // 从 Content-Disposition 头中提取文件名
+    const contentDisposition = res.headers["content-disposition"] || "";
+    let filename = `历史数据_${dataType}_${startDate}_${endDate}.${format}`;
+    const filenameMatch = contentDisposition.match(/filename\*?=(?:UTF-8''|"?)([^";]+)/i);
+    if (filenameMatch) {
+      filename = decodeURIComponent(filenameMatch[1].replace(/"/g, ""));
+    }
+
+    // 触发浏览器下载
+    const blob = new Blob([res.data]);
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  } catch (err) {
+    normalizeError(err);
+  }
+}
+
+/**
+ * 价差计算
+ */
+export async function calculatePriceDiff(
+  productPrice: number,
+  weight: number,
+  dataType: string
+): Promise<CalculateResult> {
+  try {
+    return await withRetry(async () => {
+      const res = await api.post<ApiResponse<CalculateResult>>("/api/calculate", {
+        product_price: productPrice,
+        weight,
+        data_type: dataType,
+      });
+      if (res.data.success) {
+        return res.data.data;
+      }
+      throw new Error(res.data.message || "价差计算失败");
+    });
+  } catch (err) {
+    normalizeError(err);
+  }
+}
+
+/**
+ * 历史对比
+ */
+export async function compareHistory(
+  productPrice: number,
+  weight: number,
+  dataType: string
+): Promise<HistoryCompareResult> {
+  try {
+    return await withRetry(async () => {
+      const res = await api.post<ApiResponse<HistoryCompareResult>>("/api/history", {
+        product_price: productPrice,
+        weight,
+        data_type: dataType,
+      });
+      if (res.data.success) {
+        return res.data.data;
+      }
+      throw new Error(res.data.message || "历史对比失败");
+    });
+  } catch (err) {
+    normalizeError(err);
+  }
+}
+
+/**
+ * 获取已配置的推送渠道
+ */
+export async function fetchAlertChannels(): Promise<AlertChannel[]> {
+  try {
+    return await withRetry(async () => {
+      const res = await api.get<ApiResponse<AlertChannel[]>>("/api/alert-channels");
+      if (res.data.success) {
+        return res.data.data;
+      }
+      throw new Error(res.data.message || "获取推送渠道失败");
     });
   } catch (err) {
     normalizeError(err);

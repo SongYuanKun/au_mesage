@@ -1,8 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { BrowserRouter } from 'react-router-dom'
 import Home from '@/pages/Home'
 import usePriceStore from '@/stores/priceStore'
 import * as priceApi from '@/api/price'
+
+/** Wrap component with Router for NavLink support in Navbar */
+function renderWithRouter(ui: React.ReactElement) {
+  return render(<BrowserRouter>{ui}</BrowserRouter>)
+}
 
 vi.mock('recharts', () => ({
   ResponsiveContainer: ({ children }: { children: React.ReactNode }) => (
@@ -66,7 +72,7 @@ describe('Home', () => {
 
   it('renders price cards after successful overview fetch', async () => {
     vi.spyOn(priceApi, 'fetchPriceOverview').mockResolvedValue([gold, silver])
-    render(<Home />)
+    renderWithRouter(<Home />)
     await waitFor(() => {
       expect(screen.getByRole('heading', { name: '黄金' })).toBeInTheDocument()
     })
@@ -75,7 +81,7 @@ describe('Home', () => {
 
   it('shows empty state when overview returns no rows', async () => {
     vi.spyOn(priceApi, 'fetchPriceOverview').mockResolvedValue([])
-    render(<Home />)
+    renderWithRouter(<Home />)
     await waitFor(() => {
       expect(screen.getByText('暂无价格数据')).toBeInTheDocument()
     })
@@ -85,7 +91,7 @@ describe('Home', () => {
     vi.spyOn(priceApi, 'fetchPriceOverview')
       .mockRejectedValueOnce(new Error('网络不可用'))
       .mockResolvedValueOnce([gold, silver])
-    render(<Home />)
+    renderWithRouter(<Home />)
     await waitFor(() => {
       expect(screen.getByText(/网络不可用/)).toBeInTheDocument()
     })
