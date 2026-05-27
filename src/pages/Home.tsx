@@ -3,6 +3,7 @@ import Navbar from "@/components/Navbar";
 import PriceCard, { PriceCardSkeleton } from "@/components/PriceCard";
 import PriceTrendChart from "@/components/PriceTrendChart";
 import GoldSilverRatioChart from "@/components/GoldSilverRatioChart";
+import SharePriceCard from "@/components/SharePriceCard";
 import usePriceStore from "@/stores/priceStore";
 
 export default function Home() {
@@ -58,28 +59,31 @@ export default function Home() {
 
         {/* Price Cards */}
         {hasData && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <PriceCard
-              name="黄金"
-              emoji="🥇"
-              price={goldPrice?.real_time_price ?? null}
-              change={goldPrice?.change ?? null}
-              changePct={goldPrice?.change_pct ?? null}
-              high={goldPrice?.today_high ?? null}
-              low={goldPrice?.today_low ?? null}
-              updatedAt={goldPrice?.updated_at ?? null}
-            />
-            <PriceCard
-              name="白银"
-              emoji="🥈"
-              price={silverPrice?.real_time_price ?? null}
-              change={silverPrice?.change ?? null}
-              changePct={silverPrice?.change_pct ?? null}
-              high={silverPrice?.today_high ?? null}
-              low={silverPrice?.today_low ?? null}
-              updatedAt={silverPrice?.updated_at ?? null}
-            />
-          </div>
+          <>
+            <SharePriceCard goldPrice={goldPrice} silverPrice={silverPrice} />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+              <PriceCard
+                name="黄金"
+                emoji="🥇"
+                price={goldPrice?.real_time_price ?? null}
+                change={goldPrice?.change ?? null}
+                changePct={goldPrice?.change_pct ?? null}
+                high={goldPrice?.today_high ?? null}
+                low={goldPrice?.today_low ?? null}
+                updatedAt={goldPrice?.updated_at ?? null}
+              />
+              <PriceCard
+                name="白银"
+                emoji="🥈"
+                price={silverPrice?.real_time_price ?? null}
+                change={silverPrice?.change ?? null}
+                changePct={silverPrice?.change_pct ?? null}
+                high={silverPrice?.today_high ?? null}
+                low={silverPrice?.today_low ?? null}
+                updatedAt={silverPrice?.updated_at ?? null}
+              />
+            </div>
+          </>
         )}
 
         {/* Price Trend Charts */}
