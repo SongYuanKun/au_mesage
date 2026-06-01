@@ -9,6 +9,8 @@ from datetime import datetime
 
 import pytz
 
+from collectors import stats as collector_stats
+
 BEIJING_TZ = pytz.timezone('Asia/Shanghai')
 logger = logging.getLogger(__name__)
 
@@ -55,16 +57,20 @@ class BaseCollector(ABC):
         failure_threshold = 5
 
         while self.is_running:
+            started = time.monotonic()
             try:
                 data = self.fetch()
                 if data:
                     self.mysql_manager.batch_insert_data(data)
                     logger.info(f"[{self.name}] 写入 {len(data)} 条数据")
-                
+
+                latency_ms = (time.monotonic() - started) * 1000.0
+                collector_stats.record_success(self.name, latency_ms)
                 if consecutive_failures > 0:
                     logger.info(f"[{self.name}] 采集器恢复正常")
                 consecutive_failures = 0
             except Exception as e:
+                collector_stats.record_failure(self.name)
                 consecutive_failures += 1
                 logger.error(f"[{self.name}] 采集异常 (连续失败 {consecutive_failures} 次): {e}")
                 if consecutive_failures == failure_threshold:

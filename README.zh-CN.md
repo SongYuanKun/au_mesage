@@ -24,6 +24,7 @@
 - 提醒：SSE 目标价订阅（浏览器内），触发后可选多通道推送
 - 数据可信度与质量：概览返回 `data_status`/`freshness_seconds`；提供质量指标接口
 - 数据导出：按品类与日期范围导出 CSV/JSON（带限流与数量上限）
+- 管理端（可选认证）：数据源启用/优先级/回滚、审计查询、Token 登录（见 `AUTH_ENABLED`）
 
 ## 技术栈与架构
 
@@ -56,6 +57,8 @@ cp .env.example .env
 
 ```bash
 mysql -u root -p < scripts/init.sql
+# 启用管理端/审计时额外执行：
+mysql -u root -p price_data < scripts/migrations/002_admin_auth_audit.sql
 ```
 
 3) 启动
@@ -109,6 +112,7 @@ python src/app.py
 - 服务：`API_HOST` `API_PORT`
 - 采集：`ENABLE_PLAYWRIGHT` `GOLD_API_INTERVAL` `WEBSITE_URL`
 - 通知（可选）：`WECHAT_WEBHOOK_URL` `TELEGRAM_BOT_TOKEN` `TELEGRAM_CHAT_ID` `SMTP_*` `ALERT_EMAIL_TO`
+- 认证（可选）：`AUTH_ENABLED` `AUTH_ADMIN_TOKEN` `AUTH_OPS_TOKEN` `AUTH_USER_TOKEN`；前端 `VITE_AUTH_ENABLED`（与后端一致）
 
 ## API 与新增接口
 
@@ -129,7 +133,15 @@ python src/app.py
 - `GET /api/metrics/quality`
   - 返回按 `data_type/source` 分组的 `freshness_seconds`、`missing_rate`、`collector_success_rate`（近似）等
 - `GET /api/export/history?data_type=...&start_date=YYYY-MM-DD&end_date=YYYY-MM-DD&format=csv|json&limit=...`
-  - 默认 `limit=5000`，上限 `20000`，并对导出做简单限流
+  - 默认 `limit=5000`，上限 `20000`，并对导出做简单限流；`AUTH_ENABLED=true` 时需 admin/ops Token
+
+认证与管理端（`AUTH_ENABLED=true` 时）：
+
+- `GET /api/auth/me`、`POST /api/auth/session`
+- `GET|PUT /api/admin/sources`、`POST /api/admin/sources/:id/rollback`
+- `GET /api/admin/audit`
+
+完整说明见 [`docs/API.md`](docs/API.md)。
 
 ## 开发与测试
 
@@ -149,6 +161,8 @@ pytest -q
 
 ## 文档
 
+- 部署（含 GTR）：[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)
+- HTTP API：[`docs/API.md`](docs/API.md)
 - 产品分析：`docs/Product_Analysis.md`
 - PRD：`docs/PRD.md`
 - SRS：`docs/SRS/SRS.md`（由 `docs/SRS/requirements.yml` 生成）

@@ -2,11 +2,16 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import Navbar from '@/components/Navbar'
+import { AuthProvider } from '@/auth/AuthContext'
 import useThemeStore from '@/stores/themeStore'
 
 /** Wrap component with Router for NavLink support */
 function renderWithRouter(ui: React.ReactElement) {
-  return render(<BrowserRouter>{ui}</BrowserRouter>)
+  return render(
+    <BrowserRouter>
+      <AuthProvider>{ui}</AuthProvider>
+    </BrowserRouter>
+  )
 }
 
 describe('Navbar', () => {

@@ -1,6 +1,8 @@
 import { NavLink } from "react-router-dom";
-import { Moon, Sun, Home, TrendingUp, BarChart3, Bell } from "lucide-react";
+import { Moon, Sun, Home, TrendingUp, BarChart3, Bell, Settings } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
+import { useAuth } from "@/auth/AuthContext";
+import { isAuthRequired } from "@/auth/tokenStorage";
 
 const NAV_ITEMS = [
   { to: "/", label: "实时", emoji: "🏠", icon: Home },
@@ -11,6 +13,8 @@ const NAV_ITEMS = [
 
 export default function Navbar() {
   const { isDark, toggleTheme } = useTheme();
+  const { role, logout } = useAuth();
+  const showAdmin = !isAuthRequired() || role === "admin" || role === "ops";
 
   return (
     <nav aria-label="主导航" className="sticky top-0 z-50 w-full border-b border-gray-200 dark:border-gray-700 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md">
@@ -42,9 +46,34 @@ export default function Navbar() {
                   <span className="hidden sm:inline">{label}</span>
                 </NavLink>
               ))}
+              {showAdmin && (
+                <NavLink
+                  to="/admin/sources"
+                  className={({ isActive }) =>
+                    `flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      isActive
+                        ? "bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300"
+                        : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    }`
+                  }
+                >
+                  <Settings className="w-4 h-4" />
+                  <span className="hidden sm:inline">管理</span>
+                </NavLink>
+              )}
             </div>
           </div>
 
+          <div className="flex items-center gap-2">
+          {isAuthRequired() && role && (
+            <button
+              type="button"
+              onClick={() => void logout()}
+              className="hidden text-sm text-gray-600 underline sm:inline dark:text-gray-300"
+            >
+              退出
+            </button>
+          )}
           {/* Theme Toggle */}
           <button
             onClick={toggleTheme}
@@ -57,6 +86,7 @@ export default function Navbar() {
               <Moon className="w-5 h-5 text-gray-600" />
             )}
           </button>
+          </div>
         </div>
       </div>
     </nav>

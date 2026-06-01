@@ -7,6 +7,7 @@ from db.price_writer import PriceWriter
 from db.price_reader import PriceReader
 from db.trend_reader import TrendReader
 from db.exchange_reader import ExchangeReader
+from db.admin_store import AdminStore
 
 
 class DatabaseManager:
@@ -25,6 +26,7 @@ class DatabaseManager:
         self.reader = PriceReader(self.pool)
         self.trend = TrendReader(self.pool)
         self.exchange = ExchangeReader(self.pool)
+        self.admin = AdminStore(self.pool)
 
     # ── 写入委托 ──────────────────────────────────────────
     def batch_insert_data(self, data_list: List[Dict]):
@@ -100,3 +102,24 @@ class DatabaseManager:
     # ── 汇率查询委托 ──────────────────────────────────────
     def get_latest_exchange_rate(self, base: str, target: str) -> Optional[float]:
         return self.exchange.get_latest_exchange_rate(base, target)
+
+    # ── 管理端委托 ──────────────────────────────────────────
+    def list_data_source_configs(self):
+        return self.admin.list_data_source_configs()
+
+    def seed_data_source_configs(self, items, *, changed_by: str):
+        return self.admin.seed_data_source_configs(items, changed_by=changed_by)
+
+    def upsert_data_source_config(self, source_id: str, *, enabled: bool, priority: int, changed_by: str):
+        return self.admin.upsert_data_source_config(
+            source_id, enabled=enabled, priority=priority, changed_by=changed_by
+        )
+
+    def rollback_data_source_config(self, source_id: str, *, changed_by: str):
+        return self.admin.rollback_data_source_config(source_id, changed_by=changed_by)
+
+    def insert_audit_log(self, **kwargs):
+        return self.admin.insert_audit_log(**kwargs)
+
+    def query_audit_logs(self, **kwargs):
+        return self.admin.query_audit_logs(**kwargs)

@@ -11,6 +11,9 @@ from datetime import datetime
 from flask import Blueprint, Response, jsonify, request
 
 from api_errors import ApiError
+from audit.service import log_audit
+from auth.context import get_actor
+from auth.decorators import require_role
 
 from application.calculations import (
     build_history_comparison_response,
@@ -44,6 +47,7 @@ def register_misc_routes(bp: Blueprint, mysql_manager: DatabaseManager) -> None:
         return jsonify(build_quality_metrics_payload(latest, counts, now))
 
     @bp.route("/api/export/history", methods=["GET"])
+    @require_role("admin", "ops")
     def export_history():
         data_type = request.args.get("data_type")
         start_date = request.args.get("start_date")
@@ -75,6 +79,13 @@ def register_misc_routes(bp: Blueprint, mysql_manager: DatabaseManager) -> None:
         enforce_rate_limit(key=f"export:{ip}", limit=10, window_seconds=600)
 
         rows = mysql_manager.query_data(start_date, end_date, data_type, limit)
+
+        log_audit(
+            action="export.history",
+            target=f"{data_type}:{start_date}:{end_date}",
+            after_value={"format": fmt, "limit": limit, "row_count": len(rows)},
+            actor=get_actor(),
+        )
 
         filename = f"{data_type}_{start_date}_to_{end_date}.{fmt}"
         cd = {

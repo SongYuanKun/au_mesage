@@ -56,7 +56,19 @@ jobs:
 
       - name: Unit tests
         run: |
-          PYTHONPATH=src pytest tests/ -v
+          mkdir -p test-reports
+          PYTHONPATH=src pytest tests/ -v --junitxml=test-reports/pytest.xml
+
+      - name: RTM traceability check
+        run: python tools/rtm_traceability_check.py
+
+      - name: Upload Python test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-report-${{ matrix.python-version }}
+          path: test-reports/pytest.xml
+          retention-days: 30
 
   frontend:
     name: Frontend (lint, typecheck, test, build)
@@ -81,7 +93,25 @@ jobs:
         run: npm run check
 
       - name: Vitest + coverage
-        run: npm test -- --coverage
+        run: |
+          mkdir -p test-reports
+          npm test -- --coverage --reporter=default --reporter=junit --outputFile.junit=test-reports/vitest.xml
+
+      - name: Upload frontend test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vitest-report
+          path: test-reports/vitest.xml
+          retention-days: 30
+
+      - name: Upload frontend coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vitest-coverage
+          path: coverage/
+          retention-days: 14
 
       - name: Vite production build
         run: npm run build

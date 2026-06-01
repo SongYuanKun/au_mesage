@@ -7,6 +7,7 @@ from flask import Flask, jsonify, request
 from CustomJSONEncoder import CustomJSONProvider
 from api_errors import ApiError, build_error_payload
 from db import DatabaseManager
+from audit.service import bind_audit_writer
 from routes.api import create_api_blueprint
 from routes.pages_bp import create_pages_blueprint
 
@@ -19,6 +20,7 @@ def create_app(mysql_manager: DatabaseManager) -> Flask:
         static_folder=os.path.join(_base, "static"),
     )
     app.json = CustomJSONProvider(app)
+    bind_audit_writer(mysql_manager)
 
     app.register_blueprint(create_pages_blueprint())
     app.register_blueprint(create_api_blueprint(mysql_manager))

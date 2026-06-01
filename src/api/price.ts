@@ -1,9 +1,18 @@
 import axios, { type AxiosError } from "axios";
+import { getAuthToken } from "@/auth/tokenStorage";
 
 // --- Axios instance with timeout & baseURL ---
 const api = axios.create({
   baseURL: "",
   timeout: 10000,
+});
+
+api.interceptors.request.use((config) => {
+  const token = getAuthToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
 });
 
 // --- Retry helper ---

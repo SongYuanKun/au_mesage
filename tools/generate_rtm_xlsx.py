@@ -9,6 +9,7 @@ import yaml
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 REQ_PATH = ROOT / "docs" / "SRS" / "requirements.yml"
+REFS_PATH = ROOT / "docs" / "SRS" / "rtm_refs.yml"
 OUT_DIR = ROOT / "docs" / "SRS" / "attachments" / "rtm"
 
 
@@ -30,7 +31,21 @@ def _flatten_risks(req: dict[str, Any]) -> str:
     return "\n".join(str(r) for r in risks) if risks else ""
 
 
-def _write_sheet(ws, items: list[dict[str, Any]], req_type: str) -> None:
+def _load_refs() -> dict[str, Any]:
+    if not REFS_PATH.is_file():
+        return {}
+    return yaml.safe_load(REFS_PATH.read_text(encoding="utf-8")) or {}
+
+
+def _ref_fields(req_id: str, refs: dict[str, Any]) -> tuple[str, str, str]:
+    entry = refs.get(req_id) or {}
+    design = entry.get("design") or "TBD"
+    code = entry.get("code") or "TBD"
+    test = entry.get("test") or "TBD"
+    return str(design), str(code), str(test)
+
+
+def _write_sheet(ws, items: list[dict[str, Any]], req_type: str, refs: dict[str, Any]) -> None:
     headers = [
         "ReqID",
         "Name",
@@ -53,20 +68,23 @@ def _write_sheet(ws, items: list[dict[str, Any]], req_type: str) -> None:
 
     for r in items:
         module = r.get("module") or r.get("category") or r.get("type") or "-"
+        req_id = str(r.get("id", "-"))
+        design_ref, code_ref, test_ref = _ref_fields(req_id, refs)
+        status = "InProgress" if "TBD" not in (design_ref, code_ref, test_ref) else "Draft"
         ws.append(
             [
-                r.get("id", "-"),
+                req_id,
                 r.get("name", "-"),
                 req_type,
                 module,
                 r.get("moscow", "-"),
                 r.get("effort", "-"),
                 _flatten_sources(r),
+                design_ref,
+                code_ref,
+                test_ref,
                 "TBD",
-                "TBD",
-                "TBD",
-                "TBD",
-                "Draft",
+                status,
                 _flatten_risks(r),
             ]
         )
@@ -97,6 +115,7 @@ def _write_sheet(ws, items: list[dict[str, Any]], req_type: str) -> None:
 
 def main() -> None:
     data = yaml.safe_load(REQ_PATH.read_text(encoding="utf-8"))
+    refs = _load_refs()
 
     fr = data.get("functional_requirements", [])
     nfr = data.get("non_functional_requirements", [])
@@ -107,16 +126,16 @@ def main() -> None:
     wb.remove(wb.active)
 
     ws_fr = wb.create_sheet("FR")
-    _write_sheet(ws_fr, fr, "FR")
+    _write_sheet(ws_fr, fr, "FR", refs)
 
     ws_nfr = wb.create_sheet("NFR")
-    _write_sheet(ws_nfr, nfr, "NFR")
+    _write_sheet(ws_nfr, nfr, "NFR", refs)
 
     ws_if = wb.create_sheet("Interfaces")
-    _write_sheet(ws_if, interfaces, "IF")
+    _write_sheet(ws_if, interfaces, "IF", refs)
 
     ws_sec = wb.create_sheet("Security")
-    _write_sheet(ws_sec, sec, "SEC")
+    _write_sheet(ws_sec, sec, "SEC", refs)
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     out_path = OUT_DIR / "RTM.xlsx"

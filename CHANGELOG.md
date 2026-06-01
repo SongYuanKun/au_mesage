@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-06-01
+
+### Added
+
+- **[FR-AUTH-001]** Bearer Token 认证（`AUTH_ENABLED`）；保护 `/api/admin/*` 与导出接口；前端登录与路由守卫（`VITE_AUTH_ENABLED`）。
+- **[FR-ADM-001]** 数据源配置 CRUD、优先级、版本回滚；采集健康度统计；`AdminSources` 管理页。
+- **[SEC-002]** 审计日志（导出、配置变更、登录/403）；`GET /api/admin/audit`；入库脱敏。
+- **[NFR-MNT-001]** `docs/SRS/rtm_refs.yml`、RTM 校验脚本、CI 测试报告 artifacts（JUnit/coverage）。
+- **迁移**：`scripts/migrations/002_admin_auth_audit.sql`。
+- **文档**：`docs/DEPLOYMENT.md`（含 GTR 部署步骤）。
+
+### Changed
+
+- `docs/API.md` 补充认证与管理端接口说明。
+
 ## [0.4.0] - 2026-05-13
 
 ### Added

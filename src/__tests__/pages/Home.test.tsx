@@ -2,12 +2,17 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import Home from '@/pages/Home'
+import { AuthProvider } from '@/auth/AuthContext'
 import usePriceStore from '@/stores/priceStore'
 import * as priceApi from '@/api/price'
 
 /** Wrap component with Router for NavLink support in Navbar */
 function renderWithRouter(ui: React.ReactElement) {
-  return render(<BrowserRouter>{ui}</BrowserRouter>)
+  return render(
+    <BrowserRouter>
+      <AuthProvider>{ui}</AuthProvider>
+    </BrowserRouter>
+  )
 }
 
 vi.mock('recharts', () => ({

@@ -1,0 +1,22 @@
+# RTM 追踪引用：DesignRef / CodeRef / TestRef
+# 由 tools/generate_rtm_xlsx.py 合并进 RTM.xlsx
+
+FR-AUTH-001:
+  design: docs/Task_Backlog_Report_2026-06-01.md#61-fr-auth-001
+  code: src/auth/; src/routes/api/auth_routes.py; src/routes/api/misc_routes.py
+  test: tests/test_auth.py
+
+FR-ADM-001:
+  design: docs/Task_Backlog_Report_2026-06-01.md#62-fr-adm-001
+  code: src/db/admin_store.py; src/routes/api/admin_routes.py; src/collectors/source_config.py; src/pages/AdminSources.tsx
+  test: tests/test_admin_sources.py
+
+SEC-002:
+  design: docs/Task_Backlog_Report_2026-06-01.md#63-sec-002
+  code: src/audit/; src/db/admin_store.py; src/routes/api/admin_routes.py
+  test: tests/test_audit.py
+
+NFR-MNT-001:
+  design: docs/SOP/01_AI_Assisted_Development_SOP.md
+  code: tools/generate_rtm_xlsx.py; tools/rtm_traceability_check.py; .github/workflows/python-app.yml
+  test: tools/rtm_traceability_check.py (CI step)
