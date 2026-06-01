@@ -24,7 +24,7 @@
     --radius-lg: 12px;
     --radius-xl: 16px;
 
-    --transition: all 150ms ease;
+    --transition: all 300ms ease;
     --transition-slow: all 300ms ease-out;
     --font-sans: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
     --font-mono: 'SF Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
@@ -343,6 +343,8 @@ body {
     display: flex;
     flex-direction: column;
     gap: .75rem;
+    position: relative;
+    overflow: hidden;
 }
 
 .price-card:hover { box-shadow: var(--shadow-md); }
@@ -1104,53 +1106,73 @@ body {
 }
 
 [data-theme="light"] body {
-    background:
-        radial-gradient(circle at 16% 0%, rgba(99, 102, 241, .11), transparent 28rem),
-        radial-gradient(circle at 86% 8%, rgba(180, 83, 9, .06), transparent 26rem),
-        linear-gradient(180deg, var(--bg-body) 0%, var(--bg-secondary) 100%);
+    background: var(--bg-body);
 }
 
 [data-theme="light"] .site-nav {
-    background: rgba(250, 250, 250, .82);
+    background: rgba(255, 255, 255, .84);
+    border-bottom-color: #e2e8f0;
 }
 
 [data-theme="light"] .price-card {
-    background:
-        linear-gradient(145deg, rgba(255, 255, 255, .96), rgba(244, 244, 245, .92)),
-        var(--bg-primary);
-    box-shadow: 0 18px 55px rgba(15, 23, 42, .10);
+    background: #ffffff;
+    border-color: #e2e8f0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+}
+
+[data-theme="light"] .price-card::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 3px;
+    background: linear-gradient(90deg, #6366f1, #818cf8);
+}
+
+[data-theme="light"] .price-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.10);
 }
 
 [data-theme="light"] #card-gold.price-card {
-    border-color: rgba(180, 83, 9, .20);
-    box-shadow: inset 0 1px 0 rgba(180, 83, 9, .10), 0 18px 55px rgba(15, 23, 42, .10);
+    border-color: #e2e8f0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
 }
 
 [data-theme="light"] #card-silver.price-card {
-    border-color: rgba(100, 116, 139, .22);
-    box-shadow: inset 0 1px 0 rgba(100, 116, 139, .10), 0 18px 55px rgba(15, 23, 42, .10);
+    border-color: #e2e8f0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
 }
 
 [data-theme="light"] .price-card-value {
-    color: var(--koen-primary);
+    color: #6366f1;
 }
 
 [data-theme="light"] .price-card-stats {
-    border-top-color: #e4e4e7;
+    border-top-color: #e2e8f0;
+}
+
+[data-theme="light"] .card {
+    background: #ffffff;
+    border-color: #e2e8f0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+}
+
+[data-theme="light"] .card:hover {
+    border-color: #cbd5e1;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
 }
 
 [data-theme="light"] .price-badge.up,
 [data-theme="light"] .stat-tag.up,
 [data-theme="light"] .result-total.positive {
-    background: #dcfce7;
-    color: #047857;
+    background: rgba(16, 185, 129, .12);
+    color: #10b981;
 }
 
 [data-theme="light"] .price-badge.down,
 [data-theme="light"] .stat-tag.down,
 [data-theme="light"] .result-total.negative {
-    background: #fee2e2;
-    color: #b91c1c;
+    background: rgba(239, 68, 68, .12);
+    color: #ef4444;
 }
 
 [data-theme="light"] .price-badge.neutral,
@@ -1172,12 +1194,34 @@ body {
 [data-theme="light"] .form-input,
 [data-theme="light"] .form-select,
 [data-theme="light"] .chart-container {
-    background: #fafafa;
+    background: #f8fafc;
+    border-color: #e2e8f0;
+}
+
+[data-theme="light"] .form-input:focus,
+[data-theme="light"] .form-select:focus {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, .14);
+}
+
+[data-theme="light"] .type-tabs,
+[data-theme="light"] .range-tabs,
+[data-theme="light"] .nav-unit-seg {
+    background: #f8fafc;
+    border-color: #e2e8f0;
+}
+
+[data-theme="light"] .type-tab.active,
+[data-theme="light"] .range-tab.active,
+[data-theme="light"] .nav-unit-btn.active {
+    background: #eef2ff;
+    color: #6366f1;
+    box-shadow: inset 0 -2px 0 #6366f1;
 }
 
 [data-theme="light"] .site-footer {
-    background: linear-gradient(180deg, #ffffff, #f4f4f5);
-    border-top: 1px solid #e4e4e7;
+    background: #f8fafc;
+    border-top: 1px solid #e2e8f0;
     color: #64748b;
 }
 
