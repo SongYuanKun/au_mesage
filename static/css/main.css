@@ -1140,3 +1140,291 @@ body.redesign-v2 .form-select:focus {
     border-color: var(--v2-accent);
     box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.22);
 }
+
+/* --- AU market-desk redesign: less tools-site, more price terminal --- */
+body.redesign-v2 {
+    background:
+        radial-gradient(circle at 14% 4%, rgba(99, 102, 241, 0.16), transparent 26rem),
+        radial-gradient(circle at 82% 0%, rgba(180, 83, 9, 0.10), transparent 22rem),
+        linear-gradient(180deg, #09090b 0%, #0b1020 48%, #09090b 100%);
+}
+
+[data-theme="light"] body.redesign-v2 {
+    background:
+        radial-gradient(circle at 12% 0%, rgba(99, 102, 241, 0.10), transparent 24rem),
+        radial-gradient(circle at 84% 0%, rgba(180, 83, 9, 0.08), transparent 22rem),
+        linear-gradient(180deg, #f8fafc 0%, #ffffff 44%, #f1f5f9 100%);
+}
+
+.market-masthead {
+    padding: 38px 0 18px;
+}
+
+.market-masthead-inner {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 28px;
+}
+
+.market-title-block h1 {
+    margin: 0;
+    color: var(--v2-text);
+    font-size: clamp(30px, 4vw, 46px);
+    line-height: 1.12;
+    font-weight: 850;
+    letter-spacing: 0;
+}
+
+.market-title-block p:not(.v2-eyebrow) {
+    margin: 12px 0 0;
+    max-width: 620px;
+    color: var(--v2-text-secondary);
+    font-size: 15px;
+    line-height: 1.7;
+}
+
+.market-meta-strip {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+    max-width: 460px;
+}
+
+.market-meta-strip span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 34px;
+    padding: 0 11px;
+    border: 1px solid var(--v2-border);
+    border-radius: 999px;
+    color: var(--v2-text-muted);
+    background: rgba(148, 163, 184, 0.07);
+    font-size: 12px;
+    font-weight: 650;
+}
+
+.market-meta-strip strong {
+    color: var(--v2-text);
+    font-weight: 800;
+}
+
+.market-workspace {
+    padding: 10px 0 72px;
+}
+
+body.redesign-v2 .au-page-content {
+    gap: 18px;
+    padding-bottom: 0;
+}
+
+body.redesign-v2 .grid-2:first-child {
+    gap: 18px;
+}
+
+body.redesign-v2 .price-card {
+    position: relative;
+    overflow: hidden;
+    min-height: 236px;
+    padding: 22px 24px 20px;
+    border-left: 0;
+    border-radius: 14px;
+    background:
+        linear-gradient(145deg, rgba(24, 24, 27, 0.92), rgba(15, 23, 42, 0.84)),
+        var(--v2-surface);
+    border-color: rgba(148, 163, 184, 0.18);
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.32);
+}
+
+body.redesign-v2 .price-card::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 3px;
+    background: linear-gradient(90deg, rgba(99, 102, 241, 0.85), rgba(129, 140, 248, 0.45));
+}
+
+body.redesign-v2 #card-gold.price-card::before {
+    background: linear-gradient(90deg, rgba(180, 83, 9, 0.95), rgba(99, 102, 241, 0.50));
+}
+
+body.redesign-v2 #card-silver.price-card::before {
+    background: linear-gradient(90deg, rgba(100, 116, 139, 0.95), rgba(99, 102, 241, 0.50));
+}
+
+body.redesign-v2 .price-card:hover {
+    transform: translateY(-1px);
+    border-color: rgba(129, 140, 248, 0.34);
+    background:
+        linear-gradient(145deg, rgba(32, 32, 38, 0.94), rgba(17, 24, 39, 0.88)),
+        var(--v2-surface-hover);
+}
+
+body.redesign-v2 .price-card-header {
+    position: relative;
+    z-index: 1;
+}
+
+body.redesign-v2 .price-card-name {
+    font-size: 16px;
+    letter-spacing: 0;
+}
+
+body.redesign-v2 .price-card-body {
+    position: relative;
+    z-index: 1;
+    text-align: left;
+    padding: 16px 0 12px;
+}
+
+body.redesign-v2 .price-card-label {
+    margin-bottom: 8px;
+    color: var(--v2-text-muted);
+    font-size: 12px;
+    font-weight: 650;
+}
+
+body.redesign-v2 .price-card-value {
+    color: #818cf8;
+    font-size: clamp(44px, 5.8vw, 64px);
+    line-height: .98;
+    font-weight: 850;
+    letter-spacing: 0;
+}
+
+body.redesign-v2 .price-card-unit {
+    color: var(--v2-text-muted);
+    font-size: 13px;
+}
+
+body.redesign-v2 .price-card-stats {
+    gap: 0;
+    padding-top: 14px;
+    border-top-color: rgba(148, 163, 184, 0.16);
+}
+
+body.redesign-v2 .price-stat {
+    text-align: left;
+    padding-right: 12px;
+}
+
+body.redesign-v2 .price-stat:not(:first-child) {
+    padding-left: 14px;
+    border-left: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+body.redesign-v2 .price-stat-val {
+    font-size: 15px;
+}
+
+body.redesign-v2 .price-card-time {
+    margin-top: 2px;
+    color: var(--v2-text-muted);
+}
+
+body.redesign-v2 .card {
+    border-radius: 14px;
+    background: rgba(17, 24, 39, 0.66);
+    border-color: rgba(148, 163, 184, 0.18);
+    box-shadow: 0 18px 58px rgba(0, 0, 0, 0.24);
+}
+
+body.redesign-v2 .card:hover {
+    transform: none;
+}
+
+body.redesign-v2 .card-header {
+    margin-bottom: 1rem;
+}
+
+body.redesign-v2 .card-title {
+    font-size: 17px;
+    font-weight: 780;
+}
+
+body.redesign-v2 .card-title-icon {
+    color: #818cf8;
+}
+
+body.redesign-v2 .type-tabs,
+body.redesign-v2 .range-tabs {
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.10);
+}
+
+body.redesign-v2 .type-tab,
+body.redesign-v2 .range-tab {
+    border-radius: 999px;
+}
+
+body.redesign-v2 .type-tab.active,
+body.redesign-v2 .range-tab.active {
+    color: #e0e7ff;
+    background: rgba(99, 102, 241, 0.28);
+}
+
+[data-theme="light"] body.redesign-v2 .market-meta-strip span {
+    background: rgba(255, 255, 255, 0.72);
+}
+
+[data-theme="light"] body.redesign-v2 .price-card,
+[data-theme="light"] body.redesign-v2 .card {
+    background:
+        linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.92)),
+        #ffffff;
+    border-color: rgba(148, 163, 184, 0.20);
+    box-shadow: 0 18px 48px rgba(15, 23, 42, 0.08);
+}
+
+[data-theme="light"] body.redesign-v2 .price-card:hover,
+[data-theme="light"] body.redesign-v2 .card:hover {
+    border-color: rgba(99, 102, 241, 0.24);
+    background:
+        linear-gradient(145deg, rgba(255, 255, 255, 1), rgba(248, 250, 252, 0.96)),
+        #ffffff;
+}
+
+[data-theme="light"] body.redesign-v2 .price-card-value {
+    color: #6366f1;
+}
+
+[data-theme="light"] body.redesign-v2 .price-card-stats {
+    border-top-color: rgba(148, 163, 184, 0.20);
+}
+
+[data-theme="light"] body.redesign-v2 .price-stat:not(:first-child) {
+    border-left-color: rgba(148, 163, 184, 0.18);
+}
+
+[data-theme="light"] body.redesign-v2 .type-tabs,
+[data-theme="light"] body.redesign-v2 .range-tabs {
+    background: rgba(241, 245, 249, 0.92);
+}
+
+[data-theme="light"] body.redesign-v2 .type-tab.active,
+[data-theme="light"] body.redesign-v2 .range-tab.active {
+    color: #4f46e5;
+    background: rgba(99, 102, 241, 0.12);
+}
+
+@media (max-width: 820px) {
+    .market-masthead {
+        padding: 30px 0 14px;
+    }
+    .market-masthead-inner {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+    .market-meta-strip {
+        justify-content: flex-start;
+    }
+    body.redesign-v2 .price-card {
+        min-height: auto;
+        padding: 20px;
+    }
+    body.redesign-v2 .price-card-value {
+        font-size: 42px;
+    }
+}
