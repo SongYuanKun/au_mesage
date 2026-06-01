@@ -6,7 +6,9 @@ import threading
 from datetime import datetime
 from typing import Any
 
-from collectors.base import BEIJING_TZ
+import pytz
+
+BEIJING_TZ = pytz.timezone("Asia/Shanghai")
 
 _lock = threading.Lock()
 _stats: dict[str, dict[str, Any]] = {}
