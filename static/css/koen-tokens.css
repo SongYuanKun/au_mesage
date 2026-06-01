@@ -52,12 +52,12 @@
     --koen-primary-soft: rgba(99, 102, 241, 0.1);
     --koen-primary-light: #e0e7ff;
 
-    --koen-bg: #ffffff;
+    --koen-bg: #f8fafc;
     --koen-bg-alt: #f8fafc;
     --koen-surface: #ffffff;
-    --koen-surface-elevated: #f4f4f5;
-    --koen-surface-hover: #e4e4e7;
-    --koen-border: #e2e8f0;
+    --koen-surface-elevated: #f8fafc;
+    --koen-surface-hover: #f1f5f9;
+    --koen-border: #e5e7eb;
     --koen-border-strong: #cbd5e1;
 
     --koen-text: #0f172a;

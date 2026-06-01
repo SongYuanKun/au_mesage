@@ -1106,40 +1106,44 @@ body {
 }
 
 [data-theme="light"] body {
-    background: var(--bg-body);
+    background: linear-gradient(180deg, #f8fafc 0%, #ffffff 42%, #f1f5f9 100%);
 }
 
 [data-theme="light"] .site-nav {
-    background: rgba(255, 255, 255, .84);
-    border-bottom-color: #e2e8f0;
+    background: rgba(248, 250, 252, .86);
+    border-bottom-color: rgba(148, 163, 184, .22);
+    box-shadow: 0 1px 0 rgba(15, 23, 42, .03);
 }
 
 [data-theme="light"] .price-card {
-    background: #ffffff;
-    border-color: #e2e8f0;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+    background:
+        linear-gradient(145deg, rgba(255, 255, 255, .99), rgba(248, 250, 252, .94)),
+        #ffffff;
+    border-color: rgba(148, 163, 184, .22);
+    box-shadow: 0 10px 30px rgba(15, 23, 42, .055), 0 1px 2px rgba(15, 23, 42, .04);
 }
 
 [data-theme="light"] .price-card::before {
     content: "";
     position: absolute;
     inset: 0 0 auto 0;
-    height: 3px;
-    background: linear-gradient(90deg, #6366f1, #818cf8);
+    height: 2px;
+    background: linear-gradient(90deg, rgba(99, 102, 241, .72), rgba(129, 140, 248, .44));
 }
 
 [data-theme="light"] .price-card:hover {
-    box-shadow: 0 4px 12px rgba(0,0,0,0.10);
+    border-color: rgba(99, 102, 241, .26);
+    box-shadow: 0 16px 40px rgba(15, 23, 42, .075), 0 1px 2px rgba(15, 23, 42, .04);
 }
 
 [data-theme="light"] #card-gold.price-card {
-    border-color: #e2e8f0;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+    border-color: rgba(180, 83, 9, .16);
+    box-shadow: 0 10px 30px rgba(15, 23, 42, .055), 0 1px 2px rgba(15, 23, 42, .04);
 }
 
 [data-theme="light"] #card-silver.price-card {
-    border-color: #e2e8f0;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+    border-color: rgba(100, 116, 139, .18);
+    box-shadow: 0 10px 30px rgba(15, 23, 42, .055), 0 1px 2px rgba(15, 23, 42, .04);
 }
 
 [data-theme="light"] .price-card-value {
@@ -1147,18 +1151,20 @@ body {
 }
 
 [data-theme="light"] .price-card-stats {
-    border-top-color: #e2e8f0;
+    border-top-color: rgba(148, 163, 184, .20);
 }
 
 [data-theme="light"] .card {
-    background: #ffffff;
-    border-color: #e2e8f0;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+    background:
+        linear-gradient(145deg, rgba(255, 255, 255, .99), rgba(248, 250, 252, .95)),
+        #ffffff;
+    border-color: rgba(148, 163, 184, .22);
+    box-shadow: 0 10px 30px rgba(15, 23, 42, .045), 0 1px 2px rgba(15, 23, 42, .035);
 }
 
 [data-theme="light"] .card:hover {
-    border-color: #cbd5e1;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    border-color: rgba(99, 102, 241, .22);
+    box-shadow: 0 16px 40px rgba(15, 23, 42, .065), 0 1px 2px rgba(15, 23, 42, .035);
 }
 
 [data-theme="light"] .price-badge.up,
@@ -1178,8 +1184,8 @@ body {
 [data-theme="light"] .price-badge.neutral,
 [data-theme="light"] .stat-tag.neutral,
 [data-theme="light"] .result-total.neutral {
-    background: #f4f4f5;
-    color: #52525b;
+    background: #f1f5f9;
+    color: #475569;
 }
 
 [data-theme="light"] .result-panel,
@@ -1195,7 +1201,7 @@ body {
 [data-theme="light"] .form-select,
 [data-theme="light"] .chart-container {
     background: #f8fafc;
-    border-color: #e2e8f0;
+    border-color: rgba(148, 163, 184, .28);
 }
 
 [data-theme="light"] .form-input:focus,
@@ -1208,20 +1214,20 @@ body {
 [data-theme="light"] .range-tabs,
 [data-theme="light"] .nav-unit-seg {
     background: #f8fafc;
-    border-color: #e2e8f0;
+    border-color: rgba(148, 163, 184, .25);
 }
 
 [data-theme="light"] .type-tab.active,
 [data-theme="light"] .range-tab.active,
 [data-theme="light"] .nav-unit-btn.active {
-    background: #eef2ff;
+    background: rgba(99, 102, 241, .10);
     color: #6366f1;
-    box-shadow: inset 0 -2px 0 #6366f1;
+    box-shadow: inset 0 -2px 0 rgba(99, 102, 241, .72);
 }
 
 [data-theme="light"] .site-footer {
-    background: #f8fafc;
-    border-top: 1px solid #e2e8f0;
+    background: linear-gradient(180deg, rgba(255, 255, 255, .75), #f8fafc);
+    border-top: 1px solid rgba(148, 163, 184, .22);
     color: #64748b;
 }
 
