@@ -122,6 +122,14 @@ class PriceReader(BaseDB):
              "AND created_at >= %s AND created_at <= %s ORDER BY created_at ASC"),
             (data_type, start_time, end_time))
 
+    def get_price_history_last_hour(self, data_type: str) -> List[Dict]:
+        """近 1 小时数据：用数据库会话时区计算窗口，避免应用层 UTC/本地字符串比较偏差。"""
+        return self._exec(
+            ("SELECT trade_date, trade_time, data_type, real_time_price, recycle_price, created_at "
+             "FROM price_data WHERE data_type = %s AND recycle_price > 0 "
+             "AND created_at >= (NOW() - INTERVAL 1 HOUR) ORDER BY created_at ASC"),
+            (data_type,))
+
     def get_latest_updates_by_group(self) -> List[Dict]:
         return self._exec(
             "SELECT data_type, source, MAX(created_at) AS latest_at "

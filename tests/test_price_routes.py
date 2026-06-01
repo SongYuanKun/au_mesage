@@ -27,16 +27,13 @@ def test_latest_price():
 
 def test_last_1_hour():
     mock_db = MagicMock()
-    mock_db.get_price_history_by_time_range.return_value = []
+    mock_db.get_price_history_last_hour.return_value = []
     app = create_app(mock_db)
     client = app.test_client()
 
     resp = client.get("/api/last-1-hour?data_type=XAU")
     assert resp.status_code == 200
-    mock_db.get_price_history_by_time_range.assert_called_once()
-    start, end = mock_db.get_price_history_by_time_range.call_args[0][1:]
-    assert start[:10] == end[:10]
-    assert start[11:13] <= end[11:13]
+    mock_db.get_price_history_last_hour.assert_called_once_with("XAU")
 
 def test_last_7_days():
     mock_db = MagicMock()

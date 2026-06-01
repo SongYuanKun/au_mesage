@@ -76,6 +76,9 @@ class DatabaseManager:
     def get_price_history_by_time_range(self, data_type: str, start_time: str, end_time: str) -> List[Dict]:
         return self.reader.get_price_history_by_time_range(data_type, start_time, end_time)
 
+    def get_price_history_last_hour(self, data_type: str) -> List[Dict]:
+        return self.reader.get_price_history_last_hour(data_type)
+
     def get_latest_updates_by_group(self) -> List[Dict]:
         return self.reader.get_latest_updates_by_group()
 

@@ -6,6 +6,7 @@
     <title>Koen · 趋势图表</title>
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.0/dist/echarts.min.js"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <script src="{{ url_for('static', filename='js/metal-series.js') }}"></script>
 </head>
 <body>
 <div class="container">
@@ -80,9 +81,16 @@
 </div>
 
 <script>
-(function(){
-    var TYPE_GOLD = '黄 金', TYPE_SILVER = '白 银';
-    var currentType = TYPE_GOLD;
+(function () {
+    var MS = window.AuMetalSeries;
+    if (!MS) {
+        console.error('AuMetalSeries 未加载');
+        return;
+    }
+
+    var TYPE_GOLD = MS.METALS.gold.domestic;
+    var TYPE_SILVER = MS.METALS.silver.domestic;
+    var currentMetalKey = 'gold';
 
     var btnGold = document.getElementById('btnGold');
     var btnSilver = document.getElementById('btnSilver');
@@ -93,64 +101,40 @@
     var trendChart = echarts.init(document.getElementById('trendChart'));
 
     var chartColors = { today: '#6366f1', trend: '#4f46e5' };
+    var lastHourDtype = null;
+    var last7Dtype = null;
 
     function makeLineOption(xData, yData, color, yAxisName) {
+        var unit = yAxisName || '元/克';
         return {
-            tooltip: { trigger: 'axis', formatter: function(p){ return p[0].axisValue + '<br/>回收价：' + (p[0].data == null ? '-' : p[0].data) + ' 元/克'; }},
+            tooltip: {
+                trigger: 'axis',
+                formatter: function (p) {
+                    var v = p[0].data == null ? '-' : p[0].data;
+                    return p[0].axisValue + '<br/>价格：' + v + ' ' + unit;
+                },
+            },
             xAxis: { type: 'category', data: xData, axisLabel: { rotate: 45, fontSize: 11 } },
-            yAxis: { type: 'value', name: yAxisName || '元/克', scale: true },
+            yAxis: { type: 'value', name: unit, scale: true },
             series: [{
-                data: yData, type: 'line', smooth: true,
+                data: yData,
+                type: 'line',
+                smooth: true,
                 lineStyle: { color: color, width: 2.5 },
                 itemStyle: { color: color },
-                areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
-                    colorStops: [{ offset: 0, color: color + '30' }, { offset: 1, color: color + '05' }]
-                }},
-                connectNulls: false
+                areaStyle: {
+                    color: {
+                        type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+                        colorStops: [
+                            { offset: 0, color: color + '30' },
+                            { offset: 1, color: color + '05' },
+                        ],
+                    },
+                },
+                connectNulls: false,
             }],
-            grid: { left: '6%', right: '4%', bottom: '18%', top: '8%' }
+            grid: { left: '6%', right: '4%', bottom: '18%', top: '8%' },
         };
-    }
-
-    /** 与文案「近30分钟」一致：按 created_at 过滤，兜底保留全部一小时数据 */
-    function filterLast30Minutes(rows) {
-        if (!rows || !rows.length) return [];
-        var cutoff = Date.now() - 30 * 60 * 1000;
-        var filtered = rows.filter(function (it) {
-            if (!it.created_at) return false;
-            var t = Date.parse(it.created_at);
-            return !isNaN(t) && t >= cutoff;
-        });
-        return filtered.length ? filtered : rows;
-    }
-
-    async function fetchToday() {
-        noDailyEl.style.display = 'none';
-        try {
-            var resp = await fetch('/api/last-1-hour?data_type=' + encodeURIComponent(currentType));
-            var j = await resp.json().catch(function () { return null; });
-            if (!resp.ok || !j || j.success === false) {
-                noDailyEl.style.display = 'block';
-                todayChart.clear();
-                return;
-            }
-            if (Array.isArray(j.data) && j.data.length > 0) {
-                var sliceRows = filterLast30Minutes(j.data);
-                var times = sliceRows.map(function (it) { return it.created_at || ''; });
-                var prices = sliceRows.map(function (it) {
-                    return it.recycle_price == null ? null : Number(it.recycle_price);
-                });
-                todayChart.setOption(makeLineOption(times, prices, chartColors.today, '回收价格'), true);
-                document.getElementById('lastRefresh').textContent = '最后更新：' + new Date().toLocaleTimeString('zh-CN');
-            } else {
-                noDailyEl.style.display = 'block';
-                todayChart.clear();
-            }
-        } catch (e) {
-            console.error('fetchToday', e);
-            noDailyEl.style.display = 'block';
-            todayChart.clear();
-        }
     }
 
     function countValidPrices(prices) {
@@ -159,53 +143,46 @@
         }).length;
     }
 
-    /** 国内品类近7天常仅有当日 playwright 数据，用 XAU/XAG + 汇率回退为 元/克 */
-    async function fetchLast7IntlFallback(domesticType) {
-        var intlType = domesticType === TYPE_GOLD ? 'XAU' : 'XAG';
-        var resp2 = await fetch('/api/last-7-days?data_type=' + encodeURIComponent(intlType));
-        var j2 = await resp2.json().catch(function () { return null; });
-        if (!resp2.ok || !j2 || !j2.success || !Array.isArray(j2.data) || !j2.data.length) {
-            return null;
-        }
-        if (!global.AuPriceUnit || typeof global.AuPriceUnit.getUsdCnyRate !== 'function') {
-            return null;
-        }
-        try {
-            var rate = await global.AuPriceUnit.getUsdCnyRate();
-            var factor = global.AuPriceUnit.usdOzToCnyGramFactor(rate);
-            if (factor == null) return null;
-            return {
-                dates: j2.data.map(function (d) { return d.date; }),
-                prices: j2.data.map(function (d) {
-                    return d.recycle_price == null ? null : Number(d.recycle_price) * factor;
-                }),
-            };
-        } catch (e) {
-            console.warn('fetchLast7IntlFallback', e);
-            return null;
-        }
+    function fetchToday() {
+        noDailyEl.style.display = 'none';
+        return MS.getUsdCnyFactor()
+            .then(function (factor) {
+                return MS.fetchLastHourRows(currentMetalKey).then(function (pack) {
+                    lastHourDtype = pack.dtype;
+                    var rows = MS.filterLast30Minutes(pack.rows);
+                    if (!rows.length) {
+                        noDailyEl.style.display = 'block';
+                        todayChart.clear();
+                        return;
+                    }
+                    var times = rows.map(function (it) {
+                        return it.created_at || '';
+                    });
+                    var prices = rows.map(function (it) {
+                        return MS.convertRecyclePrice(it.recycle_price, pack.dtype, factor);
+                    });
+                    var yName = MS.yAxisLabelFor(pack.dtype);
+                    todayChart.setOption(
+                        makeLineOption(times, prices, chartColors.today, yName),
+                        true
+                    );
+                    document.getElementById('lastRefresh').textContent =
+                        '最后更新：' + new Date().toLocaleTimeString('zh-CN');
+                });
+            })
+            .catch(function (e) {
+                console.error('fetchToday', e);
+                noDailyEl.style.display = 'block';
+                todayChart.clear();
+            });
     }
 
-    async function fetchLast7() {
-        try {
-            var resp = await fetch('/api/last-7-days?data_type=' + encodeURIComponent(currentType));
-            var j = await resp.json().catch(function () { return null; });
-            if (!resp.ok || !j) {
-                noChartEl.style.display = 'block';
-                trendChart.clear();
-                renderStats([]);
-                return;
-            }
-            if (j.success && Array.isArray(j.data) && j.data.length > 0) {
-                var dates = j.data.map(function(d){ return d.date; });
-                var prices = j.data.map(function(d){ return d.recycle_price == null ? null : Number(d.recycle_price); });
-                if (countValidPrices(prices) < 2) {
-                    var fb = await fetchLast7IntlFallback(currentType);
-                    if (fb) {
-                        dates = fb.dates;
-                        prices = fb.prices;
-                    }
-                }
+    function fetchLast7() {
+        return MS.fetchLast7DaysSeries(currentMetalKey)
+            .then(function (series) {
+                last7Dtype = series.dtype;
+                var dates = series.dates;
+                var prices = series.prices;
                 if (countValidPrices(prices) < 1) {
                     noChartEl.style.display = 'block';
                     trendChart.clear();
@@ -213,53 +190,78 @@
                     return;
                 }
                 noChartEl.style.display = 'none';
-                trendChart.setOption(makeLineOption(dates, prices, chartColors.trend, '回收价格'), true);
+                trendChart.setOption(
+                    makeLineOption(dates, prices, chartColors.trend, MS.yAxisLabelFor(series.dtype)),
+                    true
+                );
                 renderStats(prices);
-            } else {
-                noChartEl.style.display = 'block'; trendChart.clear(); renderStats([]);
-            }
-        } catch(e) {
-            console.error('fetchLast7', e);
-            noChartEl.style.display = 'block'; trendChart.clear(); renderStats([]);
-        }
+            })
+            .catch(function (e) {
+                console.error('fetchLast7', e);
+                noChartEl.style.display = 'block';
+                trendChart.clear();
+                renderStats([]);
+            });
     }
 
     function renderStats(prices) {
-        var nums = (prices || []).filter(function(v){ return typeof v === 'number' && !isNaN(v); });
+        var nums = (prices || []).filter(function (v) {
+            return typeof v === 'number' && !isNaN(v);
+        });
         if (!nums.length) {
             document.getElementById('summaryAvg').textContent = '-';
             document.getElementById('summaryMax').textContent = '-';
             document.getElementById('summaryMin').textContent = '-';
             return;
         }
-        var sum = nums.reduce(function(a,b){ return a+b; }, 0);
+        var sum = nums.reduce(function (a, b) { return a + b; }, 0);
         document.getElementById('summaryAvg').textContent = (sum / nums.length).toFixed(2);
         document.getElementById('summaryMax').textContent = Math.max.apply(null, nums).toFixed(2);
         document.getElementById('summaryMin').textContent = Math.min.apply(null, nums).toFixed(2);
     }
 
-    function setType(type) {
-        currentType = type;
-        btnGold.classList.toggle('active', type === TYPE_GOLD);
-        btnSilver.classList.toggle('active', type === TYPE_SILVER);
-        fetchToday(); fetchLast7();
+    function setMetalKey(key) {
+        currentMetalKey = key;
+        btnGold.classList.toggle('active', key === 'gold');
+        btnSilver.classList.toggle('active', key === 'silver');
+        fetchToday();
+        fetchLast7();
     }
 
-    var todayTimer, trendTimer;
+    var todayTimer;
+    var trendTimer;
     function startTimers() {
         if (todayTimer) clearInterval(todayTimer);
-        todayTimer = setInterval(function(){ if(!document.hidden) fetchToday(); }, 30000);
+        todayTimer = setInterval(function () {
+            if (!document.hidden) fetchToday();
+        }, 30000);
         if (trendTimer) clearInterval(trendTimer);
-        trendTimer = setInterval(function(){ if(!document.hidden) fetchLast7(); }, 120000);
+        trendTimer = setInterval(function () {
+            if (!document.hidden) fetchLast7();
+        }, 120000);
     }
 
-    btnGold.addEventListener('click', function(){ setType(TYPE_GOLD); });
-    btnSilver.addEventListener('click', function(){ setType(TYPE_SILVER); });
-    window.addEventListener('resize', function(){ todayChart.resize(); trendChart.resize(); });
-    document.addEventListener('visibilitychange', function(){ if(!document.hidden){ fetchToday(); fetchLast7(); startTimers(); }});
+    function refreshAll() {
+        fetchToday();
+        fetchLast7();
+    }
 
-    document.addEventListener('DOMContentLoaded', function(){
-        setType(currentType);
+    btnGold.addEventListener('click', function () { setMetalKey('gold'); });
+    btnSilver.addEventListener('click', function () { setMetalKey('silver'); });
+    window.addEventListener('resize', function () {
+        todayChart.resize();
+        trendChart.resize();
+    });
+    document.addEventListener('visibilitychange', function () {
+        if (!document.hidden) {
+            refreshAll();
+            startTimers();
+        }
+    });
+    window.addEventListener('au-price-unit-change', refreshAll);
+
+    document.addEventListener('DOMContentLoaded', function () {
+        setMetalKey('gold');
         startTimers();
     });
 })();

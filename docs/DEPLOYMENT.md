@@ -67,6 +67,7 @@ curl -s -H "Authorization: Bearer $AUTH_ADMIN_TOKEN" http://127.0.0.1:8083/api/a
 - 设计令牌：`static/css/koen-tokens.css`（Slate + Indigo，与 [Koen 工具箱](https://tools.songyuankun.top) / 内容战略仓库 `koen-content-strategy` 一致）
 - 样式入口：`static/css/main.css`（`@import` tokens）
 - 共享片段：`templates/_nav.html`、`templates/_footer.html`
+- 图表数据逻辑：`static/js/metal-series.js`（国内 `黄 金`/`白 银` 优先，无数据回退 `XAU`/`XAG`，与首页单位切换联动）
 
 更新模板或 CSS 后需 **重建 Docker 镜像**（`docker compose up --build -d`），否则 GTR 仍服务旧静态资源。
 
