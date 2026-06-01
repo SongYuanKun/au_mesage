@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import Navbar from "@/components/Navbar";
+import AppLayout from "@/components/layout/AppLayout";
 import { useAuth } from "@/auth/AuthContext";
 import { getAuthToken } from "@/auth/tokenStorage";
 import axios from "axios";
@@ -80,13 +80,14 @@ export default function AdminSources() {
   const canEdit = role === "admin";
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <Navbar />
-      <main className="mx-auto max-w-4xl p-6">
-        <h1 className="mb-2 text-2xl font-semibold">数据源配置</h1>
-        <p className="mb-6 text-sm text-gray-600 dark:text-gray-400">
-          修改后约 60 秒内采集器按新配置生效；误操作可使用回滚。
-        </p>
+    <AppLayout
+      hero={{
+        eyebrow: "Admin",
+        title: "数据源配置",
+        subtitle: "修改后约 60 秒内采集器按新配置生效；误操作可使用回滚。",
+      }}
+    >
+      <div className="max-w-4xl">
         {error && <p className="mb-4 text-red-600">{error}</p>}
         <div className="overflow-x-auto rounded-lg border bg-white shadow dark:bg-gray-800">
           <table className="min-w-full text-left text-sm">
@@ -160,7 +161,7 @@ export default function AdminSources() {
             </tbody>
           </table>
         </div>
-      </main>
-    </div>
+      </div>
+    </AppLayout>
   );
 }

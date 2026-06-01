@@ -1,19 +1,19 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Koen · 趋势图表</title>
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.0/dist/echarts.min.js"></script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    {% include '_v2_head.html' %}
     <script src="{{ url_for('static', filename='js/metal-series.js') }}"></script>
 </head>
-<body>
-<div class="container">
-
+<body class="redesign-v2">
     {% include '_nav.html' %}
-
-    <div class="content">
+    <main>
+        {% set hero_eyebrow = 'Charts' %}{% set hero_title = '趋势图表' %}{% set hero_subtitle = '近 30 分钟实时走势与 7 天、30 天历史对比。' %}{% include '_page_hero.html' %}
+        <section class="v2-section v2-section-tight">
+            <div class="v2-container au-page-content">
         <!-- Real-time chart (last 30 min) -->
         <div class="card">
             <div class="card-header">
@@ -75,10 +75,10 @@
                 </div>
             </div>
         </div>
-    </div>
-
+            </div>
+        </section>
+    </main>
     {% include '_footer.html' %}
-</div>
 
 <script>
 (function () {

@@ -1,18 +1,18 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Koen · 行情分析</title>
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.0/dist/echarts.min.js"></script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    {% include '_v2_head.html' %}
 </head>
-<body>
-<div class="container">
-
+<body class="redesign-v2">
     {% include '_nav.html' %}
-
-    <div class="content">
+    <main>
+        {% set hero_eyebrow = 'Analysis' %}{% set hero_title = '行情分析' %}{% set hero_subtitle = 'K 线、均线、布林带与 MACD/RSI 等技术指标。' %}{% include '_page_hero.html' %}
+        <section class="v2-section v2-section-tight">
+            <div class="v2-container au-page-content">
         <!-- ============ K-line + Technical Indicators ============ -->
         <div class="card">
             <div class="card-header">
@@ -120,10 +120,10 @@
                 <div class="premium-loading">数据加载中...</div>
             </div>
         </div>
-    </div>
-
+            </div>
+        </section>
+    </main>
     {% include '_footer.html' %}
-</div>
 
 <script>
 (function(){

@@ -1,0 +1,16 @@
+<link rel="icon" href="{{ url_for('static', filename='assets/logo.svg') }}" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script>
+(function () {
+  var theme = "dark";
+  try {
+    theme = localStorage.getItem("au-theme") || localStorage.getItem("theme") || "dark";
+  } catch (e) { /* ignore */ }
+  document.documentElement.setAttribute("data-theme", theme === "light" ? "light" : "dark");
+})();
+</script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/koen-shell.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+<script defer src="{{ url_for('static', filename='js/koen-theme.js') }}"></script>

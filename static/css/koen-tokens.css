@@ -69,3 +69,18 @@
     --metal-gold-soft: rgba(180, 83, 9, 0.12);
     --metal-silver-soft: rgba(100, 116, 139, 0.12);
 }
+
+/* v2 shell：与 tools 站暗色优先一致 */
+body.redesign-v2 {
+    --bg-body: transparent;
+    --bg-primary: var(--v2-surface-solid);
+    --bg-secondary: var(--v2-surface-hover);
+    --bg-tertiary: var(--v2-surface-hover);
+    --text-primary: var(--v2-text);
+    --text-secondary: var(--v2-text-secondary);
+    --text-muted: var(--v2-text-muted);
+    --border-color: var(--v2-border);
+    --koen-primary-light: rgba(99, 102, 241, 0.18);
+    --shadow-sm: var(--v2-shadow);
+    --shadow-md: var(--v2-shadow);
+}

@@ -12,7 +12,7 @@ import {
   Cell,
 } from "recharts";
 import { Download, Calendar, RefreshCw } from "lucide-react";
-import Navbar from "@/components/Navbar";
+import AppLayout from "@/components/layout/AppLayout";
 import {
   fetchPriceTrend,
   fetchExportHistory,
@@ -20,9 +20,7 @@ import {
   type LineData,
 } from "@/api/price";
 import { useTheme } from "@/hooks/useTheme";
-
-/** 品类选项 */
-type DataTypeOption = "黄金" | "白银";
+import { METAL_LABEL, type MetalKey, apiTrendDataType } from "@/lib/metalTypes";
 
 /** 区间选项 */
 type RangeOption = "1d" | "7d" | "30d" | "90d" | "1y" | "all";
@@ -36,10 +34,7 @@ const RANGE_LABELS: Record<RangeOption, string> = {
   all: "全部",
 };
 
-const DATA_TYPE_LABELS: Record<DataTypeOption, string> = {
-  "黄金": "🥇 黄金",
-  "白银": "🥈 白银",
-};
+const METALS: MetalKey[] = ["gold", "silver"];
 
 /** 导出格式 */
 type ExportFormat = "csv" | "json";
@@ -154,7 +149,8 @@ function CandleTooltipContent({
 }
 
 export default function History() {
-  const [dataType, setDataType] = useState<DataTypeOption>("黄金");
+  const [metal, setMetal] = useState<MetalKey>("gold");
+  const dataType = apiTrendDataType(metal);
   const [range, setRange] = useState<RangeOption>("7d");
   const [chartType, setChartType] = useState<string>("line");
   const [rawData, setRawData] = useState<(CandlestickData | LineData)[]>([]);
@@ -277,44 +273,41 @@ export default function History() {
   }, [dataType, exportStartDate, exportEndDate, exportFormat]);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
-      <Navbar />
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* 页面标题 */}
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-          📈 历史趋势
-        </h2>
-
-        {/* 品类切换 + 区间选择器 */}
+    <AppLayout
+      hero={{
+        eyebrow: "Charts",
+        title: "趋势图表",
+        subtitle: "近 30 分钟实时走势与 7 天、30 天历史对比。",
+      }}
+    >
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-          {/* 品类切换 */}
           <div className="flex gap-2">
-            {(Object.keys(DATA_TYPE_LABELS) as DataTypeOption[]).map((dt) => (
+            {METALS.map((m) => (
               <button
-                key={dt}
-                onClick={() => setDataType(dt)}
-                className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
-                  dataType === dt
-                    ? "bg-blue-600 text-white shadow-md"
-                    : "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                key={m}
+                type="button"
+                onClick={() => setMetal(m)}
+                className={`px-4 py-2 rounded-koen text-sm font-medium transition-colors ${
+                  metal === m
+                    ? "bg-koen-accent text-white shadow-koen"
+                    : "border border-koen-border text-[var(--v2-text-secondary)] hover:bg-[var(--v2-surface-hover)]"
                 }`}
               >
-                {DATA_TYPE_LABELS[dt]}
+                {METAL_LABEL[m]}
               </button>
             ))}
           </div>
 
-          {/* 区间选择器 */}
-          <div className="flex gap-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+          <div className="flex gap-1 rounded-koen border border-[var(--v2-border)] p-1 bg-[var(--v2-surface-hover)]">
             {(Object.keys(RANGE_LABELS) as RangeOption[]).map((r) => (
               <button
                 key={r}
+                type="button"
                 onClick={() => setRange(r)}
                 className={`px-3 py-1.5 text-sm rounded-md font-medium transition-colors ${
                   range === r
-                    ? "bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-400 shadow-sm"
-                    : "text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white"
+                    ? "bg-koen-accent text-white shadow-sm"
+                    : "text-[var(--v2-text-secondary)] hover:text-[var(--v2-text)]"
                 }`}
               >
                 {RANGE_LABELS[r]}
@@ -340,7 +333,7 @@ export default function History() {
         {/* 大图表 */}
         <div className="rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 mb-8">
           <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">
-            {dataType}价格走势（{RANGE_LABELS[range]}）
+            {METAL_LABEL[metal]}价格走势（{RANGE_LABELS[range]}）
           </h3>
           <div className="h-80">
             {loading ? (
@@ -351,7 +344,7 @@ export default function History() {
                   <svg className="w-12 h-12 mb-2 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                   </svg>
-                  <p className="text-sm">暂无{dataType}趋势数据</p>
+                  <p className="text-sm">暂无{METAL_LABEL[metal]}趋势数据</p>
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
@@ -403,7 +396,7 @@ export default function History() {
                 <svg className="w-12 h-12 mb-2 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                 </svg>
-                <p className="text-sm">暂无{dataType}K线数据</p>
+                <p className="text-sm">暂无{METAL_LABEL[metal]}K线数据</p>
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
@@ -541,11 +534,6 @@ export default function History() {
           </div>
         </div>
 
-        {/* Footer */}
-        <footer className="text-center text-xs text-gray-400 dark:text-gray-500 mt-8 pb-8">
-          数据来源于公开市场 · 仅供参考
-        </footer>
-      </main>
-    </div>
+    </AppLayout>
   );
 }

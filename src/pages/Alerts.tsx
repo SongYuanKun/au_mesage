@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Bell, BellRing, Wifi, WifiOff, RefreshCw, CheckCircle, XCircle } from "lucide-react";
-import Navbar from "@/components/Navbar";
+import AppLayout from "@/components/layout/AppLayout";
 import { useSSEAlert } from "@/hooks/useSSEAlert";
 import { fetchAlertChannels, type AlertChannel } from "@/api/price";
 import usePriceStore from "@/stores/priceStore";
@@ -180,14 +180,13 @@ export default function Alerts() {
   const connected = isConnected || sseConnected;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
-      <Navbar />
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* 页面标题 */}
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-          🔔 提醒中心
-        </h2>
+    <AppLayout
+      hero={{
+        eyebrow: "Alerts",
+        title: "价格提醒",
+        subtitle: "设置目标价并接收浏览器推送通知。",
+      }}
+    >
 
         {/* Toast 通知容器 */}
         {toasts.length > 0 && (
@@ -413,10 +412,6 @@ export default function Alerts() {
         )}
 
         {/* Footer */}
-        <footer className="text-center text-xs text-gray-400 dark:text-gray-500 pb-8">
-          数据来源于公开市场 · 仅供参考
-        </footer>
-      </main>
-    </div>
+    </AppLayout>
   );
 }

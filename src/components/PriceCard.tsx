@@ -3,7 +3,7 @@ import dayjs from "dayjs";
 
 interface PriceCardProps {
   name: string;
-  emoji: string;
+  emoji?: string;
   price: number | null;
   change: number | null;
   changePct: number | null;
@@ -25,7 +25,7 @@ function SkeletonBlock({ className }: { className?: string }) {
 /** Skeleton variant of PriceCard for loading state */
 export function PriceCardSkeleton() {
   return (
-    <div className="rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 animate-pulse">
+    <div className="koen-card p-6 animate-pulse">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <SkeletonBlock className="w-9 h-9 rounded-full" />
@@ -65,14 +65,11 @@ export default function PriceCard({
   const isUp = (change ?? 0) >= 0;
 
   return (
-    <div className="rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 transition-all hover:shadow-xl">
-      {/* Header */}
+    <div className="koen-card p-6 transition-all hover:border-indigo-500/45">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <span className="text-3xl">{emoji}</span>
-          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
-            {name}
-          </h2>
+          {emoji ? <span className="text-2xl">{emoji}</span> : null}
+          <h2 className="text-lg font-semibold text-[var(--v2-text)]">{name}</h2>
         </div>
         {change !== null ? (
           <span
@@ -99,7 +96,7 @@ export default function PriceCard({
 
       {/* Price */}
       <div className="mb-4">
-        <p className="text-3xl font-bold text-gray-900 dark:text-white">
+        <p className="text-3xl font-bold text-[var(--v2-text)]">
           {price !== null ? `¥${price.toFixed(2)}` : "--"}
         </p>
         {change !== null ? (
@@ -118,22 +115,22 @@ export default function PriceCard({
 
       {/* High / Low */}
       <div className="grid grid-cols-2 gap-3 mb-4">
-        <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
-          <p className="text-xs text-gray-500 dark:text-gray-400">今日最高</p>
-          <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+        <div className="rounded-koen border border-[var(--v2-border)] bg-[var(--v2-surface-hover)] p-3">
+          <p className="text-xs text-[var(--v2-text-muted)]">今日最高</p>
+          <p className="text-sm font-semibold text-[var(--v2-text)]">
             {high !== null ? `¥${high.toFixed(2)}` : "--"}
           </p>
         </div>
-        <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
-          <p className="text-xs text-gray-500 dark:text-gray-400">今日最低</p>
-          <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+        <div className="rounded-koen border border-[var(--v2-border)] bg-[var(--v2-surface-hover)] p-3">
+          <p className="text-xs text-[var(--v2-text-muted)]">今日最低</p>
+          <p className="text-sm font-semibold text-[var(--v2-text)]">
             {low !== null ? `¥${low.toFixed(2)}` : "--"}
           </p>
         </div>
       </div>
 
       {/* Updated At */}
-      <p className="text-xs text-gray-400 dark:text-gray-500">
+      <p className="text-xs text-[var(--v2-text-muted)]">
         更新时间：{updatedAt ? dayjs(updatedAt).format("MM-DD HH:mm:ss") : "--"}
       </p>
     </div>

@@ -1,17 +1,46 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Koen · 实时金价监控</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    {% include '_v2_head.html' %}
 </head>
-<body>
-<div class="container">
-
+<body class="redesign-v2">
     {% include '_nav.html' %}
-
-    <div class="content">
+    <main>
+        <section class="v2-hero v2-hero-compact" aria-labelledby="heroTitle">
+            <div class="v2-container v2-hero-inner">
+                <div class="v2-hero-copy">
+                    <p class="v2-eyebrow">Koen · Precious Metals</p>
+                    <h1 id="heroTitle">实时金价监控</h1>
+                    <p class="v2-hero-subtitle">黄金、白银回收价与大盘走势，自动刷新；数据来源于公开市场，仅供参考。</p>
+                    <div class="v2-hero-actions">
+                        <a class="v2-btn v2-btn-primary" href="#live-prices">查看实时价格</a>
+                        <a class="v2-btn v2-btn-ghost" href="/history">趋势图表</a>
+                    </div>
+                </div>
+                <aside class="v2-hero-panel" aria-label="快捷入口">
+                    <div class="v2-panel-head">
+                        <span>站点导航</span>
+                        <strong>au.songyuankun.top</strong>
+                    </div>
+                    <div class="v2-signal-list">
+                        <a href="/history"><span>趋势图表</span><strong>近 30 分钟、7 天、30 天走势</strong></a>
+                        <a href="/analysis"><span>行情分析</span><strong>K 线、均线与技术指标</strong></a>
+                        <a href="https://tools.songyuankun.top" target="_blank" rel="noopener noreferrer"><span>Koen 工具箱</span><strong>开发者在线工具与专题</strong></a>
+                    </div>
+                </aside>
+            </div>
+        </section>
+        <section class="v2-section v2-section-tight" id="live-prices" aria-labelledby="liveSectionTitle">
+            <div class="v2-container">
+                <div class="v2-section-head">
+                    <p class="v2-eyebrow">Live</p>
+                    <h2 id="liveSectionTitle">实时价格</h2>
+                    <p>国内回收价与国际大盘（XAU/XAG）对照，支持单位切换。</p>
+                </div>
+                <div class="au-page-content">
         <!-- Dual Price Cards: Gold + Silver -->
         <div class="grid-2">
             <div class="price-card" id="card-gold">
@@ -79,7 +108,7 @@
         <div class="grid-2">
             <div class="card">
                 <div class="card-header">
-                    <h3 class="card-title"><svg class="koen-icon card-title-icon" aria-hidden="true"><use href="#icon-calculator"></use></svg>价格计算器</h3>
+                    <h3 class="card-title">🧮 价格计算器</h3>
                     <div class="type-tabs type-tabs-sm">
                         <button class="type-tab active" data-calc-type="黄 金">金</button>
                         <button class="type-tab" data-calc-type="白 银">银</button>
@@ -243,7 +272,7 @@
 
             <div class="card">
                 <div class="card-header">
-                    <h3 class="card-title"><svg class="koen-icon card-title-icon" aria-hidden="true"><use href="#icon-bell"></use></svg>价格提醒</h3>
+                    <h3 class="card-title">🔔 价格提醒</h3>
                     <div class="type-tabs type-tabs-sm">
                         <button class="type-tab active" data-alert-type="黄 金">金</button>
                         <button class="type-tab" data-alert-type="白 银">银</button>
@@ -272,10 +301,12 @@
                 </div>
             </div>
         </div>
-    </div>
 
+                </div>
+            </div>
+        </section>
+    </main>
     {% include '_footer.html' %}
-</div>
 
 <script>
 (function(){

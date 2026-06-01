@@ -1,0 +1,10 @@
+{# 用法：{% set hero_eyebrow = '...' %}{% set hero_title = '...' %}{% set hero_subtitle = '...' %}{% include '_page_hero.html' %} #}
+<section class="v2-hero v2-hero-compact" aria-labelledby="pageHeroTitle">
+    <div class="v2-container v2-hero-inner v2-hero-inner-single">
+        <div class="v2-hero-copy">
+            {% if hero_eyebrow %}<p class="v2-eyebrow">{{ hero_eyebrow }}</p>{% endif %}
+            <h1 id="pageHeroTitle">{{ hero_title }}</h1>
+            {% if hero_subtitle %}<p class="v2-hero-subtitle">{{ hero_subtitle }}</p>{% endif %}
+        </div>
+    </div>
+</section>

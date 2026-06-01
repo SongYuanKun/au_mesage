@@ -1,9 +1,17 @@
-<footer class="site-footer">
-    <p class="site-footer-brand">
-        Koen · 源码级探索者 ·
-        <a href="https://tools.songyuankun.top" target="_blank" rel="noopener noreferrer">工具箱</a>
-    </p>
-    <p class="site-footer-disclaimer">
-        数据来源于公开市场，仅供参考，不构成投资建议
-    </p>
+<footer class="footer">
+    <div class="footer-content">
+        <div class="footer-main">
+            <a href="/" class="footer-brand">
+                <img src="{{ url_for('static', filename='assets/logo.svg') }}" alt="" class="footer-logo" width="28" height="28">
+                <span class="footer-brand-name">Koen · 金价监控</span>
+            </a>
+            <nav class="footer-links" aria-label="页脚导航">
+                <a href="/">实时价格</a>
+                <a href="/history">趋势图表</a>
+                <a href="/analysis">行情分析</a>
+                <a href="https://tools.songyuankun.top" target="_blank" rel="noopener noreferrer">工具箱</a>
+            </nav>
+        </div>
+        <p class="footer-copyright">数据来源于公开市场，仅供参考，不构成投资建议。</p>
+    </div>
 </footer>

@@ -9,7 +9,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { Calculator, TrendingUp, TrendingDown, RefreshCw } from "lucide-react";
-import Navbar from "@/components/Navbar";
+import AppLayout from "@/components/layout/AppLayout";
 import {
   fetchGoldSilverRatio,
   calculatePriceDiff,
@@ -203,17 +203,14 @@ export default function Analysis() {
   const tooltipLabelColor = isDark ? "#e5e7eb" : "#374151";
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
-      <Navbar />
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* 页面标题 */}
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-          📊 分析工具
-        </h2>
-
-        {/* 金银比图表 */}
-        <div className="rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 mb-8">
+    <AppLayout
+      hero={{
+        eyebrow: "Analysis",
+        title: "行情分析",
+        subtitle: "K 线、均线、布林带与 MACD/RSI 等技术指标。",
+      }}
+    >
+        <div className="koen-card p-6 mb-8">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
@@ -571,10 +568,6 @@ export default function Analysis() {
         </div>
 
         {/* Footer */}
-        <footer className="text-center text-xs text-gray-400 dark:text-gray-500 pb-8">
-          数据来源于公开市场 · 仅供参考
-        </footer>
-      </main>
-    </div>
+    </AppLayout>
   );
 }

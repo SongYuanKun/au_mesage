@@ -13,6 +13,8 @@ import { useTheme } from "@/hooks/useTheme";
 
 interface PriceTrendChartProps {
   dataType: string;
+  /** 图表标题（默认使用 dataType） */
+  title?: string;
 }
 
 type RangeOption = "1d" | "7d" | "30d";
@@ -91,7 +93,8 @@ function CustomTooltipContent({
   );
 }
 
-export default function PriceTrendChart({ dataType }: PriceTrendChartProps) {
+export default function PriceTrendChart({ dataType, title }: PriceTrendChartProps) {
+  const chartTitle = title ?? `${dataType} 价格走势`;
   const [range, setRange] = useState<RangeOption>("7d");
   const [chartType, setChartType] = useState<string>("line");
   const [data, setData] = useState<(CandlestickData | LineData)[]>([]);
@@ -154,29 +157,29 @@ export default function PriceTrendChart({ dataType }: PriceTrendChartProps) {
   // Dark mode adaptive colors
   const gridColor = isDark ? "rgba(75, 85, 99, 0.4)" : "#e5e7eb";
   const axisColor = isDark ? "#9ca3af" : "#6b7280";
-  const strokeColor = isDark ? "#60a5fa" : "#3b82f6";
-  const gradientStart = isDark ? "rgba(96, 165, 250, 0.3)" : "rgba(59, 130, 246, 0.3)";
-  const gradientEnd = isDark ? "rgba(96, 165, 250, 0)" : "rgba(59, 130, 246, 0)";
-  const tooltipBg = isDark ? "rgba(31, 41, 55, 0.95)" : "rgba(255, 255, 255, 0.95)";
-  const tooltipBorder = isDark ? "#4b5563" : "#e5e7eb";
-  const tooltipLabelColor = isDark ? "#e5e7eb" : "#374151";
+  const strokeColor = "#6366f1";
+  const gradientStart = "rgba(99, 102, 241, 0.35)";
+  const gradientEnd = "rgba(99, 102, 241, 0)";
+  const tooltipBg = isDark ? "rgba(17, 24, 39, 0.95)" : "rgba(255, 255, 255, 0.96)";
+  const tooltipBorder = "var(--v2-border)";
+  const tooltipLabelColor = "var(--v2-text)";
 
   return (
-    <div className="rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 p-6">
-      {/* Header with tabs */}
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
-          {dataType}价格走势
+    <div className="koen-card p-6">
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+        <h3 className="text-lg font-semibold text-[var(--v2-text)]">
+          {chartTitle}
         </h3>
-        <div className="flex gap-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+        <div className="flex gap-1 rounded-koen border border-[var(--v2-border)] p-1 bg-[var(--v2-surface-hover)]">
           {(Object.keys(RANGE_LABELS) as RangeOption[]).map((r) => (
             <button
               key={r}
+              type="button"
               onClick={() => setRange(r)}
               className={`px-3 py-1.5 text-sm rounded-md font-medium transition-colors ${
                 range === r
-                  ? "bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-400 shadow-sm"
-                  : "text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white"
+                  ? "bg-[var(--v2-accent)] text-white shadow-sm"
+                  : "text-[var(--v2-text-secondary)] hover:text-[var(--v2-text)]"
               }`}
             >
               {RANGE_LABELS[r]}
