@@ -16,7 +16,7 @@
         <!-- ============ K-line + Technical Indicators ============ -->
         <div class="card">
             <div class="card-header">
-                <h2 class="card-title">K线走势</h2>
+                <h2 class="card-title"><svg class="koen-icon card-title-icon" aria-hidden="true"><use href="#icon-candlestick"></use></svg>K线走势</h2>
                 <div class="type-tabs type-tabs-sm">
                     <button class="type-tab active" data-metal="XAU">黄金</button>
                     <button class="type-tab" data-metal="XAG">白银</button>
@@ -42,7 +42,7 @@
 
             <div id="mainChart" class="chart-container chart-container-xl"></div>
             <div id="noMainData" class="chart-placeholder" style="display:none;">
-                <div class="chart-placeholder-icon">📊</div>
+                <svg class="chart-placeholder-icon koen-icon" aria-hidden="true"><use href="#icon-chart"></use></svg>
                 <div class="chart-placeholder-text">暂无数据</div>
                 <div class="chart-placeholder-sub">选择的时间范围内无数据</div>
             </div>
@@ -60,7 +60,7 @@
         <!-- ============ Spread Analysis ============ -->
         <div class="card">
             <div class="card-header">
-                <h2 class="card-title">买卖价差分析</h2>
+                <h2 class="card-title"><svg class="koen-icon card-title-icon" aria-hidden="true"><use href="#icon-trending-up"></use></svg>买卖价差分析</h2>
                 <div class="type-tabs type-tabs-sm">
                     <button class="type-tab active" data-spread-metal="XAU">黄金</button>
                     <button class="type-tab" data-spread-metal="XAG">白银</button>
@@ -69,7 +69,7 @@
             <p class="card-desc">卖出价取大盘实时价，回收价取回收价字段；二者之差为价差。国际现货等数据源往往只写一个价，两线会重合；启用站点采集拿到买卖双价后才会分开。</p>
             <div id="spreadChart" class="chart-container"></div>
             <div id="noSpreadData" class="chart-placeholder" style="display:none;">
-                <div class="chart-placeholder-icon">📉</div>
+                <svg class="chart-placeholder-icon koen-icon" aria-hidden="true"><use href="#icon-chart"></use></svg>
                 <div class="chart-placeholder-text">暂无价差数据</div>
                 <div class="chart-placeholder-sub">需要 Playwright 采集器提供买卖双价</div>
             </div>
@@ -86,7 +86,7 @@
         <!-- ============ Gold/Silver Ratio ============ -->
         <div class="card">
             <div class="card-header">
-                <h2 class="card-title">金银比</h2>
+                <h2 class="card-title"><svg class="koen-icon card-title-icon" aria-hidden="true"><use href="#icon-scale"></use></svg>金银比</h2>
                 <div class="range-tabs range-tabs-sm" id="ratioRangeTabs">
                     <button class="range-tab" data-ratio-range="7d">7天</button>
                     <button class="range-tab active" data-ratio-range="30d">30天</button>
@@ -97,7 +97,7 @@
             <p class="card-desc">金银比 = 金价 / 银价，反映两者相对强弱。历史均值约 60-80，偏高时银可能被低估。</p>
             <div id="ratioChart" class="chart-container"></div>
             <div id="noRatioData" class="chart-placeholder" style="display:none;">
-                <div class="chart-placeholder-icon">⚖️</div>
+                <svg class="chart-placeholder-icon koen-icon" aria-hidden="true"><use href="#icon-scale"></use></svg>
                 <div class="chart-placeholder-text">暂无金银比数据</div>
             </div>
             <div class="stats-section" id="ratioStats" style="display:none;">
@@ -113,7 +113,7 @@
         <!-- ============ Multi-source Premium ============ -->
         <div class="card">
             <div class="card-header">
-                <h2 class="card-title">国内外溢价</h2>
+                <h2 class="card-title"><svg class="koen-icon card-title-icon" aria-hidden="true"><use href="#icon-activity"></use></svg>国内外溢价</h2>
             </div>
             <p class="card-desc">对比国际金价（换算 CNY/克）与国内零售价，展示溢价率。</p>
             <div id="premiumInfo" class="premium-panel">
@@ -146,12 +146,18 @@
     /* ======== Colors ======== */
     var C = {
         up: '#ef4444', down: '#22c55e', line: '#6366f1', ratio: '#4f46e5',
-        grid: '#f1f5f9', roundLine: '#94a3b8',
+        grid: '#27272a', roundLine: '#71717a',
         ma5: '#818cf8', ma10: '#6366f1', ma20: '#4f46e5', ma60: '#64748b',
         bollMid: '#6366f1', bollBand: 'rgba(99,102,241,0.12)',
         macdBar: '#6366f1', dif: '#ef4444', dea: '#22c55e',
         rsiLine: '#4f46e5', spread: '#818cf8',
         sellLine: '#ef4444', buyLine: '#22c55e'
+    };
+    var chartTextColor = '#a1a1aa';
+    var chartTooltip = {
+        backgroundColor: 'rgba(24,24,27,.96)',
+        borderColor: '#3f3f46',
+        textStyle: { color: '#fafafa' }
     };
 
     function fmt(v, d) { return v == null ? '-' : Number(v).toFixed(d || 2); }
@@ -317,7 +323,9 @@
         var yAxes = [{ type:'value', name:yUnit, scale:true }];
 
         mainChart.setOption({
-            tooltip:{trigger:'axis'}, legend:{show: series.length>1, bottom:0, textStyle:{fontSize:10}},
+            backgroundColor: 'transparent',
+            textStyle: { color: chartTextColor, fontFamily: 'Inter, PingFang SC, sans-serif' },
+            tooltip:Object.assign({trigger:'axis'}, chartTooltip), legend:{show: series.length>1, bottom:0, textStyle:{fontSize:10, color: chartTextColor}},
             xAxis: xAxes, yAxis: yAxes, series: series, grid: grids,
             dataZoom:[{type:'inside',start:0,end:100}]
         }, true);
@@ -420,8 +428,10 @@
         else grids[0].height = '70%';
 
         mainChart.setOption({
-            tooltip:{trigger:'axis',axisPointer:{type:'cross'}},
-            legend:{show:true, bottom:28, textStyle:{fontSize:10}, type:'scroll'},
+            backgroundColor: 'transparent',
+            textStyle: { color: chartTextColor, fontFamily: 'Inter, PingFang SC, sans-serif' },
+            tooltip:Object.assign({trigger:'axis',axisPointer:{type:'cross'}}, chartTooltip),
+            legend:{show:true, bottom:28, textStyle:{fontSize:10, color: chartTextColor}, type:'scroll'},
             xAxis:xAxes, yAxis:yAxes, series:series, grid:grids, dataZoom:dataZooms
         }, true);
         updateStatsFromOHLC(data);
@@ -516,8 +526,10 @@
                 });
 
                 spreadChart.setOption({
-                    tooltip: { trigger:'axis' },
-                    legend: { data:['卖出价','回收价','价差'], bottom:0, textStyle:{fontSize:10} },
+                    backgroundColor: 'transparent',
+                    textStyle: { color: chartTextColor, fontFamily: 'Inter, PingFang SC, sans-serif' },
+                    tooltip: Object.assign({ trigger:'axis' }, chartTooltip),
+                    legend: { data:['卖出价','回收价','价差'], bottom:0, textStyle:{fontSize:10, color: chartTextColor} },
                     xAxis: { type:'category', data:times, axisLabel:{rotate:45,fontSize:10} },
                     yAxis: [
                         { type:'value', name: intlYAxisLabel(spreadMetal), scale:true },
@@ -557,7 +569,9 @@
                 if(!resp.success||!resp.data||!resp.data.length){noRatioEl.style.display='block';ratioChart.clear();return;}
                 var dates=resp.data.map(function(d){return d.date;}), ratios=resp.data.map(function(d){return d.ratio;});
                 ratioChart.setOption({
-                    tooltip:{trigger:'axis',formatter:function(p){return p[0].axisValue+'<br/>金银比：'+fmt(p[0].data);}},
+                    backgroundColor: 'transparent',
+                    textStyle: { color: chartTextColor, fontFamily: 'Inter, PingFang SC, sans-serif' },
+                    tooltip:Object.assign({trigger:'axis',formatter:function(p){return p[0].axisValue+'<br/>金银比：'+fmt(p[0].data);}}, chartTooltip),
                     xAxis:{type:'category',data:dates,axisLabel:{rotate:dates.length>30?45:0,fontSize:11}},
                     yAxis:{type:'value',name:'金银比',scale:true,splitLine:{lineStyle:{color:C.grid}}},
                     series:[{data:ratios,type:'line',smooth:true,lineStyle:{color:C.ratio,width:2.5},itemStyle:{color:C.ratio},

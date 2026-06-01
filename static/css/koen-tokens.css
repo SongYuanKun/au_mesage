@@ -1,32 +1,71 @@
 /**
- * Koen brand design tokens (Slate + Indigo)
- * Source: koen-content-strategy / koen-ip-context-prompt.md
+ * Koen personal-site design tokens applied to AU Price Monitor.
+ * Source: koen-content-strategy content branch:
+ * koen-personal-site/ui-design-spec.md
  */
 :root {
-    --koen-primary: #6366f1;
-    --koen-primary-hover: #4f46e5;
-    --koen-primary-light: #e0e7ff;
-    --koen-bg: #f8fafc;
-    --koen-surface: #ffffff;
-    --koen-border: #e2e8f0;
-    --koen-text: #0f172a;
-    --koen-text-secondary: #64748b;
-    --koen-text-muted: #94a3b8;
-    --koen-dark-bg: #0f172a;
-    --koen-dark-card: #1e293b;
-    --metal-gold: #eab308;
-    --metal-silver: #94a3b8;
+    color-scheme: dark;
+
+    --koen-primary: #818cf8;
+    --koen-primary-hover: #6366f1;
+    --koen-primary-soft: rgba(129, 140, 248, 0.12);
+    --koen-primary-light: rgba(129, 140, 248, 0.16);
+
+    --koen-bg: #09090b;
+    --koen-bg-alt: #0f0f18;
+    --koen-surface: #18181b;
+    --koen-surface-elevated: #27272a;
+    --koen-surface-hover: #3f3f46;
+    --koen-border: #27272a;
+    --koen-border-strong: #3f3f46;
+
+    --koen-text: #fafafa;
+    --koen-text-secondary: #a1a1aa;
+    --koen-text-muted: #71717a;
+    --koen-dark-bg: #09090b;
+    --koen-dark-card: #18181b;
+
+    --metal-gold: #fbbf24;
+    --metal-silver: #cbd5e1;
+    --metal-gold-soft: rgba(251, 191, 36, 0.14);
+    --metal-silver-soft: rgba(203, 213, 225, 0.12);
 
     /* Legacy aliases (components reference these) */
     --primary: var(--koen-primary);
     --primary-dark: var(--koen-primary-hover);
-    --primary-light: #818cf8;
+    --primary-light: var(--koen-primary);
     --text-primary: var(--koen-text);
     --text-secondary: var(--koen-text-secondary);
     --text-muted: var(--koen-text-muted);
     --bg-body: var(--koen-bg);
     --bg-primary: var(--koen-surface);
-    --bg-secondary: var(--koen-bg);
-    --bg-tertiary: #f1f5f9;
+    --bg-secondary: var(--koen-bg-alt);
+    --bg-tertiary: var(--koen-surface-elevated);
     --border-color: var(--koen-border);
+}
+
+[data-theme="light"] {
+    color-scheme: light;
+
+    --koen-primary: #6366f1;
+    --koen-primary-hover: #4f46e5;
+    --koen-primary-soft: rgba(99, 102, 241, 0.1);
+    --koen-primary-light: #e0e7ff;
+
+    --koen-bg: #fafafa;
+    --koen-bg-alt: #f4f4f5;
+    --koen-surface: #ffffff;
+    --koen-surface-elevated: #f4f4f5;
+    --koen-surface-hover: #e4e4e7;
+    --koen-border: #e2e8f0;
+    --koen-border-strong: #cbd5e1;
+
+    --koen-text: #0f172a;
+    --koen-text-secondary: #334155;
+    --koen-text-muted: #64748b;
+
+    --metal-gold: #b45309;
+    --metal-silver: #64748b;
+    --metal-gold-soft: rgba(180, 83, 9, 0.12);
+    --metal-silver-soft: rgba(100, 116, 139, 0.12);
 }

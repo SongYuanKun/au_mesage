@@ -17,27 +17,27 @@
         <!-- Real-time chart (last 30 min) -->
         <div class="card">
             <div class="card-header">
-                <h2 class="card-title">⏱ 近30分钟实时走势</h2>
+                <h2 class="card-title"><svg class="koen-icon card-title-icon" aria-hidden="true"><use href="#icon-clock"></use></svg>近30分钟实时走势</h2>
                 <div class="type-tabs">
-                    <button id="btnGold" class="type-tab active" data-type="黄 金">🥇 黄金</button>
-                    <button id="btnSilver" class="type-tab" data-type="白 银">🥈 白银</button>
+                    <button id="btnGold" class="type-tab active" data-type="黄 金"><svg class="koen-icon" aria-hidden="true"><use href="#icon-coins"></use></svg>黄金</button>
+                    <button id="btnSilver" class="type-tab" data-type="白 银"><svg class="koen-icon" aria-hidden="true"><use href="#icon-coins"></use></svg>白银</button>
                 </div>
             </div>
 
             <div id="todayChart" class="chart-container"></div>
             <div id="noDailyChartData" class="chart-placeholder" style="display:none;">
-                <div class="chart-placeholder-icon">📊</div>
+                <svg class="chart-placeholder-icon koen-icon" aria-hidden="true"><use href="#icon-chart"></use></svg>
                 <div class="chart-placeholder-text">暂无数据</div>
                 <div class="chart-placeholder-sub">请稍后刷新重试</div>
             </div>
 
             <div class="chart-info">
                 <div class="chart-info-item">
-                    <span>ℹ️</span>
+                    <svg class="koen-icon" aria-hidden="true"><use href="#icon-info"></use></svg>
                     <span>展示最近 30 分钟数据，每 30 秒自动刷新</span>
                 </div>
                 <div class="chart-info-item">
-                    <span>🔄</span>
+                    <svg class="koen-icon" aria-hidden="true"><use href="#icon-refresh"></use></svg>
                     <span id="lastRefresh">最后更新：-</span>
                 </div>
             </div>
@@ -45,17 +45,17 @@
 
         <!-- 7-day trend -->
         <div class="card">
-            <h2 class="card-title" style="margin-bottom:1.25rem;">📈 近7天回收价格趋势</h2>
+            <h2 class="card-title" style="margin-bottom:1.25rem;"><svg class="koen-icon card-title-icon" aria-hidden="true"><use href="#icon-trending-up"></use></svg>近7天回收价格趋势</h2>
 
             <div id="trendChart" class="chart-container"></div>
             <div id="noChartData" class="chart-placeholder" style="display:none;">
-                <div class="chart-placeholder-icon">📊</div>
+                <svg class="chart-placeholder-icon koen-icon" aria-hidden="true"><use href="#icon-chart"></use></svg>
                 <div class="chart-placeholder-text">暂无趋势数据</div>
                 <div class="chart-placeholder-sub">请稍后刷新重试</div>
             </div>
 
             <div class="stats-section">
-                <h3 class="stats-title">📊 近7天统计</h3>
+                <h3 class="stats-title"><svg class="koen-icon card-title-icon" aria-hidden="true"><use href="#icon-chart"></use></svg>近7天统计</h3>
                 <div class="stats-grid">
                     <div class="stat-card">
                         <div class="stat-label">平均回收价</div>
@@ -106,16 +106,37 @@
 
     function makeLineOption(xData, yData, color, yAxisName) {
         var unit = yAxisName || '元/克';
+        var labelColor = '#a1a1aa';
+        var axisColor = '#71717a';
+        var gridColor = '#27272a';
         return {
+            backgroundColor: 'transparent',
+            textStyle: { color: labelColor, fontFamily: 'Inter, PingFang SC, sans-serif' },
             tooltip: {
                 trigger: 'axis',
+                backgroundColor: 'rgba(24,24,27,.96)',
+                borderColor: '#3f3f46',
+                textStyle: { color: '#fafafa' },
                 formatter: function (p) {
                     var v = p[0].data == null ? '-' : p[0].data;
                     return p[0].axisValue + '<br/>价格：' + v + ' ' + unit;
                 },
             },
-            xAxis: { type: 'category', data: xData, axisLabel: { rotate: 45, fontSize: 11 } },
-            yAxis: { type: 'value', name: unit, scale: true },
+            xAxis: {
+                type: 'category',
+                data: xData,
+                axisLine: { lineStyle: { color: axisColor } },
+                axisTick: { lineStyle: { color: axisColor } },
+                axisLabel: { rotate: 45, fontSize: 11, color: labelColor }
+            },
+            yAxis: {
+                type: 'value',
+                name: unit,
+                scale: true,
+                nameTextStyle: { color: labelColor },
+                axisLabel: { color: labelColor },
+                splitLine: { lineStyle: { color: gridColor } }
+            },
             series: [{
                 data: yData,
                 type: 'line',
