@@ -1,9 +1,10 @@
 <script src="{{ url_for('static', filename='js/price-unit.js') }}"></script>
-<nav class="site-nav">
+<nav class="site-nav" aria-label="站点导航">
     <div class="nav-inner">
         <a href="/" class="nav-brand">
-            <span class="nav-brand-icon">Au</span>
-            <span>金价监控</span>
+            <span class="nav-brand-icon" aria-hidden="true">K</span>
+            <span>Koen</span>
+            <span class="nav-brand-sub">· 金价监控</span>
         </a>
         <div class="nav-unit-wrap" data-au-unit-wrap role="group" aria-label="国际贵金属价格单位">
             <span class="nav-unit-label">国际价</span>
@@ -14,19 +15,19 @@
         </div>
         <div class="nav-links" id="navLinks">
             <a href="/" class="nav-link" data-page="index">
-                <span class="nav-link-icon">📊</span>
+                <span class="nav-link-icon" aria-hidden="true">📊</span>
                 <span>实时价格</span>
             </a>
             <a href="/history" class="nav-link" data-page="history">
-                <span class="nav-link-icon">📈</span>
+                <span class="nav-link-icon" aria-hidden="true">📈</span>
                 <span>趋势图表</span>
             </a>
             <a href="/analysis" class="nav-link" data-page="analysis">
-                <span class="nav-link-icon">🕯️</span>
+                <span class="nav-link-icon" aria-hidden="true">🕯️</span>
                 <span>行情分析</span>
             </a>
         </div>
-        <button class="nav-toggle" id="navToggle" aria-label="菜单">
+        <button type="button" class="nav-toggle" id="navToggle" aria-label="打开菜单" aria-expanded="false" aria-controls="navLinks">
             <span></span><span></span><span></span>
         </button>
     </div>
@@ -46,11 +47,13 @@
     var menu = document.getElementById('navLinks');
     if (toggle && menu) {
         toggle.addEventListener('click', function(){
-            menu.classList.toggle('open');
+            var open = menu.classList.toggle('open');
+            toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
         });
         document.addEventListener('click', function(e){
             if (!toggle.contains(e.target) && !menu.contains(e.target)) {
                 menu.classList.remove('open');
+                toggle.setAttribute('aria-expanded', 'false');
             }
         });
     }

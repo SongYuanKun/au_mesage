@@ -2,6 +2,8 @@
 
 > 多源价格采集 → MySQL 入库 → 实时/历史/分析 → SSE 目标价提醒 → 企业微信/Telegram/邮件通知（可选）
 
+生产 Web 展示遵循 **Koen 品牌视觉**（Tailwind Slate + Indigo，见 `static/css/koen-tokens.css` 与内容战略仓库 `koen-content-strategy`）。
+
 ## 目录
 
 - [产品与能力](#产品与能力)

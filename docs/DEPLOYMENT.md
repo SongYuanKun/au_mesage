@@ -60,6 +60,16 @@ curl -s -H "Authorization: Bearer $AUTH_ADMIN_TOKEN" http://127.0.0.1:8083/api/a
 
 见 [README.zh-CN.md](../README.zh-CN.md) 方式 A；宿主机 MySQL 时使用 `MYSQL_HOST=host.docker.internal`。
 
+## 展示层（Koen 视觉）
+
+生产站点页面由 **Flask 模板**（`templates/`）+ **静态样式**（`static/css/`）渲染，与仓库内 React SPA（`src/`）独立。
+
+- 设计令牌：`static/css/koen-tokens.css`（Slate + Indigo，与 [Koen 工具箱](https://tools.songyuankun.top) / 内容战略仓库 `koen-content-strategy` 一致）
+- 样式入口：`static/css/main.css`（`@import` tokens）
+- 共享片段：`templates/_nav.html`、`templates/_footer.html`
+
+更新模板或 CSS 后需 **重建 Docker 镜像**（`docker compose up --build -d`），否则 GTR 仍服务旧静态资源。
+
 ## CI 与 RTM
 
 - GitHub Actions：`.github/workflows/python-app.yml`（pytest、RTM 校验、Vitest JUnit/coverage artifacts）

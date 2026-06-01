@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>行情分析 — 金价监控</title>
+    <title>Koen · 行情分析</title>
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.0/dist/echarts.min.js"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
 </head>
@@ -122,9 +122,7 @@
         </div>
     </div>
 
-    <footer class="site-footer">
-        数据来源于公开市场，仅供参考，不构成投资建议
-    </footer>
+    {% include '_footer.html' %}
 </div>
 
 <script>
@@ -147,12 +145,12 @@
 
     /* ======== Colors ======== */
     var C = {
-        up: '#ef4444', down: '#22c55e', line: '#6366f1', ratio: '#f59e0b',
+        up: '#ef4444', down: '#22c55e', line: '#6366f1', ratio: '#4f46e5',
         grid: '#f1f5f9', roundLine: '#94a3b8',
-        ma5: '#f59e0b', ma10: '#3b82f6', ma20: '#8b5cf6', ma60: '#ec4899',
-        bollMid: '#6366f1', bollBand: 'rgba(99,102,241,0.08)',
+        ma5: '#818cf8', ma10: '#6366f1', ma20: '#4f46e5', ma60: '#64748b',
+        bollMid: '#6366f1', bollBand: 'rgba(99,102,241,0.12)',
         macdBar: '#6366f1', dif: '#ef4444', dea: '#22c55e',
-        rsiLine: '#f59e0b', spread: '#8b5cf6',
+        rsiLine: '#4f46e5', spread: '#818cf8',
         sellLine: '#ef4444', buyLine: '#22c55e'
     };
 

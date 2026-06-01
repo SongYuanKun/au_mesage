@@ -1,0 +1,32 @@
+/**
+ * Koen brand design tokens (Slate + Indigo)
+ * Source: koen-content-strategy / koen-ip-context-prompt.md
+ */
+:root {
+    --koen-primary: #6366f1;
+    --koen-primary-hover: #4f46e5;
+    --koen-primary-light: #e0e7ff;
+    --koen-bg: #f8fafc;
+    --koen-surface: #ffffff;
+    --koen-border: #e2e8f0;
+    --koen-text: #0f172a;
+    --koen-text-secondary: #64748b;
+    --koen-text-muted: #94a3b8;
+    --koen-dark-bg: #0f172a;
+    --koen-dark-card: #1e293b;
+    --metal-gold: #eab308;
+    --metal-silver: #94a3b8;
+
+    /* Legacy aliases (components reference these) */
+    --primary: var(--koen-primary);
+    --primary-dark: var(--koen-primary-hover);
+    --primary-light: #818cf8;
+    --text-primary: var(--koen-text);
+    --text-secondary: var(--koen-text-secondary);
+    --text-muted: var(--koen-text-muted);
+    --bg-body: var(--koen-bg);
+    --bg-primary: var(--koen-surface);
+    --bg-secondary: var(--koen-bg);
+    --bg-tertiary: #f1f5f9;
+    --border-color: var(--koen-border);
+}
