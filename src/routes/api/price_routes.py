@@ -109,13 +109,12 @@ def register_price_routes(bp: Blueprint, mysql_manager: DatabaseManager) -> None
         beijing_now = datetime.now(BEIJING_TZ)
         one_hour_ago = beijing_now - timedelta(hours=1)
 
-        utc_now = beijing_now.astimezone(pytz.UTC)
-        utc_one_hour_ago = one_hour_ago.astimezone(pytz.UTC)
-
+        # 与 MySQL TIMESTAMP 会话时区（Asia/Shanghai）一致，勿转成 UTC 字符串比较，
+        # 否则 playwright 等写入的「本地墙钟」记录会被误判为超出区间。
         history_data = mysql_manager.get_price_history_by_time_range(
             data_type,
-            utc_one_hour_ago.strftime("%Y-%m-%d %H:%M:%S"),
-            utc_now.strftime("%Y-%m-%d %H:%M:%S"),
+            one_hour_ago.strftime("%Y-%m-%d %H:%M:%S"),
+            beijing_now.strftime("%Y-%m-%d %H:%M:%S"),
         )
 
         return jsonify({"success": True, "data": history_data or []})

@@ -155,6 +155,39 @@
         }
     }
 
+    function countValidPrices(prices) {
+        return (prices || []).filter(function (v) {
+            return typeof v === 'number' && !isNaN(v);
+        }).length;
+    }
+
+    /** 国内品类近7天常仅有当日 playwright 数据，用 XAU/XAG + 汇率回退为 元/克 */
+    async function fetchLast7IntlFallback(domesticType) {
+        var intlType = domesticType === TYPE_GOLD ? 'XAU' : 'XAG';
+        var resp2 = await fetch('/api/last-7-days?data_type=' + encodeURIComponent(intlType));
+        var j2 = await resp2.json().catch(function () { return null; });
+        if (!resp2.ok || !j2 || !j2.success || !Array.isArray(j2.data) || !j2.data.length) {
+            return null;
+        }
+        if (!global.AuPriceUnit || typeof global.AuPriceUnit.getUsdCnyRate !== 'function') {
+            return null;
+        }
+        try {
+            var rate = await global.AuPriceUnit.getUsdCnyRate();
+            var factor = global.AuPriceUnit.usdOzToCnyGramFactor(rate);
+            if (factor == null) return null;
+            return {
+                dates: j2.data.map(function (d) { return d.date; }),
+                prices: j2.data.map(function (d) {
+                    return d.recycle_price == null ? null : Number(d.recycle_price) * factor;
+                }),
+            };
+        } catch (e) {
+            console.warn('fetchLast7IntlFallback', e);
+            return null;
+        }
+    }
+
     async function fetchLast7() {
         try {
             var resp = await fetch('/api/last-7-days?data_type=' + encodeURIComponent(currentType));
@@ -166,9 +199,22 @@
                 return;
             }
             if (j.success && Array.isArray(j.data) && j.data.length > 0) {
-                noChartEl.style.display = 'none';
                 var dates = j.data.map(function(d){ return d.date; });
                 var prices = j.data.map(function(d){ return d.recycle_price == null ? null : Number(d.recycle_price); });
+                if (countValidPrices(prices) < 2) {
+                    var fb = await fetchLast7IntlFallback(currentType);
+                    if (fb) {
+                        dates = fb.dates;
+                        prices = fb.prices;
+                    }
+                }
+                if (countValidPrices(prices) < 1) {
+                    noChartEl.style.display = 'block';
+                    trendChart.clear();
+                    renderStats([]);
+                    return;
+                }
+                noChartEl.style.display = 'none';
                 trendChart.setOption(makeLineOption(dates, prices, chartColors.trend, '回收价格'), true);
                 renderStats(prices);
             } else {

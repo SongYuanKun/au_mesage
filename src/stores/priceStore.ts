@@ -24,8 +24,12 @@ const usePriceStore = create<PriceState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const data = await fetchPriceOverview();
-      const gold = data.find((item) => item.data_type === "黄金") || null;
-      const silver = data.find((item) => item.data_type === "白银") || null;
+      const gold =
+        data.find((item) => item.data_type === "XAU" || item.data_type === "黄金") ||
+        null;
+      const silver =
+        data.find((item) => item.data_type === "XAG" || item.data_type === "白银") ||
+        null;
       set({
         goldPrice: gold,
         silverPrice: silver,
