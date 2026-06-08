@@ -27,6 +27,9 @@
       /* ignore */
     }
     applyThemeToBtn(document.getElementById("themeToggle"), next);
+    if (window.umami && typeof window.umami.identify === "function") {
+      window.umami.identify({ 主题: next });
+    }
   }
 
   function initTheme() {
