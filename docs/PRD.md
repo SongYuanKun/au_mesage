@@ -343,6 +343,8 @@ flowchart TD
 
 ## 11. 数据指标定义（埋点与口径）
 
+实现细节与 Umami 事件映射见 [`docs/umami-integration.md`](umami-integration.md)。
+
 ### 11.1 用户行为指标
 
 - `uv_daily`：日独立访客数（按匿名 id 或登录 id 去重）

@@ -85,9 +85,7 @@
   window.umamiEnrich = enrich;
   window.umamiTrack = function (name, data) {
     try {
-      if (typeof umami !== "undefined" && typeof umami._rawTrack === "function") {
-        umami._rawTrack(name, enrich(name, data));
-      } else if (typeof umami !== "undefined" && typeof umami.track === "function") {
+      if (typeof umami !== "undefined" && typeof umami.track === "function") {
         umami.track(name, enrich(name, data));
       }
     } catch (_) {}

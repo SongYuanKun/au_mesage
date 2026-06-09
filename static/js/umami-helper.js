@@ -37,6 +37,28 @@
       var btn = document.querySelector("[data-au-unit].active");
       window.umami.identify({ 单位: btn ? attr(btn, "data-au-unit") : "" });
     }
+    if (typeof window.auUmamiSyncSession === "function") {
+      window.auUmamiSyncSession();
+    }
+  }
+
+  function activeMetalLabel() {
+    var tab =
+      document.querySelector("[data-metal].active") ||
+      document.querySelector(".type-tab.active[data-type]") ||
+      document.querySelector(".type-tab.active");
+    if (!tab) return "";
+    return (tab.getAttribute("data-metal") || tab.getAttribute("data-type") || tab.textContent || "")
+      .trim()
+      .replace(/\s+/g, "");
+  }
+
+  function chartRangeValue(el) {
+    return (
+      attr(el, "data-range") ||
+      attr(el, "data-ratio-range") ||
+      (el.textContent || "").trim()
+    );
   }
 
   document.addEventListener("click", function (e) {
@@ -100,19 +122,24 @@
     var rangeTab = e.target.closest(".range-tab");
     if (rangeTab) {
       track("chart_interact", {
-        metal: (document.querySelector("[data-metal].active") || {}).textContent || "",
+        metal: activeMetalLabel(),
         type: "range",
-        value: rangeTab.textContent.trim()
+        value: chartRangeValue(rangeTab),
       });
       return;
     }
-    var indBtn = e.target.closest("[data-ind]");
-    if (indBtn) {
-      track("chart_interact", {
-        metal: (document.querySelector("[data-metal].active") || {}).textContent || "",
-        type: "indicator",
-        value: attr(indBtn, "data-ind")
-      });
+    var indEl = e.target.closest("[data-ind], label.indicator-toggle");
+    if (indEl) {
+      var indInput = indEl.matches("[data-ind]")
+        ? indEl
+        : indEl.querySelector("[data-ind]");
+      if (indInput) {
+        track("chart_interact", {
+          metal: activeMetalLabel(),
+          type: "indicator",
+          value: attr(indInput, "data-ind"),
+        });
+      }
       return;
     }
 
