@@ -18,7 +18,10 @@ export default function SiteFooter() {
         </nav>
       </div>
       <p className="koen-container pb-6 text-[13px] text-[var(--v2-text-muted)]">
-        数据来源于公开市场，仅供参考，不构成投资建议。
+        数据来源于公开市场，仅供参考，不构成投资建议。{" "}
+        <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">
+          京ICP备17048720号-1
+        </a>
       </p>
     </footer>
   );
