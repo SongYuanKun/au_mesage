@@ -10,9 +10,9 @@ import json
 import logging
 import threading
 from urllib.request import Request, urlopen
-from urllib.error import URLError
 
 from collectors.base import BaseCollector
+from collectors.errors import CollectionError
 
 logger = logging.getLogger(__name__)
 
@@ -37,26 +37,21 @@ class ExchangeRateCollector(BaseCollector):
             req = Request(BASE_URL, headers={'User-Agent': 'au-mesage/1.0'})
             with urlopen(req, timeout=10) as resp:
                 body = json.loads(resp.read().decode())
-
             if body.get('result') != 'success':
-                logger.warning(f"[{self.name}] API 返回非成功状态: {body.get('result')}")
-                return []
+                raise ValueError(f"unexpected result: {body.get('result')}")
+            cny_rate = float(body.get('rates', {}).get('CNY', 0))
+            if cny_rate <= 0:
+                raise ValueError('CNY rate must be positive')
+        except Exception as exc:
+            raise CollectionError(f'{self.name}: rate request failed') from exc
 
-            rates = body.get('rates', {})
-            cny_rate = rates.get('CNY')
-            if not cny_rate:
-                return []
-
-            # 更新内存缓存
-            with _rate_cache['lock']:
-                _rate_cache['USD_CNY'] = float(cny_rate)
-
-            # 写入 exchange_rate 表
-            self.mysql_manager.upsert_exchange_rate('USD', 'CNY', float(cny_rate), self.name)
-            logger.info(f"[{self.name}] USD/CNY = {cny_rate}")
-
-        except (URLError, Exception) as e:
-            logger.warning(f"[{self.name}] 汇率获取失败: {e}")
-
-        # 不写 price_data，返回空列表
+        self.mysql_manager.upsert_exchange_rate(
+            'USD',
+            'CNY',
+            cny_rate,
+            self.name,
+        )
+        with _rate_cache['lock']:
+            _rate_cache['USD_CNY'] = cny_rate
+        logger.info('[%s] USD/CNY = %s', self.name, cny_rate)
         return []

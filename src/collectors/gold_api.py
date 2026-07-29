@@ -6,9 +6,9 @@ GoldAPICollector — 对接 api.gold-api.com
 import json
 import logging
 from urllib.request import Request, urlopen
-from urllib.error import URLError
 
 from collectors.base import BaseCollector
+from collectors.errors import CollectionError
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +29,7 @@ class GoldAPICollector(BaseCollector):
 
     def fetch(self) -> list:
         results = []
+        failures = []
         date_str = self.today_str()
         time_str = self.time_str()
 
@@ -38,11 +39,9 @@ class GoldAPICollector(BaseCollector):
                 req = Request(url, headers={'User-Agent': 'au-mesage/1.0'})
                 with urlopen(req, timeout=10) as resp:
                     body = json.loads(resp.read().decode())
-
                 price = float(body.get('price', 0))
                 if price <= 0:
-                    continue
-
+                    raise ValueError('price must be positive')
                 results.append({
                     'trade_date': date_str,
                     'trade_time': time_str,
@@ -54,7 +53,12 @@ class GoldAPICollector(BaseCollector):
                     'source': self.name,
                     'currency': 'USD',
                 })
-            except (URLError, Exception) as e:
-                logger.warning(f"[{self.name}] 获取 {symbol} 失败: {e}")
+            except Exception as exc:
+                failures.append(symbol)
+                logger.warning('[%s] 获取 %s 失败: %s', self.name, symbol, exc)
 
+        if not results:
+            raise CollectionError(
+                f"{self.name}: all upstream symbols failed ({','.join(failures)})"
+            )
         return results
