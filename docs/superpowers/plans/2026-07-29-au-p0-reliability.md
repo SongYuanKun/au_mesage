@@ -4,14 +4,14 @@
 
 **Goal:** Make runtime data-source configuration effective, propagate real collection and persistence failures into backoff, and commit data-source configuration plus history atomically.
 
-**Architecture:** Keep the current Flask, MySQL, and in-process collector model. `CollectorManager` reconciles a source-keyed runtime set every 60 seconds; collectors distinguish partial success from total failure; the database layer re-raises failures and performs each administrative update in one transaction.
+**Architecture:** Keep the current Flask, MySQL, and in-process collector model. `CollectorManager` reconciles a source-keyed runtime set every 30 seconds; collectors distinguish partial success from total failure; the database layer re-raises failures and performs each administrative update in one transaction.
 
 **Tech Stack:** Python 3.9-compatible syntax, Flask, `mysql.connector`, `threading`, pytest, `unittest.mock`, Ruff.
 
 ## Global Constraints
 
 - Scope is limited to runtime source enable/disable, collection and write failure semantics, and atomic source configuration history.
-- A committed source enable/disable change must converge in one process within 60 seconds without a restart.
+- Under normal operation where database refresh and collector lifecycle calls do not time out, a committed source enable/disable change has a 60-second convergence target without a restart.
 - One `source_id` may have at most one managed runtime instance.
 - Successful public API response structures and database schemas must not change.
 - No new service, queue, frontend change, or database migration.
@@ -62,8 +62,14 @@
 **Interfaces:**
 
 - Consumes: `config_cache.bind_db(mysql_manager)`, `config_cache.refresh(force=True)`, and collector instances exposing `start()`, `stop()`, and `name`.
-- Produces: `CollectorManager(mysql_manager, *, collector_factories=None, config_cache=source_config_cache, reconcile_interval=60)`, `reconcile_once() -> None`, `collectors -> list`, idempotent `start_all() -> None`, and retryable `stop_all() -> None`.
+- Produces: `CollectorManager(mysql_manager, *, collector_factories=None, config_cache=source_config_cache, reconcile_interval=30)`, `reconcile_once() -> None`, `collectors -> list`, idempotent `start_all() -> None`, and retryable `stop_all() -> None`.
 - Produces: `BaseCollector.stop(join_timeout: float = 20.0) -> None`, which returns only after the worker exits or raises `RuntimeError`.
+
+**Approved review amendment (2026-07-30):**
+
+- Use a 30-second default reconciliation interval, leaving time inside the 60-second operational convergence target for refresh and lifecycle work.
+- Concurrent `start_all()` and `stop_all()` must be linearizable: once a generation enters `STOPPING`, an overlapping start is a no-op; `stop_all()` may clear only the thread reference and stop event belonging to that generation.
+- If `BaseCollector.stop()` is called by its own worker thread, it must set the stop flag, retain the thread reference, and raise `RuntimeError` instead of reporting successful termination.
 
 - [ ] **Step 1: Write failing reconciliation and lifecycle tests**
 
@@ -245,7 +251,7 @@ class CollectorManager:
         *,
         collector_factories: Optional[Mapping[str, CollectorFactory]] = None,
         config_cache=source_config_cache,
-        reconcile_interval: float = 60,
+        reconcile_interval: float = 30,
     ):
         self.mysql_manager = mysql_manager
         self._config_cache = config_cache
