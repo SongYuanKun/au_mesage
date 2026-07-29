@@ -79,3 +79,17 @@ def test_collector_recovery(monkeypatch):
     # 3rd exit -> sleep 0
     assert sleep_mock.call_count == 2
     mock_manager.batch_insert_data.assert_called_once_with([{"fake": "data"}])
+
+
+def test_stop_waits_for_worker_thread():
+    collector = DummyCollector(MagicMock(), MagicMock(return_value=[]))
+    worker = MagicMock()
+    worker.is_alive.return_value = False
+    collector.is_running = True
+    collector._thread = worker
+
+    collector.stop(join_timeout=0.25)
+
+    worker.join.assert_called_once_with(timeout=0.25)
+    assert collector.is_running is False
+    assert collector._thread is None

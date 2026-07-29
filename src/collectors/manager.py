@@ -1,60 +1,149 @@
-"""
-CollectorManager — 统一调度所有数据采集器
-根据环境变量决定启用哪些采集器
-"""
 import logging
 import os
+import threading
+from typing import Callable, Dict, Mapping, Optional
 
-from collectors.gold_api import GoldAPICollector
+from collectors.base import BaseCollector
 from collectors.exchange_rate import ExchangeRateCollector
 from collectors.fawazahmed0 import Fawazahmed0Collector
+from collectors.gold_api import GoldAPICollector
 from collectors.source_config import source_config_cache
 
 logger = logging.getLogger(__name__)
 
+CollectorFactory = Callable[[], BaseCollector]
+
 
 class CollectorManager:
-    def __init__(self, mysql_manager):
+    def __init__(
+        self,
+        mysql_manager,
+        *,
+        collector_factories: Optional[Mapping[str, CollectorFactory]] = None,
+        config_cache=source_config_cache,
+        reconcile_interval: float = 60,
+    ):
         self.mysql_manager = mysql_manager
-        self.collectors = []
-        source_config_cache.bind_db(mysql_manager)
-        self._setup()
+        self._config_cache = config_cache
+        self._config_cache.bind_db(mysql_manager)
+        factories = (
+            collector_factories
+            if collector_factories is not None
+            else self._default_factories()
+        )
+        self._factories = dict(factories)
+        self._reconcile_interval = reconcile_interval
+        self._collectors: Dict[str, BaseCollector] = {}
+        self._lock = threading.RLock()
+        self._stop_event = threading.Event()
+        self._reconcile_thread = None
 
-    def _setup(self):
-        source_config_cache.refresh(force=True)
-        candidates = [
-            ("gold_api", lambda: GoldAPICollector(self.mysql_manager)),
-            ("exchange_rate", lambda: ExchangeRateCollector(self.mysql_manager)),
-            ("fawazahmed0", lambda: Fawazahmed0Collector(self.mysql_manager)),
-        ]
+    def _default_factories(self) -> Mapping[str, CollectorFactory]:
+        def create_playwright():
+            from collectors.playwright_collector import PlaywrightCollector
 
-        for source_id, factory in candidates:
-            if source_config_cache.is_enabled(source_id):
-                self.collectors.append(factory())
-            else:
-                logger.info("数据源 %s 已在配置中禁用，跳过采集器", source_id)
+            return PlaywrightCollector(self.mysql_manager)
 
-        playwright_enabled = source_config_cache.is_enabled("playwright")
-        if playwright_enabled and os.environ.get("ENABLE_PLAYWRIGHT", "true").lower() != "false":
+        return {
+            "gold_api": lambda: GoldAPICollector(self.mysql_manager),
+            "exchange_rate": lambda: ExchangeRateCollector(self.mysql_manager),
+            "fawazahmed0": lambda: Fawazahmed0Collector(self.mysql_manager),
+            "playwright": create_playwright,
+        }
+
+    @property
+    def collectors(self) -> list:
+        with self._lock:
+            return list(self._collectors.values())
+
+    def _desired_source_ids(self) -> set:
+        rows = self._config_cache.refresh(force=True)
+        desired = {
+            row["source_id"]
+            for row in rows
+            if row.get("enabled") and row.get("source_id") in self._factories
+        }
+        if os.environ.get("ENABLE_PLAYWRIGHT", "true").lower() == "false":
+            desired.discard("playwright")
+        return desired
+
+    def _reconcile_locked(self) -> None:
+        desired = self._desired_source_ids()
+        running = set(self._collectors)
+
+        for source_id in sorted(running - desired):
+            collector = self._collectors[source_id]
             try:
-                from collectors.playwright_collector import PlaywrightCollector
+                collector.stop()
+            except Exception:
+                logger.exception("停止数据源 %s 失败，将在下一轮重试", source_id)
+                continue
+            del self._collectors[source_id]
 
-                self.collectors.append(PlaywrightCollector(self.mysql_manager))
-                logger.info("Playwright 采集器已启用")
-            except ImportError:
-                logger.warning("playwright 未安装，跳过 Playwright 采集器")
-        elif not playwright_enabled:
-            logger.info("Playwright 采集器已禁用（data_source_config）")
-        else:
-            logger.info("Playwright 采集器已禁用（ENABLE_PLAYWRIGHT=false）")
+        if self._stop_event.is_set():
+            return
 
-        logger.info(f"共启用 {len(self.collectors)} 个采集器: "
-                    f"{[c.name for c in self.collectors]}")
+        for source_id in sorted(desired - set(self._collectors)):
+            collector = None
+            try:
+                collector = self._factories[source_id]()
+                collector.start()
+            except Exception:
+                logger.exception("启动数据源 %s 失败，将在下一轮重试", source_id)
+                if collector is not None:
+                    try:
+                        collector.stop()
+                    except Exception:
+                        logger.exception("清理启动失败的数据源 %s 时再次失败", source_id)
+                continue
+            self._collectors[source_id] = collector
 
-    def start_all(self):
-        for c in self.collectors:
-            c.start()
+        logger.info(
+            "运行中的采集器: %s",
+            sorted(self._collectors),
+        )
 
-    def stop_all(self):
-        for c in self.collectors:
-            c.stop()
+    def reconcile_once(self) -> None:
+        with self._lock:
+            if self._stop_event.is_set():
+                return
+            self._reconcile_locked()
+
+    def _reconcile_loop(self) -> None:
+        while not self._stop_event.wait(self._reconcile_interval):
+            try:
+                self.reconcile_once()
+            except Exception:
+                logger.exception("数据源运行集合对账失败")
+
+    def start_all(self) -> None:
+        with self._lock:
+            if self._reconcile_thread is not None and self._reconcile_thread.is_alive():
+                return
+            self._stop_event.clear()
+            self._reconcile_locked()
+            thread = threading.Thread(
+                target=self._reconcile_loop,
+                name="collector-reconciler",
+                daemon=True,
+            )
+            self._reconcile_thread = thread
+            thread.start()
+
+    def stop_all(self) -> None:
+        self._stop_event.set()
+        thread = self._reconcile_thread
+        if thread is not None and thread is not threading.current_thread():
+            thread.join(timeout=20)
+
+        with self._lock:
+            for source_id in list(self._collectors):
+                collector = self._collectors[source_id]
+                try:
+                    collector.stop()
+                except Exception:
+                    logger.exception("关闭数据源 %s 失败", source_id)
+                    continue
+                del self._collectors[source_id]
+            if thread is None or not thread.is_alive():
+                self._reconcile_thread = None

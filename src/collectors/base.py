@@ -42,13 +42,23 @@ class BaseCollector(ABC):
         """
 
     def start(self):
+        if self.is_running:
+            return
+        if self._thread is not None and self._thread.is_alive():
+            raise RuntimeError(f"[{self.name}] 上一个采集线程仍在运行")
         self.is_running = True
         self._thread = threading.Thread(target=self._run, daemon=True)
         self._thread.start()
         logger.info(f"[{self.name}] 采集器已启动，间隔 {self.interval}s")
 
-    def stop(self):
+    def stop(self, join_timeout: float = 20.0):
         self.is_running = False
+        thread = self._thread
+        if thread is not None and thread is not threading.current_thread():
+            thread.join(timeout=join_timeout)
+            if thread.is_alive():
+                raise RuntimeError(f"[{self.name}] 采集线程未在 {join_timeout}s 内退出")
+        self._thread = None
         logger.info(f"[{self.name}] 采集器已停止")
 
     def _run(self):
