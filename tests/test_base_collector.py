@@ -1,4 +1,6 @@
+import threading
 from unittest.mock import MagicMock
+
 from collectors.base import BaseCollector
 
 class DummyCollector(BaseCollector):
@@ -92,4 +94,71 @@ def test_stop_waits_for_worker_thread():
 
     worker.join.assert_called_once_with(timeout=0.25)
     assert collector.is_running is False
+    assert collector._thread is None
+
+
+def test_worker_self_stop_raises_and_blocks_replacement_worker():
+    first_worker_ready = threading.Event()
+    allow_self_stop = threading.Event()
+    self_stop_finished = threading.Event()
+    release_first_worker = threading.Event()
+    first_worker_holder = []
+    replacement_workers = []
+    self_stop_errors = []
+    self_stop_returned = []
+
+    def fetch_mock():
+        current = threading.current_thread()
+        if not first_worker_holder:
+            first_worker_ready.set()
+            allow_self_stop.wait(timeout=1)
+
+        if current is first_worker_holder[0]:
+            try:
+                collector.stop(join_timeout=0.01)
+            except RuntimeError as error:
+                self_stop_errors.append(error)
+            else:
+                self_stop_returned.append(True)
+            finally:
+                self_stop_finished.set()
+            release_first_worker.wait(timeout=1)
+            return []
+
+        replacement_workers.append(current)
+        collector.is_running = False
+        return []
+
+    collector = DummyCollector(MagicMock(), fetch_mock)
+    first_worker = None
+    replacement_start_error = None
+    thread_reference_during_self_stop = None
+
+    try:
+        collector.start()
+        assert first_worker_ready.wait(timeout=1)
+        first_worker = collector._thread
+        first_worker_holder.append(first_worker)
+        allow_self_stop.set()
+        assert self_stop_finished.wait(timeout=1)
+
+        thread_reference_during_self_stop = collector._thread
+        try:
+            collector.start()
+        except RuntimeError as error:
+            replacement_start_error = error
+    finally:
+        release_first_worker.set()
+        if first_worker is not None:
+            first_worker.join(timeout=1)
+        for worker in replacement_workers:
+            worker.join(timeout=1)
+        collector.stop(join_timeout=0.25)
+
+    assert self_stop_returned == []
+    assert len(self_stop_errors) == 1
+    assert thread_reference_during_self_stop is first_worker
+    assert isinstance(replacement_start_error, RuntimeError)
+    assert replacement_workers == []
+    assert first_worker.is_alive() is False
     assert collector._thread is None

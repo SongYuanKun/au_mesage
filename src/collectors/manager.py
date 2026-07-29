@@ -13,6 +13,11 @@ logger = logging.getLogger(__name__)
 
 CollectorFactory = Callable[[], BaseCollector]
 
+_STATE_IDLE = "idle"
+_STATE_RUNNING = "running"
+_STATE_STOPPING = "stopping"
+_STATE_STOPPED = "stopped"
+
 
 class CollectorManager:
     def __init__(
@@ -21,7 +26,7 @@ class CollectorManager:
         *,
         collector_factories: Optional[Mapping[str, CollectorFactory]] = None,
         config_cache=source_config_cache,
-        reconcile_interval: float = 60,
+        reconcile_interval: float = 30,
     ):
         self.mysql_manager = mysql_manager
         self._config_cache = config_cache
@@ -37,6 +42,8 @@ class CollectorManager:
         self._lock = threading.RLock()
         self._stop_event = threading.Event()
         self._reconcile_thread = None
+        self._generation = 0
+        self._lifecycle_state = _STATE_IDLE
 
     def _default_factories(self) -> Mapping[str, CollectorFactory]:
         def create_playwright():
@@ -67,7 +74,7 @@ class CollectorManager:
             desired.discard("playwright")
         return desired
 
-    def _reconcile_locked(self) -> None:
+    def _reconcile_locked(self, stop_event=None) -> None:
         desired = self._desired_source_ids()
         running = set(self._collectors)
 
@@ -80,7 +87,7 @@ class CollectorManager:
                 continue
             del self._collectors[source_id]
 
-        if self._stop_event.is_set():
+        if stop_event is not None and stop_event.is_set():
             return
 
         for source_id in sorted(desired - set(self._collectors)):
@@ -105,25 +112,62 @@ class CollectorManager:
 
     def reconcile_once(self) -> None:
         with self._lock:
-            if self._stop_event.is_set():
+            if self._lifecycle_state in {_STATE_STOPPING, _STATE_STOPPED}:
                 return
-            self._reconcile_locked()
+            self._reconcile_locked(self._stop_event)
 
-    def _reconcile_loop(self) -> None:
-        while not self._stop_event.wait(self._reconcile_interval):
+    def _reconcile_loop(self, generation=None, stop_event=None) -> None:
+        if generation is None:
+            generation = self._generation
+        if stop_event is None:
+            stop_event = self._stop_event
+        if stop_event is None:
+            return
+
+        while not stop_event.wait(self._reconcile_interval):
             try:
-                self.reconcile_once()
+                with self._lock:
+                    if (
+                        self._lifecycle_state != _STATE_RUNNING
+                        or self._generation != generation
+                        or self._stop_event is not stop_event
+                    ):
+                        return
+                    self._reconcile_locked(stop_event)
             except Exception:
                 logger.exception("数据源运行集合对账失败")
 
     def start_all(self) -> None:
         with self._lock:
-            if self._reconcile_thread is not None and self._reconcile_thread.is_alive():
+            if self._lifecycle_state == _STATE_STOPPING:
                 return
-            self._stop_event.clear()
-            self._reconcile_locked()
+            if (
+                self._lifecycle_state == _STATE_RUNNING
+                and self._reconcile_thread is not None
+                and self._reconcile_thread.is_alive()
+            ):
+                return
+
+            # A generation owns an immutable stop signal. A later generation
+            # replaces the signal instead of clearing one an older thread sees.
+            if self._stop_event is not None:
+                self._stop_event.set()
+            self._generation += 1
+            generation = self._generation
+            stop_event = threading.Event()
+            self._stop_event = stop_event
+            self._lifecycle_state = _STATE_RUNNING
+            try:
+                self._reconcile_locked(stop_event)
+            except Exception:
+                stop_event.set()
+                self._stop_event = None
+                self._lifecycle_state = _STATE_STOPPED
+                raise
+
             thread = threading.Thread(
                 target=self._reconcile_loop,
+                args=(generation, stop_event),
                 name="collector-reconciler",
                 daemon=True,
             )
@@ -131,10 +175,20 @@ class CollectorManager:
             thread.start()
 
     def stop_all(self) -> None:
-        self._stop_event.set()
-        thread = self._reconcile_thread
+        with self._lock:
+            self._lifecycle_state = _STATE_STOPPING
+            generation = self._generation
+            stop_event = self._stop_event
+            thread = self._reconcile_thread
+            if stop_event is not None:
+                stop_event.set()
+
+        if thread is threading.current_thread():
+            raise RuntimeError("对账线程不能停止其自身")
         if thread is not None and thread is not threading.current_thread():
             thread.join(timeout=20)
+            if thread.is_alive():
+                raise RuntimeError("对账线程未在 20s 内退出")
 
         with self._lock:
             for source_id in list(self._collectors):
@@ -145,5 +199,12 @@ class CollectorManager:
                     logger.exception("关闭数据源 %s 失败", source_id)
                     continue
                 del self._collectors[source_id]
-            if thread is None or not thread.is_alive():
+
+            if (
+                self._generation == generation
+                and self._reconcile_thread is thread
+                and self._stop_event is stop_event
+            ):
                 self._reconcile_thread = None
+                self._stop_event = None
+                self._lifecycle_state = _STATE_STOPPED

@@ -54,6 +54,8 @@ class BaseCollector(ABC):
     def stop(self, join_timeout: float = 20.0):
         self.is_running = False
         thread = self._thread
+        if thread is threading.current_thread():
+            raise RuntimeError(f"[{self.name}] 采集线程不能等待自身退出")
         if thread is not None and thread is not threading.current_thread():
             thread.join(timeout=join_timeout)
             if thread.is_alive():

@@ -1,3 +1,4 @@
+import threading
 from unittest.mock import MagicMock
 
 from collectors.manager import CollectorManager
@@ -24,6 +25,22 @@ def build_manager(rows, factories):
         reconcile_interval=3600,
     )
     return manager, cache
+
+
+def test_default_reconcile_loop_waits_30_seconds_between_refreshes():
+    cache = FakeConfigCache([])
+    manager = CollectorManager(
+        MagicMock(),
+        collector_factories={},
+        config_cache=cache,
+    )
+    stop_event = MagicMock()
+    stop_event.wait.return_value = True
+    manager._stop_event = stop_event
+
+    manager._reconcile_loop()
+
+    stop_event.wait.assert_called_once_with(30)
 
 
 def test_reconcile_starts_newly_enabled_source_once():
@@ -116,3 +133,87 @@ def test_stop_all_ends_reconcile_thread_and_is_idempotent():
     gold.start.assert_called_once_with()
     gold.stop.assert_called_once_with()
     assert manager.collectors == []
+
+
+def test_concurrent_start_during_stop_does_not_leave_hidden_reconciler(
+    monkeypatch,
+):
+    gold = MagicMock(name="gold_collector")
+    gold.name = "gold_api"
+    manager, _cache = build_manager(
+        [{"source_id": "gold_api", "enabled": True}],
+        {"gold_api": MagicMock(return_value=gold)},
+    )
+    real_thread = threading.Thread
+    created_reconcile_threads = []
+
+    def recording_thread(*args, **kwargs):
+        thread = real_thread(*args, **kwargs)
+        created_reconcile_threads.append(thread)
+        return thread
+
+    monkeypatch.setattr(
+        "collectors.manager.threading.Thread",
+        recording_thread,
+    )
+    manager.start_all()
+    first_reconcile_thread = manager._reconcile_thread
+    original_join = first_reconcile_thread.join
+    reconcile_joined = threading.Event()
+    allow_stop_to_finish = threading.Event()
+
+    def pause_after_join(timeout=None):
+        original_join(timeout=timeout)
+        reconcile_joined.set()
+        if not allow_stop_to_finish.wait(timeout=1):
+            raise RuntimeError("test timed out while pausing stop_all")
+
+    first_reconcile_thread.join = pause_after_join
+    stop_errors = []
+
+    def stop_manager():
+        try:
+            manager.stop_all()
+        except Exception as error:
+            stop_errors.append(error)
+
+    stopper = real_thread(target=stop_manager)
+    stopper.start()
+
+    try:
+        assert reconcile_joined.wait(timeout=1)
+        manager.start_all()
+        allow_stop_to_finish.set()
+        stopper.join(timeout=1)
+
+        manager.reconcile_once()
+        stopper_alive = stopper.is_alive()
+        manager_thread_reference = manager._reconcile_thread
+        active_reconcile_threads = [
+            thread
+            for thread in created_reconcile_threads
+            if thread.is_alive()
+        ]
+        collector_snapshot = manager.collectors
+        collector_start_count = gold.start.call_count
+        collector_stop_count = gold.stop.call_count
+    finally:
+        allow_stop_to_finish.set()
+        stop_event = manager._stop_event
+        if stop_event is not None:
+            stop_event.set()
+        for thread in created_reconcile_threads:
+            if thread is first_reconcile_thread:
+                original_join(timeout=1)
+            else:
+                thread.join(timeout=1)
+        stopper.join(timeout=1)
+
+    assert stopper_alive is False
+    assert stop_errors == []
+    assert len(created_reconcile_threads) == 1
+    assert active_reconcile_threads == []
+    assert manager_thread_reference is None
+    assert collector_snapshot == []
+    assert collector_start_count == 1
+    assert collector_stop_count == 1
