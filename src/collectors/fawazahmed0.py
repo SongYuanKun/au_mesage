@@ -10,6 +10,7 @@ from urllib.request import Request, urlopen
 
 from collectors.base import BaseCollector
 from collectors.errors import CollectionError
+from collectors.validation import parse_positive_finite
 
 logger = logging.getLogger(__name__)
 
@@ -43,8 +44,9 @@ class Fawazahmed0Collector(BaseCollector):
                     raw_rate = symbol_data.get(currency)
                     if raw_rate is None:
                         continue
-                    price = float(raw_rate)
-                    if price <= 0:
+                    try:
+                        price = parse_positive_finite(raw_rate)
+                    except (TypeError, ValueError):
                         continue
                     parsed_rates.append((currency, price))
                 if not parsed_rates:

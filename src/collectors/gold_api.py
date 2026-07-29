@@ -9,6 +9,7 @@ from urllib.request import Request, urlopen
 
 from collectors.base import BaseCollector
 from collectors.errors import CollectionError
+from collectors.validation import parse_positive_finite
 
 logger = logging.getLogger(__name__)
 
@@ -39,9 +40,7 @@ class GoldAPICollector(BaseCollector):
                 req = Request(url, headers={'User-Agent': 'au-mesage/1.0'})
                 with urlopen(req, timeout=10) as resp:
                     body = json.loads(resp.read().decode())
-                price = float(body.get('price', 0))
-                if price <= 0:
-                    raise ValueError('price must be positive')
+                price = parse_positive_finite(body.get('price', 0))
                 results.append({
                     'trade_date': date_str,
                     'trade_time': time_str,

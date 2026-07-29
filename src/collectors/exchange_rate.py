@@ -13,6 +13,7 @@ from urllib.request import Request, urlopen
 
 from collectors.base import BaseCollector
 from collectors.errors import CollectionError
+from collectors.validation import parse_positive_finite
 
 logger = logging.getLogger(__name__)
 
@@ -39,9 +40,9 @@ class ExchangeRateCollector(BaseCollector):
                 body = json.loads(resp.read().decode())
             if body.get('result') != 'success':
                 raise ValueError(f"unexpected result: {body.get('result')}")
-            cny_rate = float(body.get('rates', {}).get('CNY', 0))
-            if cny_rate <= 0:
-                raise ValueError('CNY rate must be positive')
+            cny_rate = parse_positive_finite(
+                body.get('rates', {}).get('CNY', 0)
+            )
         except Exception as exc:
             raise CollectionError(f'{self.name}: rate request failed') from exc
 
