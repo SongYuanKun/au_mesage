@@ -49,5 +49,8 @@
     "vite-plugin-trae-solo-badge": "^1.0.0",
     "vite-tsconfig-paths": "^5.1.4",
     "vitest": "^4.1.12"
+  },
+  "overrides": {
+    "postcss-selector-parser": "^7.1.6"
   }
 }
