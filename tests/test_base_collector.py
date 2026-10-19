@@ -208,3 +208,24 @@ def test_is_alive_reflects_worker_thread():
 
     worker.is_alive.return_value = False
     assert collector.is_alive() is False
+
+
+def test_failure_log_includes_root_cause(monkeypatch, caplog):
+    collector = DummyCollector(MagicMock(), MagicMock())
+
+    def fetch_data():
+        collector.is_running = False
+        try:
+            raise ValueError("upstream timeout")
+        except ValueError as exc:
+            raise RuntimeError("rate request failed") from exc
+
+    collector.fetch_mock = fetch_data
+    collector.is_running = True
+    monkeypatch.setattr("collectors.base.collector_stats.record_failure", MagicMock())
+    monkeypatch.setattr("collectors.base.time.sleep", MagicMock())
+
+    with caplog.at_level("ERROR", logger="collectors.base"):
+        collector._run()
+
+    assert "upstream timeout" in caplog.text

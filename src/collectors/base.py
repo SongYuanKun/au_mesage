@@ -88,7 +88,9 @@ class BaseCollector(ABC):
             except Exception as e:
                 collector_stats.record_failure(self.name)
                 consecutive_failures += 1
-                logger.error(f"[{self.name}] 采集异常 (连续失败 {consecutive_failures} 次): {e}")
+                # 采集器把底层异常包成领域异常时，带上原因便于排查
+                cause = f"（原因: {e.__cause__!r}）" if e.__cause__ else ""
+                logger.error(f"[{self.name}] 采集异常 (连续失败 {consecutive_failures} 次): {e}{cause}")
                 if consecutive_failures == failure_threshold:
                     logger.error(f"[{self.name}] 达到失败阈值，采集器进入降级状态！")
             
