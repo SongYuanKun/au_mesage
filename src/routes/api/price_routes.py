@@ -5,8 +5,6 @@ from __future__ import annotations
 import re
 from datetime import datetime, timedelta
 
-import pytz
-
 from flask import Blueprint, jsonify, request
 
 from api_errors import ApiError

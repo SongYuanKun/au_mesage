@@ -1,5 +1,6 @@
 # 开发与 CI：单元测试
 -r requirements.txt
 pytest>=7.0.0
-ruff>=0.5.0
+# 锁定版本：ruff 0.16 起默认规则大幅扩展，升级需单独评估
+ruff==0.15.22
 PyYAML>=6.0.0
