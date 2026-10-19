@@ -43,3 +43,36 @@ def test_update_source(admin_client):
     assert resp.status_code == 200
     mm.upsert_data_source_config.assert_called_once()
     mm.insert_audit_log.assert_called()
+
+
+def test_update_source_returns_internal_error_on_storage_failure(admin_client):
+    client, mm, headers = admin_client
+    mm.upsert_data_source_config.side_effect = RuntimeError("db unavailable")
+
+    resp = client.put(
+        "/api/admin/sources/gold_api",
+        json={"enabled": False, "priority": 10},
+        headers=headers,
+    )
+
+    assert resp.status_code == 500
+    assert resp.get_json()["error"]["code"] == "INTERNAL"
+    mm.insert_audit_log.assert_not_called()
+
+
+def test_update_source_rejects_missing_after_row(admin_client):
+    client, mm, headers = admin_client
+    mm.upsert_data_source_config.return_value = {
+        "before": {"source_id": "gold_api", "enabled": True, "priority": 10},
+        "after": None,
+    }
+
+    resp = client.put(
+        "/api/admin/sources/gold_api",
+        json={"enabled": False, "priority": 10},
+        headers=headers,
+    )
+
+    assert resp.status_code == 500
+    assert resp.get_json()["error"]["code"] == "INTERNAL"
+    mm.insert_audit_log.assert_not_called()

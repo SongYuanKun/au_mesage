@@ -48,6 +48,8 @@ def register_admin_routes(bp: Blueprint, mysql_manager: DatabaseManager) -> None
             priority=priority,
             changed_by=get_actor(),
         )
+        if result.get("after") is None:
+            raise ApiError.internal("数据源配置保存失败")
         source_config_cache.invalidate()
         log_audit(
             action="admin.source.update",
@@ -69,6 +71,8 @@ def register_admin_routes(bp: Blueprint, mysql_manager: DatabaseManager) -> None
         result = mysql_manager.rollback_data_source_config(source_id, changed_by=get_actor())
         if result is None:
             raise ApiError.not_found("无可回滚的历史版本")
+        if result.get("after") is None:
+            raise ApiError.internal("数据源配置回滚失败")
         source_config_cache.invalidate()
         log_audit(
             action="admin.source.rollback",
