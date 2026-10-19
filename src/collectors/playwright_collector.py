@@ -4,7 +4,6 @@ PlaywrightCollector — 通过 Playwright 抓取金紫荆网站国内零售价
 """
 import logging
 import os
-import time
 import threading
 from datetime import datetime
 
@@ -28,9 +27,16 @@ class PlaywrightCollector(BaseCollector):
         self.data_lock = threading.Lock()
         self.browser = None
         self.page = None
+        self._save_thread = None
+        self._stop_event = threading.Event()
 
     def start(self):
         """Playwright 需要独立线程管理浏览器生命周期，覆盖父类 start"""
+        if self.is_running:
+            return
+        if any(t is not None and t.is_alive() for t in (self._thread, self._save_thread)):
+            raise RuntimeError(f"[{self.name}] 上一个采集线程仍在运行")
+        self._stop_event = threading.Event()
         self.is_running = True
         self._thread = threading.Thread(target=self._run_playwright, daemon=True)
         self._thread.start()
@@ -68,15 +74,19 @@ class PlaywrightCollector(BaseCollector):
                             with self.data_lock:
                                 self.data_buffer.extend(data)
                             logger.info(f"[playwright] 获取 {len(data)} 条数据，缓冲区 {len(self.data_buffer)} 条")
-                        time.sleep(self.interval)
+                        self._stop_event.wait(self.interval)
                     except Exception as e:
                         logger.error(f"[playwright] 采集循环错误: {e}")
-                        time.sleep(30)
+                        self._stop_event.wait(30)
         except Exception as e:
             logger.error(f"[playwright] 运行错误: {e}")
         finally:
+            # 浏览器只能在创建它的线程里关闭；线程退出即视为停止，管理器会按配置重新拉起
             if self.browser:
                 self.browser.close()
+                self.browser = None
+            self.is_running = False
+            self._stop_event.set()
 
     def _refresh_and_get_data(self) -> list:
         try:
@@ -129,7 +139,7 @@ class PlaywrightCollector(BaseCollector):
 
     def _save_job(self):
         while self.is_running:
-            time.sleep(30)
+            self._stop_event.wait(30)
             to_store = []
             with self.data_lock:
                 if self.data_buffer:
@@ -146,8 +156,18 @@ class PlaywrightCollector(BaseCollector):
                     with self.data_lock:
                         self.data_buffer = to_store + self.data_buffer
 
-    def stop(self):
+    def stop(self, join_timeout: float = 20.0):
+        # 只发停止信号并等待两个线程退出，浏览器由采集线程自行关闭
         self.is_running = False
-        if self.browser:
-            self.browser.close()
+        self._stop_event.set()
+        for thread in (self._thread, self._save_thread):
+            if thread is None:
+                continue
+            if thread is threading.current_thread():
+                raise RuntimeError(f"[{self.name}] 采集线程不能等待自身退出")
+            thread.join(timeout=join_timeout)
+            if thread.is_alive():
+                raise RuntimeError(f"[{self.name}] 采集线程未在 {join_timeout}s 内退出")
+        self._thread = None
+        self._save_thread = None
         logger.info("[playwright] 已停止")

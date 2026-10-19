@@ -195,3 +195,16 @@ def test_batch_write_failure_records_failure_and_uses_backoff(monkeypatch):
     failure.assert_called_with("dummy")
     success.assert_not_called()
     assert sleep.call_count == 3
+
+
+def test_is_alive_reflects_worker_thread():
+    collector = DummyCollector(MagicMock(), MagicMock(return_value=[]))
+    assert collector.is_alive() is False
+
+    worker = MagicMock()
+    worker.is_alive.return_value = True
+    collector._thread = worker
+    assert collector.is_alive() is True
+
+    worker.is_alive.return_value = False
+    assert collector.is_alive() is False

@@ -75,6 +75,19 @@ class CollectorManager:
         return desired
 
     def _reconcile_locked(self, stop_event=None) -> None:
+        # 线程已退出的实例（启动后崩溃、停止超时后才退出等）先清理，下面按配置重新拉起
+        for source_id in sorted(self._collectors):
+            collector = self._collectors[source_id]
+            if collector.is_alive():
+                continue
+            try:
+                collector.stop()
+            except Exception:
+                logger.exception("清理已退出的数据源 %s 失败，将在下一轮重试", source_id)
+                continue
+            del self._collectors[source_id]
+            logger.warning("数据源 %s 的采集线程已退出，按配置重新调和", source_id)
+
         desired = self._desired_source_ids()
         running = set(self._collectors)
 

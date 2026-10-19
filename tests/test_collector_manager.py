@@ -217,3 +217,23 @@ def test_concurrent_start_during_stop_does_not_leave_hidden_reconciler(
     assert collector_snapshot == []
     assert collector_start_count == 1
     assert collector_stop_count == 1
+
+
+def test_reconcile_restarts_collector_whose_thread_exited():
+    first = MagicMock(name="first_collector")
+    first.is_alive.return_value = True
+    second = MagicMock(name="second_collector")
+    second.is_alive.return_value = True
+    factory = MagicMock(side_effect=[first, second])
+    manager, _cache = build_manager(
+        [{"source_id": "gold_api", "enabled": True}],
+        {"gold_api": factory},
+    )
+
+    manager.reconcile_once()
+    first.is_alive.return_value = False
+    manager.reconcile_once()
+
+    first.stop.assert_called_once_with()
+    second.start.assert_called_once_with()
+    assert manager.collectors == [second]

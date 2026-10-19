@@ -63,6 +63,10 @@ class BaseCollector(ABC):
         self._thread = None
         logger.info(f"[{self.name}] 采集器已停止")
 
+    def is_alive(self) -> bool:
+        """采集线程是否仍在运行；管理器据此重新拉起意外退出的采集器。"""
+        return self._thread is not None and self._thread.is_alive()
+
     def _run(self):
         consecutive_failures = 0
         max_backoff = 3600  # 最大退避 1 小时
