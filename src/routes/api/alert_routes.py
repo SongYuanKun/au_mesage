@@ -105,7 +105,12 @@ def register_alert_routes(bp: Blueprint, mysql_manager: DatabaseManager) -> None
                 cache_key = f"latest_price_{data_type}"
                 price = api_ttl_cache.get(cache_key, ttl=10)
                 if price is None:
-                    price = mysql_manager.get_latest_market_price(data_type)
+                    # 流式响应头已发出，全局错误处理器接不住；读库失败按“取不到价格”发 error 事件后结束
+                    try:
+                        price = mysql_manager.get_latest_market_price(data_type)
+                    except Exception:
+                        logging.exception("SSE 获取最新价格失败 data_type=%s", data_type)
+                        price = None
                     if price is not None:
                         api_ttl_cache.set(cache_key, price)
 

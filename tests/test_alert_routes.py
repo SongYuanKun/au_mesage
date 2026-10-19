@@ -43,3 +43,16 @@ def test_price_alert_subscribe_missing_params():
     resp = client.get("/api/price-alert/subscribe")
     assert resp.status_code == 400
     assert resp.get_json()["error"]["code"] == "INVALID_ARGUMENT"
+
+
+def test_price_alert_subscribe_sends_error_event_when_db_fails():
+    api_ttl_cache.clear()
+    mock_db = MagicMock()
+    mock_db.get_latest_market_price.side_effect = RuntimeError("db unavailable")
+    client = create_app(mock_db).test_client()
+
+    resp = client.get("/api/price-alert/subscribe?data_type=XAU&target=90&op=gte")
+    body = b"".join(resp.iter_encoded()).decode()
+
+    assert resp.status_code == 200
+    assert "event: error" in body
