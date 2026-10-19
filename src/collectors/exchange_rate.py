@@ -4,6 +4,8 @@ ExchangeRateCollector — 对接 open.er-api.com
 更新频率：1 小时（汇率变动慢，无需频繁）
 写入 exchange_rate 表，同时更新 price_data 换算值
 """
+from __future__ import annotations
+
 import json
 import logging
 import threading
