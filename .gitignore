@@ -34,6 +34,8 @@ venv/
 
 # Local configs / secrets
 my_config.ini
+# 本机部署覆盖（docker compose 自动合并，放宿主机专用的时区、挂载等）
+docker-compose.override.yml
 
 # Generated analysis artifacts
 src/graphify-out/
