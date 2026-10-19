@@ -29,12 +29,9 @@ class PriceWriter(BaseDB):
             for item in data_list
         ]
 
-        try:
-            with self.get_cursor() as cursor:
-                cursor.executemany(query, values)
-            logging.info(f"成功插入 {len(data_list)} 条数据")
-        except Exception as e:
-            logging.error(f"批量插入失败: {e}")
+        with self.get_cursor() as cursor:
+            cursor.executemany(query, values)
+        logging.info("成功插入 %s 条数据", len(data_list))
 
     def upsert_exchange_rate(self, base: str, target: str, rate: float, source: str):
         """插入或更新汇率记录"""

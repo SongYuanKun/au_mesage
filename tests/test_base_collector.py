@@ -162,3 +162,36 @@ def test_worker_self_stop_raises_and_blocks_replacement_worker():
     assert replacement_workers == []
     assert first_worker.is_alive() is False
     assert collector._thread is None
+
+
+def test_batch_write_failure_records_failure_and_uses_backoff(monkeypatch):
+    mock_manager = MagicMock()
+    collector = DummyCollector(mock_manager, MagicMock())
+    write_count = 0
+
+    def fetch_data():
+        return [{"fake": "data"}]
+
+    def fail_write(_rows):
+        nonlocal write_count
+        write_count += 1
+        if write_count == 3:
+            collector.is_running = False
+        raise RuntimeError("db unavailable")
+
+    collector.fetch_mock = fetch_data
+    mock_manager.batch_insert_data.side_effect = fail_write
+    collector.is_running = True
+    success = MagicMock()
+    failure = MagicMock()
+    sleep = MagicMock()
+    monkeypatch.setattr("collectors.base.collector_stats.record_success", success)
+    monkeypatch.setattr("collectors.base.collector_stats.record_failure", failure)
+    monkeypatch.setattr("collectors.base.time.sleep", sleep)
+
+    collector._run()
+
+    assert failure.call_count == 3
+    failure.assert_called_with("dummy")
+    success.assert_not_called()
+    assert sleep.call_count == 3
