@@ -237,3 +237,17 @@ def test_reconcile_restarts_collector_whose_thread_exited():
     first.stop.assert_called_once_with()
     second.start.assert_called_once_with()
     assert manager.collectors == [second]
+
+
+def test_missing_dependency_is_reported_once_and_not_retried():
+    factory = MagicMock(side_effect=ImportError("No module named 'playwright'"))
+    manager, _cache = build_manager(
+        [{"source_id": "playwright", "enabled": True}],
+        {"playwright": factory},
+    )
+
+    manager.reconcile_once()
+    manager.reconcile_once()
+
+    factory.assert_called_once_with()
+    assert manager.collectors == []

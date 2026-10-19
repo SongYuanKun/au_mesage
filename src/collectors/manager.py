@@ -39,6 +39,8 @@ class CollectorManager:
         self._factories = dict(factories)
         self._reconcile_interval = reconcile_interval
         self._collectors: Dict[str, BaseCollector] = {}
+        # 依赖未安装的数据源：进程内不再重复导入，避免每轮调和刷异常栈
+        self._unavailable: set = set()
         self._lock = threading.RLock()
         self._stop_event = threading.Event()
         self._reconcile_thread = None
@@ -103,11 +105,15 @@ class CollectorManager:
         if stop_event is not None and stop_event.is_set():
             return
 
-        for source_id in sorted(desired - set(self._collectors)):
+        for source_id in sorted(desired - set(self._collectors) - self._unavailable):
             collector = None
             try:
                 collector = self._factories[source_id]()
                 collector.start()
+            except ImportError as e:
+                logger.warning("数据源 %s 依赖未安装，本进程内不再启动: %s", source_id, e)
+                self._unavailable.add(source_id)
+                continue
             except Exception:
                 logger.exception("启动数据源 %s 失败，将在下一轮重试", source_id)
                 if collector is not None:
