@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 import io
 import json
+import os
 from urllib.parse import quote
 from datetime import datetime
 
@@ -209,5 +210,22 @@ def register_misc_routes(bp: Blueprint, mysql_manager: DatabaseManager) -> None:
 
     @bp.route("/api/health", methods=["GET"])
     def health_check():
-        """服务健康检查接口"""
-        return jsonify(build_health_payload(datetime.now(BEIJING_TZ).isoformat()))
+        """readiness：数据库可读且至少有一条未过期的价格数据才返回 200。"""
+        now = datetime.now(BEIJING_TZ)
+        try:
+            latest_updates = mysql_manager.get_latest_updates_by_group()
+            database_ok = True
+        except Exception:
+            latest_updates = []
+            database_ok = False
+        try:
+            max_age = int(os.environ.get("HEALTH_MAX_DATA_AGE_SECONDS", "600"))
+        except ValueError:
+            max_age = 600
+        payload = build_health_payload(
+            now.isoformat(),
+            database_ok=database_ok,
+            latest_updates=latest_updates,
+            max_data_age_seconds=max(1, max_age),
+        )
+        return jsonify(payload), (200 if payload["ready"] else 503)

@@ -56,3 +56,43 @@ def test_price_alert_subscribe_sends_error_event_when_db_fails():
 
     assert resp.status_code == 200
     assert "event: error" in body
+
+
+def test_alert_endpoints_require_user_token_when_auth_is_enabled(monkeypatch):
+    monkeypatch.setenv("AUTH_ENABLED", "true")
+    monkeypatch.setenv("AUTH_USER_TOKEN", "user-token")
+    api_ttl_cache.clear()
+    mock_db = MagicMock()
+    mock_db.get_latest_market_price.return_value = 100.0
+    client = create_app(mock_db).test_client()
+    assert client.get("/api/alert-channels").status_code == 401
+    assert client.post("/api/price-alert/push", json={"data_type": "XAU", "target": 90}).status_code == 401
+    assert client.get("/api/alert-channels", headers={"Authorization": "Bearer user-token"}).status_code == 200
+
+
+def test_sse_cookie_cannot_authorize_push(monkeypatch):
+    monkeypatch.setenv("AUTH_ENABLED", "true")
+    monkeypatch.setenv("AUTH_USER_TOKEN", "user-token")
+    api_ttl_cache.clear()
+    mock_db = MagicMock()
+    mock_db.get_latest_market_price.return_value = 100.0
+    client = create_app(mock_db).test_client()
+
+    session = client.post("/api/auth/session", headers={"Authorization": "Bearer user-token"})
+    assert session.status_code == 200
+    assert "HttpOnly" in session.headers["Set-Cookie"]
+    assert client.get("/api/alert-channels").status_code == 200
+    assert client.post("/api/price-alert/push", json={"data_type": "XAU", "target": 90}).status_code == 401
+
+
+def test_alert_push_is_rate_limited():
+    api_ttl_cache.clear()
+    mock_db = MagicMock()
+    mock_db.get_latest_market_price.return_value = 100.0
+    client = create_app(mock_db).test_client()
+    payload = {"data_type": "XAU", "target": 90, "channels": []}
+    for _ in range(10):
+        assert client.post("/api/price-alert/push", json=payload).status_code == 200
+    response = client.post("/api/price-alert/push", json=payload)
+    assert response.status_code == 429
+    assert response.get_json()["error"]["code"] == "RATE_LIMITED"

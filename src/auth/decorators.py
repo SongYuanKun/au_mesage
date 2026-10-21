@@ -17,24 +17,29 @@ def _parse_bearer() -> Optional[str]:
     return header[7:].strip() or None
 
 
-def authenticate_request() -> None:
+def _request_token(*, allow_cookie: bool = False) -> Optional[str]:
+    """优先使用显式 Bearer，SSE 使用登录校验后设置的 HttpOnly 同源 cookie。"""
+    return _parse_bearer() or (request.cookies.get("au_session_token") if allow_cookie else None)
+
+
+def authenticate_request(*, allow_cookie: bool = False) -> None:
     clear_auth()
     if not auth_enabled():
         set_auth("anonymous", "guest")
         return
 
-    token = _parse_bearer()
+    token = _request_token(allow_cookie=allow_cookie)
     role = resolve_role_from_bearer(token)
     if role is None:
         raise ApiError.unauthorized("需要有效的 Bearer Token")
     set_auth(f"token:{role}", role)
 
 
-def require_role(*allowed: str) -> Callable:
+def require_role(*allowed: str, allow_cookie: bool = False) -> Callable:
     def decorator(fn: Callable) -> Callable:
         @wraps(fn)
         def wrapper(*args, **kwargs):
-            authenticate_request()
+            authenticate_request(allow_cookie=allow_cookie)
             if not auth_enabled():
                 return fn(*args, **kwargs)
 
@@ -65,7 +70,7 @@ def optional_auth() -> Callable:
         def wrapper(*args, **kwargs):
             clear_auth()
             if auth_enabled():
-                token = _parse_bearer()
+                token = _request_token(allow_cookie=True)
                 role = resolve_role_from_bearer(token)
                 if role:
                     set_auth(f"token:{role}", role)

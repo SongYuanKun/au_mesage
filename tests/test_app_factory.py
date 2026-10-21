@@ -1,5 +1,6 @@
 """应用工厂与路由注册冒烟测试（无需真实 MySQL）。"""
 
+from datetime import datetime
 from unittest.mock import MagicMock, patch
 from urllib.parse import quote
 
@@ -19,13 +20,23 @@ _OVERVIEW_ROW = {
 
 
 def test_create_app_registers_health():
-    app = create_app(MagicMock())
+    mock_db = MagicMock()
+    mock_db.get_latest_updates_by_group.return_value = [{"latest_at": datetime.now().isoformat()}]
+    app = create_app(mock_db)
     client = app.test_client()
     resp = client.get("/api/health")
     assert resp.status_code == 200
     body = resp.get_json()
     assert body["status"] == "healthy"
     assert body["service"] == "price-data-api"
+
+
+def test_health_returns_503_when_database_readiness_probe_fails():
+    mock_db = MagicMock()
+    mock_db.get_latest_updates_by_group.side_effect = RuntimeError("database down")
+    resp = create_app(mock_db).test_client().get("/api/health")
+    assert resp.status_code == 503
+    assert resp.get_json()["reason"] == "database_unavailable"
 
 
 def test_pages_routes_registered():
