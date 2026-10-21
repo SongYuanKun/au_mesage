@@ -34,7 +34,8 @@ async function withRetry<T>(
       const axiosErr = err as AxiosError;
       // Only retry on network errors or 5xx, not on 4xx client errors
       const isRetryable =
-        !axiosErr.response || (axiosErr.response.status >= 500);
+        axios.isAxiosError(err) &&
+        (!axiosErr.response || axiosErr.response.status >= 500);
       if (!isRetryable || attempt === retries) {
         break;
       }
@@ -131,6 +132,12 @@ export interface HistoryCompareResult {
 
 /** 推送渠道信息 */
 export type AlertChannel = "wechat" | "telegram" | "email";
+
+interface AlertChannelsResponse {
+  success: boolean;
+  channels: AlertChannel[];
+  message?: string;
+}
 
 // --- API functions with retry & error handling ---
 
@@ -298,7 +305,7 @@ export async function compareHistory(
 export async function fetchAlertChannels(): Promise<AlertChannel[]> {
   try {
     return await withRetry(async () => {
-      const res = await api.get<{ success: boolean; channels: AlertChannel[] }>("/api/alert-channels");
+      const res = await api.get<AlertChannelsResponse>("/api/alert-channels");
       if (res.data.success) {
         return res.data.channels;
       }

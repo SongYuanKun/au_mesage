@@ -26,11 +26,12 @@ vi.mock('axios', () => {
 const { __mockInstance: mockApi } = await import('axios') as any
 
 // Import after mocking
-const { fetchPriceOverview, fetchPriceTrend, fetchGoldSilverRatio, fetchLast7Days } = await import('@/api/price')
+const { fetchPriceOverview, fetchPriceTrend, fetchGoldSilverRatio, fetchLast7Days, fetchAlertChannels } = await import('@/api/price')
 
 describe('API: price.ts', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(axios.isAxiosError).mockReturnValue(false)
     // Reset timer mocks
     vi.useFakeTimers()
   })
@@ -152,6 +153,25 @@ describe('API: price.ts', () => {
       expect(mockApi.get).toHaveBeenCalledWith('/api/last-7-days', {
         params: { data_type: '黄金' },
       })
+    })
+  })
+
+  describe('fetchAlertChannels', () => {
+    it('should return configured channels and surface server errors', async () => {
+      vi.useRealTimers()
+      const channels = ['wechat', 'email'] as const
+      mockApi.get.mockResolvedValueOnce({
+        data: { success: true, channels },
+      })
+
+      await expect(fetchAlertChannels()).resolves.toEqual(channels)
+      expect(mockApi.get).toHaveBeenCalledWith('/api/alert-channels')
+
+      mockApi.get.mockResolvedValueOnce({
+        data: { success: false, channels: [], message: '渠道服务不可用' },
+      })
+
+      await expect(fetchAlertChannels()).rejects.toThrow('渠道服务不可用')
     })
   })
 })
