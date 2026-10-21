@@ -48,6 +48,12 @@
 
 ## 未解决项
 
+开发代理补充：Vite 同时代理 `/api` 与 `/app/runtime-config.js`，默认目标为 Flask
+开发入口的 `http://127.0.0.1:8083`，可用服务端变量 `AU_API_ORIGIN` 覆盖。这样开发
+界面也读取后端运行时鉴权配置，而不是缺失脚本后误以为未启用鉴权。已静态复核代理
+路径、后端端口和 README 引用，并通过 `git diff --check`；尚未启动 Vite 或完成
+前端类型/构建检查，仍待依赖安装授权。
+
 - React SPA 通过 `/app` 单独托管，旧 Jinja 首页保留在 `/`；SPA 回退仅匹配 `/app`，
   不会吞掉 `/api` 的 JSON 404。`/app/login` 是 Token 登录入口，`/app/admin/sources`
   仍受前端角色守卫保护；构建/类型检查仍因本地不存在完整 Node 依赖而未执行。

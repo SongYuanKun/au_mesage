@@ -104,6 +104,12 @@ python src/app.py
 
 默认监听：`0.0.0.0:8083`（可通过环境变量调整）。
 
+React 开发界面使用 `npm run dev`，访问 Vite 提示的地址下的 `/app/`。
+Vite 会将 `/api` 和 `/app/runtime-config.js` 转发到 `http://127.0.0.1:8083`，
+因此鉴权开关仍由 Flask 的 `AUTH_ENABLED` 决定。后端改用其他端口时，
+通过 `AU_API_ORIGIN=http://127.0.0.1:其他端口 npm run dev` 指定目标；该变量仅供
+开发代理使用，不会作为客户端配置打包。生产环境仍由 Flask 提供 `/app/`。
+
 ## 环境变量
 
 见：`.env.example`（外部MySQL）与 `.env.mysql.example`（Compose内置MySQL）。
