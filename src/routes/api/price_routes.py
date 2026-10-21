@@ -28,12 +28,19 @@ from .cache import BEIJING_TZ, api_ttl_cache
 
 
 def register_price_routes(bp: Blueprint, mysql_manager: DatabaseManager) -> None:
+    def overview_response(payload):
+        response = jsonify(payload)
+        # The public portfolio card reads this quote without cookies or tokens.
+        # This overview is already public; credentialed APIs stay unchanged.
+        response.headers["Access-Control-Allow-Origin"] = "https://koen.songyuankun.top"
+        return response
+
     @bp.route("/api/price-overview", methods=["GET"])
     def price_overview():
         """返回金/银的综合概览：当前价、涨跌、今日高低（单条SQL + 10s缓存）"""
         cached = api_ttl_cache.get("price_overview", ttl=10)
         if cached is not None:
-            return jsonify(cached)
+            return overview_response(cached)
         today = datetime.now(BEIJING_TZ).date()
         yesterday = today - timedelta(days=1)
         today_str = today.strftime("%Y-%m-%d")
@@ -44,7 +51,7 @@ def register_price_routes(bp: Blueprint, mysql_manager: DatabaseManager) -> None
             rows = mysql_manager.get_price_overview_data_fallback()
         resp = build_price_overview_payload(rows, now=datetime.now(BEIJING_TZ))
         api_ttl_cache.set("price_overview", resp)
-        return jsonify(resp)
+        return overview_response(resp)
 
     @bp.route("/api/latest-price", methods=["GET"])
     def get_latest_price():

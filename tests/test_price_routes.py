@@ -1,4 +1,5 @@
 from unittest.mock import MagicMock
+from cache import TtlCache
 from route import create_app
 
 def test_price_overview():
@@ -10,6 +11,35 @@ def test_price_overview():
     client = app.test_client()
     resp = client.get("/api/price-overview")
     assert resp.status_code == 200
+
+def test_portfolio_can_read_only_the_quote_overview_without_credentials(monkeypatch):
+    monkeypatch.setenv("AUTH_ENABLED", "false")
+    monkeypatch.setattr("routes.api.price_routes.api_ttl_cache", TtlCache())
+    mock_db = MagicMock()
+    mock_db.get_price_overview_data.return_value = []
+    mock_db.get_price_overview_data_fallback.return_value = []
+    mock_db.get_latest_data_by_type.return_value = []
+    client = create_app(mock_db).test_client()
+
+    for origin in ("https://koen.songyuankun.top", "https://unrelated.example"):
+        # The fixed allowed origin never reflects an arbitrary requesting origin.
+        for _ in range(2):  # Fresh and cached overview responses have the same policy.
+            response = client.get("/api/price-overview", headers={"Origin": origin})
+            assert response.status_code == 200
+            assert response.headers["Access-Control-Allow-Origin"] == "https://koen.songyuankun.top"
+            assert "Access-Control-Allow-Credentials" not in response.headers
+    mock_db.get_price_overview_data.assert_called_once()
+    other = client.get("/api/latest-price", headers={"Origin": "https://koen.songyuankun.top"})
+    assert "Access-Control-Allow-Origin" not in other.headers
+
+    monkeypatch.setenv("AUTH_ENABLED", "true")
+    assert client.get("/api/price-overview").status_code == 200  # Existing public quote policy.
+    blocked = client.get("/api/export/history?data_type=XAU&start_date=2026-05-01&end_date=2026-05-01",
+                         headers={"Origin": "https://koen.songyuankun.top"})
+    assert blocked.status_code == 401
+    assert "Access-Control-Allow-Origin" not in blocked.headers
+    assert "Access-Control-Allow-Credentials" not in blocked.headers
+
 
 def test_latest_price():
     mock_db = MagicMock()
