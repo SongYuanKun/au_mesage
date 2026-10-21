@@ -37,8 +37,7 @@ def create_pages_blueprint() -> Blueprint:
             headers={"Cache-Control": "no-store"},
         )
 
-    @bp.route("/app", defaults={"spa_path": ""}, methods=["GET"])
-    @bp.route("/app/", defaults={"spa_path": ""}, methods=["GET"])
+    @bp.route("/app", defaults={"spa_path": ""}, methods=["GET"], strict_slashes=False)
     @bp.route("/app/<path:spa_path>", methods=["GET"])
     def react_spa(spa_path: str):
         """托管 Vite 构建物；仅 /app 范围内回退，绝不吞掉 /api 404。"""

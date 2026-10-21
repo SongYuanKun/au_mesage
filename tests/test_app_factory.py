@@ -58,7 +58,11 @@ def test_react_spa_uses_explicit_prefix_and_does_not_swallow_api_404(tmp_path):
     app.static_folder = str(tmp_path)
     client = app.test_client()
 
-    assert client.get("/app", follow_redirects=True).data == b"<div id='root'>spa</div>"
+    for path in ("/app", "/app/"):
+        response = client.get(path)
+        assert response.status_code == 200
+        assert "Location" not in response.headers
+        assert response.data == b"<div id='root'>spa</div>"
     assert client.get("/app/analysis").data == b"<div id='root'>spa</div>"
     assert client.get("/app/assets/app.js").data == b"console.log('spa')"
     assert client.get("/app/assets/missing.js").status_code == 404
