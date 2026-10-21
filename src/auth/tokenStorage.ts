@@ -1,5 +1,13 @@
 const TOKEN_KEY = "au_auth_token";
 
+declare global {
+  interface Window {
+    __AU_RUNTIME_CONFIG__?: {
+      authEnabled?: boolean;
+    };
+  }
+}
+
 export function getAuthToken(): string | null {
   return sessionStorage.getItem(TOKEN_KEY);
 }
@@ -13,5 +21,8 @@ export function clearAuthToken(): void {
 }
 
 export function isAuthRequired(): boolean {
-  return import.meta.env.VITE_AUTH_ENABLED === "true";
+  // Docker serves this SPA through Flask.  The preceding runtime-config script
+  // comes from that same Flask process, avoiding a build-time auth setting that
+  // can drift from AUTH_ENABLED at container startup.
+  return window.__AU_RUNTIME_CONFIG__?.authEnabled === true;
 }

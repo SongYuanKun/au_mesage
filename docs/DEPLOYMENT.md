@@ -40,13 +40,9 @@ AUTH_ADMIN_TOKEN=<强随机串>
 AUTH_OPS_TOKEN=
 ```
 
-3. **前端构建**（若使用 React SPA 且需登录页/管理页）：
-
-```env
-VITE_AUTH_ENABLED=true
-```
-
-构建后由 Flask 或静态托管提供；`AUTH_ENABLED=false` 时行为与旧版一致（公开 API）。
+3. **前端认证状态**：Docker 构建的 React SPA 由 Flask 的 `/app` 提供，启动时从
+   `/app/runtime-config.js` 读取当前进程的 `AUTH_ENABLED`。不设置
+   `VITE_AUTH_ENABLED`，以免镜像构建期配置与容器运行期配置漂移。
 
 4. 重启应用容器后验证：
 
@@ -62,7 +58,8 @@ curl -s -H "Authorization: Bearer $AUTH_ADMIN_TOKEN" http://127.0.0.1:8083/api/a
 
 ## 展示层（Koen 视觉）
 
-生产站点页面由 **Flask 模板**（`templates/`）+ **静态样式**（`static/css/`）渲染，与仓库内 React SPA（`src/`）独立。
+生产站点保留 **Flask 模板**（`templates/`）+ **静态样式**（`static/css/`）首页；React SPA
+构建产物由同一 Flask 进程在 `/app` 提供。
 
 - 设计令牌：`static/css/koen-tokens.css`（Slate + Indigo，与 [Koen 工具箱](https://tools.songyuankun.top) / 内容战略仓库 `koen-content-strategy` 一致）
 - 样式入口：`static/css/main.css`（`@import` tokens）

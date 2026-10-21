@@ -1,8 +1,11 @@
 """页面路由：旧版 Jinja 首页与 React SPA 独立入口。"""
 
+import json
 from pathlib import Path
 
-from flask import Blueprint, abort, current_app, render_template, send_from_directory
+from flask import Blueprint, Response, abort, current_app, render_template, send_from_directory
+
+from auth.config import auth_enabled
 
 
 def _spa_directory() -> Path:
@@ -23,6 +26,16 @@ def create_pages_blueprint() -> Blueprint:
     @bp.route("/analysis", methods=["GET"])
     def analysis_page():
         return render_template("analysis.html")
+
+    @bp.route("/app/runtime-config.js", methods=["GET"])
+    def react_runtime_config():
+        """Expose the backend's current auth setting before the SPA starts."""
+        payload = json.dumps({"authEnabled": auth_enabled()})
+        return Response(
+            f"window.__AU_RUNTIME_CONFIG__ = {payload};\n",
+            mimetype="application/javascript",
+            headers={"Cache-Control": "no-store"},
+        )
 
     @bp.route("/app", defaults={"spa_path": ""}, methods=["GET"])
     @bp.route("/app/", defaults={"spa_path": ""}, methods=["GET"])

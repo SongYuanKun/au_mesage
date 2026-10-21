@@ -67,6 +67,25 @@ def test_react_spa_uses_explicit_prefix_and_does_not_swallow_api_404(tmp_path):
     assert api_404.get_json()["error"]["code"] == "NOT_FOUND"
 
 
+def test_react_runtime_config_tracks_backend_auth_setting(monkeypatch):
+    """The SPA bootstrap must use Flask's runtime AUTH_ENABLED value."""
+    app = create_app(MagicMock())
+    client = app.test_client()
+
+    monkeypatch.setenv("AUTH_ENABLED", "true")
+    enabled = client.get("/app/runtime-config.js")
+    assert enabled.status_code == 200
+    assert enabled.get_data(as_text=True) == 'window.__AU_RUNTIME_CONFIG__ = {"authEnabled": true};\n'
+    assert enabled.headers["Cache-Control"] == "no-store"
+
+    monkeypatch.setenv("AUTH_ENABLED", "false")
+    disabled = client.get("/app/runtime-config.js")
+    assert disabled.get_data(as_text=True) == 'window.__AU_RUNTIME_CONFIG__ = {"authEnabled": false};\n'
+
+    vite_entry = Path(__file__).resolve().parents[1] / "index.html"
+    assert '<script src="/app/runtime-config.js"></script>' in vite_entry.read_text(encoding="utf-8")
+
+
 def test_api_calculate_with_mock_market_data():
     mm = MagicMock()
     mm.get_latest_data.return_value = {"recycle_price": 300.0}

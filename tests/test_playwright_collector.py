@@ -220,3 +220,16 @@ def test_price_parser_keeps_positive_quotes():
     assert rows[0]["recycle_price"] == 500.5
     assert rows[0]["real_time_price"] == 501.2
     assert rows[0]["high_price"] == 502.0
+
+
+def test_price_parser_keeps_missing_high_price_as_null():
+    collector = PlaywrightCollector(MagicMock())
+    collector.page = MagicMock()
+    collector.page.query_selector_all.return_value = [_quote_row("500", "501", "--")]
+
+    rows = collector._refresh_and_get_data()
+
+    assert len(rows) == 1
+    assert rows[0]["recycle_price"] == 500.0
+    assert rows[0]["real_time_price"] == 501.0
+    assert rows[0]["high_price"] is None

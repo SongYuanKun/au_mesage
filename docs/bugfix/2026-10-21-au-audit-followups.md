@@ -24,7 +24,11 @@
   绿色节省，避免将价差误标为盈亏。数据源 priority 现在决定启用源的启动顺序
   （较小优先级先启动），不宣称它会选择已写入的市场价格。
 - React SPA 构建产物由 Docker 多阶段构建复制到 Flask `static/spa`，并由 `/app` 托管；
-  `/` 仍为旧 Jinja 首页，SPA 回退不会匹配 `/api/*`。
+  `/` 仍为旧 Jinja 首页，SPA 回退不会匹配 `/api/*`。`/app/runtime-config.js` 在 SPA
+  启动前提供当前 Flask 进程的 `AUTH_ENABLED`，消除 Docker 镜像构建期与运行期的认证漂移。
+- SPA 的未登录角色守卫跳转到 `/app/login`，而不是不存在的根路径 `/login`。
+- Playwright 核心买入/卖出报价有效但最高价列缺失或为 `--` 时，写入 `NULL` 最高价；
+  不再把缺失值伪造成 `0`。
 
 ## 验证
 
@@ -46,6 +50,6 @@
 
 - React SPA 通过 `/app` 单独托管，旧 Jinja 首页保留在 `/`；SPA 回退仅匹配 `/app`，
   不会吞掉 `/api` 的 JSON 404。`/app/login` 是 Token 登录入口，`/app/admin/sources`
-  仍受前端角色守卫保护。
+  仍受前端角色守卫保护；构建/类型检查仍因本地不存在完整 Node 依赖而未执行。
 - 未连接实际 MySQL/浏览器/外部通知服务；本次仅使用离线 mock/fake 测试，未调用网络
   API、未部署或重启服务。

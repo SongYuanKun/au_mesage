@@ -193,7 +193,9 @@ class PlaywrightCollector(BaseCollector):
                     'data_type': product_name,
                     'real_time_price': selling,
                     'recycle_price': buyback,
-                    'high_price': high or 0,
+                    # 最高价不是核心买卖报价；页面缺列或显示占位符时保留为 NULL，
+                    # 不把缺失数据伪造成可参与聚合的 0。
+                    'high_price': high,
                     'low_price': 0,
                     'source': self.name,
                     'currency': 'CNY',

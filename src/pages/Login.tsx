@@ -14,7 +14,7 @@ export default function Login() {
     return (
       <AppLayout>
         <div className="mx-auto max-w-md p-8 text-center text-[var(--v2-text-secondary)]">
-          <p>当前环境未启用认证（VITE_AUTH_ENABLED≠true）。</p>
+          <p>当前环境未启用认证（AUTH_ENABLED≠true）。</p>
           <button
             type="button"
             className="mt-4 text-koen-accent underline"
