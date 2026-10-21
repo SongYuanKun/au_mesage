@@ -9,6 +9,7 @@ import time
 from flask import Blueprint, Response, jsonify, request, stream_with_context
 
 from api_errors import ApiError
+from auth.context import get_actor
 from auth.decorators import require_role
 from db import DatabaseManager
 from routes.api.cache import api_ttl_cache
@@ -16,7 +17,8 @@ from routes.api.rate_limit import enforce_rate_limit
 
 
 def _client_key() -> str:
-    return request.remote_addr or "unknown"
+    actor = get_actor()
+    return actor if actor != "anonymous" else (request.remote_addr or "unknown")
 
 
 def register_alert_routes(bp: Blueprint, mysql_manager: DatabaseManager) -> None:
@@ -30,7 +32,7 @@ def register_alert_routes(bp: Blueprint, mysql_manager: DatabaseManager) -> None
         return jsonify({"success": True, "channels": get_configured_channels()})
 
     @bp.route("/api/price-alert/push", methods=["POST"])
-    @require_role("admin", "ops", "user")
+    @require_role("admin", "ops", "user", force_auth=True)
     def price_alert_push():
         """
         增强版价格提醒：支持多通道推送。
@@ -144,16 +146,6 @@ def register_alert_routes(bp: Blueprint, mysql_manager: DatabaseManager) -> None
                     yield "event: alert\n"
                     yield f"data: {payload_alert}\n\n"
                     alerted = True
-                    try:
-                        from webhook_notifier import notify_all
-
-                        op_text = "达到或超过" if op == "gte" else "达到或低于"
-                        notify_all(
-                            f"{data_type}价格提醒",
-                            f"当前价格 {float(price)} 元/克，已{op_text}目标价 {target} 元/克",
-                        )
-                    except Exception:
-                        pass
                     if auto_close:
                         break
                 yield "event: ping\n"

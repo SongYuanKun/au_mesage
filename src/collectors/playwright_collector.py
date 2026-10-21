@@ -166,13 +166,22 @@ class PlaywrightCollector(BaseCollector):
                         f'.el-col-6:nth-child({nth}) .symbole-price span'
                     )
                     raw = el.inner_text().strip() if el else '0'
+                    if raw in ('', '--', '-', '—', 'N/A'):
+                        return None
                     cleaned = ''.join(c for c in raw if c.isdigit() or c in '.-')
-                    return float(cleaned) if cleaned else 0.0
+                    try:
+                        return float(cleaned) if cleaned not in ('', '-', '.', '-.') else None
+                    except ValueError:
+                        return None
 
                 # 与页面列顺序一致：回购、销售、最高（第四列多价时取首个匹配，一般为最高价）
                 buyback = get_price(2)
                 selling = get_price(3)
                 high = get_price(4)
+                # 报价页会在交易间隙返回 "--"；把它作为缺失数据跳过，
+                # 既不写入伪 0 价格，也不以 ERROR 级别每分钟刷日志。
+                if buyback is None or selling is None:
+                    continue
 
                 beijing_now = datetime.now(BEIJING_TZ)
                 extracted.append({
@@ -181,7 +190,7 @@ class PlaywrightCollector(BaseCollector):
                     'data_type': product_name,
                     'real_time_price': selling,
                     'recycle_price': buyback,
-                    'high_price': high,
+                    'high_price': high or 0,
                     'low_price': 0,
                     'source': self.name,
                     'currency': 'CNY',

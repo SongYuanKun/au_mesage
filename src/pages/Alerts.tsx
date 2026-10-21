@@ -384,11 +384,10 @@ export default function Alerts() {
                   >
                     <div>
                       <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                        {channel.name || channel.type || `渠道 ${index + 1}`}
+                        {channel}
                       </p>
                       <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {channel.type || "未知类型"}
-                        {channel.status ? ` · ${channel.status}` : ""}
+                        {channel}
                       </p>
                     </div>
                     <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">

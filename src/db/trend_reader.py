@@ -50,31 +50,33 @@ class TrendReader(BaseDB):
         """, (data_type, date_str))
 
     def get_gold_silver_ratio(self, start_date: str, end_date: str) -> List[Dict]:
-        """获取金银比走势数据，兼容'黄 金'/'XAU'和'白 银'/'XAG'"""
+        """同一来源、币种与市场口径的金银比，避免国内/国际报价交叉相除。"""
         return self._exec("""
-            SELECT g.date, g.close_price AS gold_close, s.close_price AS silver_close,
-                   ROUND(g.close_price / s.close_price, 2) AS ratio
-            FROM (
-                SELECT trade_date AS date,
-                       FIRST_VALUE(recycle_price) OVER w AS close_price,
-                       ROW_NUMBER() OVER w AS rn
+            WITH ranked AS (
+                SELECT trade_date AS date, data_type, source, currency, recycle_price,
+                       CASE
+                         WHEN data_type = 'XAU' THEN 'gold'
+                         WHEN data_type = 'XAG' THEN 'silver'
+                         WHEN data_type = '黄 金' THEN 'gold'
+                         WHEN data_type = '白 银' THEN 'silver'
+                       END AS metal,
+                       CASE WHEN data_type IN ('XAU', 'XAG') THEN 'international' ELSE 'domestic' END AS market,
+                       ROW_NUMBER() OVER (
+                         PARTITION BY trade_date, data_type, source, currency
+                         ORDER BY created_at DESC
+                       ) AS rn
                 FROM price_data
-                WHERE data_type IN ('黄 金', 'XAU') AND recycle_price > 0
-                  AND trade_date BETWEEN %s AND %s
-                WINDOW w AS (PARTITION BY trade_date ORDER BY created_at DESC)
-            ) g
-            JOIN (
-                SELECT trade_date AS date,
-                       FIRST_VALUE(recycle_price) OVER w AS close_price,
-                       ROW_NUMBER() OVER w AS rn
-                FROM price_data
-                WHERE data_type IN ('白 银', 'XAG') AND recycle_price > 0
-                  AND trade_date BETWEEN %s AND %s
-                WINDOW w AS (PARTITION BY trade_date ORDER BY created_at DESC)
-            ) s ON g.date = s.date
-            WHERE g.rn = 1 AND s.rn = 1
+                WHERE data_type IN ('黄 金', 'XAU', '白 银', 'XAG')
+                  AND recycle_price > 0 AND trade_date BETWEEN %s AND %s
+            )
+            SELECT g.date, g.recycle_price AS gold_close, s.recycle_price AS silver_close,
+                   ROUND(g.recycle_price / s.recycle_price, 2) AS ratio
+            FROM ranked g
+            JOIN ranked s ON g.date = s.date AND g.source = s.source
+                         AND g.currency = s.currency AND g.market = s.market
+            WHERE g.rn = 1 AND s.rn = 1 AND g.metal = 'gold' AND s.metal = 'silver'
             ORDER BY g.date ASC
-        """, (start_date, end_date, start_date, end_date))
+        """, (start_date, end_date))
 
     def get_daily_ohlc(self, data_type: str, source: str,
                        start_date: str, end_date: str, currency: str = None) -> List[Dict]:

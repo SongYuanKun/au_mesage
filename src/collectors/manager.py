@@ -65,15 +65,15 @@ class CollectorManager:
         with self._lock:
             return list(self._collectors.values())
 
-    def _desired_source_ids(self) -> set:
+    def _desired_source_ids(self) -> list[str]:
         rows = self._config_cache.refresh(force=True)
-        desired = {
+        desired = [
             row["source_id"]
-            for row in rows
+            for row in sorted(rows, key=lambda row: (int(row.get("priority", 100)), row.get("source_id", "")))
             if row.get("enabled") and row.get("source_id") in self._factories
-        }
+        ]
         if os.environ.get("ENABLE_PLAYWRIGHT", "true").lower() == "false":
-            desired.discard("playwright")
+            desired = [source_id for source_id in desired if source_id != "playwright"]
         return desired
 
     def _reconcile_locked(self, stop_event=None) -> None:
@@ -90,7 +90,8 @@ class CollectorManager:
             del self._collectors[source_id]
             logger.warning("数据源 %s 的采集线程已退出，按配置重新调和", source_id)
 
-        desired = self._desired_source_ids()
+        desired_ids = self._desired_source_ids()
+        desired = set(desired_ids)
         running = set(self._collectors)
 
         for source_id in sorted(running - desired):
@@ -105,7 +106,9 @@ class CollectorManager:
         if stop_event is not None and stop_event.is_set():
             return
 
-        for source_id in sorted(desired - set(self._collectors) - self._unavailable):
+        for source_id in desired_ids:
+            if source_id in self._collectors or source_id in self._unavailable:
+                continue
             collector = None
             try:
                 collector = self._factories[source_id]()

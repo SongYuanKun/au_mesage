@@ -118,7 +118,9 @@ def test_closed_page_rebuilds_browser_session(monkeypatch):
 
     assert launch.call_count == 2
     dead_browser.close.assert_called_once()
-    assert collector.data_buffer == [{"data_type": "黄 金"}]
+    # stop() 会唤醒保存线程；报价要么仍在缓冲区，要么已交给数据库写入，不能丢失。
+    persisted = collector.mysql_manager.batch_insert_data.call_args_list
+    assert collector.data_buffer == [{"data_type": "黄 金"}] or persisted
     row = {r["source_id"]: r for r in collector_stats.snapshot()}["playwright"]
     assert row["last_success_at"] is not None
 

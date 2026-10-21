@@ -62,6 +62,27 @@ def test_reconcile_starts_newly_enabled_source_once():
     assert manager.collectors == [gold]
 
 
+def test_reconcile_starts_enabled_sources_in_priority_order():
+    first = MagicMock(name="first")
+    first.name = "first"
+    second = MagicMock(name="second")
+    second.name = "second"
+    starts = []
+    first.start.side_effect = lambda: starts.append("first")
+    second.start.side_effect = lambda: starts.append("second")
+    manager, _cache = build_manager(
+        [
+            {"source_id": "second", "enabled": True, "priority": 20},
+            {"source_id": "first", "enabled": True, "priority": 10},
+        ],
+        {"first": MagicMock(return_value=first), "second": MagicMock(return_value=second)},
+    )
+
+    manager.reconcile_once()
+
+    assert starts == ["first", "second"]
+
+
 def test_reconcile_stops_disabled_source_once():
     gold = MagicMock(name="gold_collector")
     gold.name = "gold_api"
