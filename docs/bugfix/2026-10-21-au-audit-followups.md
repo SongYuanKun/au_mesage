@@ -42,9 +42,10 @@
 126 passed in 0.75s
 ```
 
-前端构建与类型检查尚未执行：指定的另一 worktree 虽有 306 个 `node_modules` 目录，
-但 `react`、`typescript`、`vite` 等目录没有包内容或 `.bin` 可执行文件，不能作为可用
-依赖复用。未安装依赖或联网。
+此前缺少完整前端依赖；用户后续明确授权按锁文件在隔离 worktree 安装，现已完成。
+`npm run build`（TypeScript + Vite）通过；`npm test` 共 12 个文件、49 个测试通过。
+实际构建发现并修复提醒渠道响应的可选 message 类型；业务拒绝不再被误判为网络错误重试。
+App 测试使用生产路由 basename `/app`。构建仅有 runtime-config 脚本与大 chunk 警告。
 
 ## 未解决项
 
@@ -57,11 +58,10 @@
 开发代理补充：Vite 同时代理 `/api` 与 `/app/runtime-config.js`，默认目标为 Flask
 开发入口的 `http://127.0.0.1:8083`，可用服务端变量 `AU_API_ORIGIN` 覆盖。这样开发
 界面也读取后端运行时鉴权配置，而不是缺失脚本后误以为未启用鉴权。已静态复核代理
-路径、后端端口和 README 引用，并通过 `git diff --check`；尚未启动 Vite 或完成
-前端类型/构建检查，仍待依赖安装授权。
+路径、后端端口和 README 引用，并通过 `git diff --check`；前端类型与生产构建现已通过；尚未启动真实浏览器联调。
 
 - React SPA 通过 `/app` 单独托管，旧 Jinja 首页保留在 `/`；SPA 回退仅匹配 `/app`，
   不会吞掉 `/api` 的 JSON 404。`/app/login` 是 Token 登录入口，`/app/admin/sources`
-  仍受前端角色守卫保护；构建/类型检查仍因本地不存在完整 Node 依赖而未执行。
+  仍受前端角色守卫保护；构建和类型检查已在本轮授权安装依赖后通过。
 - 未连接实际 MySQL/浏览器/外部通知服务；本次仅使用离线 mock/fake 测试，未调用网络
   API、未部署或重启服务。
