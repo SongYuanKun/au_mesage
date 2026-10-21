@@ -1,6 +1,7 @@
 """应用工厂与路由注册冒烟测试（无需真实 MySQL）。"""
 
 from datetime import datetime
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 from urllib.parse import quote
 
@@ -45,6 +46,25 @@ def test_pages_routes_registered():
     # 无数据库时首页模板仍可渲染（不触发 DB 的查询在后续请求）
     r = client.get("/")
     assert r.status_code == 200
+
+
+def test_react_spa_uses_explicit_prefix_and_does_not_swallow_api_404(tmp_path):
+    app = create_app(MagicMock())
+    spa_dir = Path(tmp_path) / "spa"
+    spa_dir.mkdir()
+    (spa_dir / "index.html").write_text("<div id='root'>spa</div>", encoding="utf-8")
+    (spa_dir / "assets").mkdir()
+    (spa_dir / "assets" / "app.js").write_text("console.log('spa')", encoding="utf-8")
+    app.static_folder = str(tmp_path)
+    client = app.test_client()
+
+    assert client.get("/app", follow_redirects=True).data == b"<div id='root'>spa</div>"
+    assert client.get("/app/analysis").data == b"<div id='root'>spa</div>"
+    assert client.get("/app/assets/app.js").data == b"console.log('spa')"
+    assert client.get("/app/assets/missing.js").status_code == 404
+    api_404 = client.get("/api/not-a-route")
+    assert api_404.status_code == 404
+    assert api_404.get_json()["error"]["code"] == "NOT_FOUND"
 
 
 def test_api_calculate_with_mock_market_data():

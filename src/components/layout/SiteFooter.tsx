@@ -5,7 +5,7 @@ export default function SiteFooter() {
     <footer className="koen-footer">
       <div className="koen-footer-inner">
         <Link to="/" className="koen-logo text-base">
-          <img src="/assets/logo.svg" alt="" width={28} height={28} />
+          <img src="/app/assets/logo.svg" alt="" width={28} height={28} />
           <span>Koen · 金价监控</span>
         </Link>
         <nav className="flex flex-wrap gap-3" aria-label="页脚导航">

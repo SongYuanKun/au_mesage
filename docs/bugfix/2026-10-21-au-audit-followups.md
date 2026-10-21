@@ -13,14 +13,18 @@
   不能授权推送写操作。
 - 提醒限流按不可逆 Token 主体摘要区分，不记录原 Token；匿名 SSE 回退到
   `remote_addr`。渠道读取为 30 次/分钟，推送与 SSE 建连各为 10 次/分钟。
-- Playwright 在页面关闭、断连和连续失败后继续重建浏览器并指数退避；报价中的 `--`、
-  `—` 等占位值作为缺失行跳过，不再写入伪 0 价格或产生每分钟 ERROR。
+- Playwright 在页面关闭、断连和连续失败后继续重建浏览器并指数退避；缺失选择器、`--`、
+  `—` 与零值报价均作为缺失行跳过，不再写入伪 0 价格或产生每分钟 ERROR。
 - 文件日志改为 10 MiB、保留 5 份的轮转日志。金银比查询只允许同一来源、币种和
   国内/国际市场口径的金银数据配对。
 - React API 客户端改为匹配后端扁平的 `calculate/history` 字段和
   `{success, channels}` 提醒渠道响应；首页旧模板在国际 `USD/oz` 报价时只在获得
   USD/CNY 并切换到人民币/克后计算，否则明确拒绝计算。
-- 数据源 priority 现在决定启用源的启动顺序（较小优先级先启动）。
+- Analysis 页明确展示“购买价差”：购买价高于市场价为红色成本差，购买价低于市场价为
+  绿色节省，避免将价差误标为盈亏。数据源 priority 现在决定启用源的启动顺序
+  （较小优先级先启动），不宣称它会选择已写入的市场价格。
+- React SPA 构建产物由 Docker 多阶段构建复制到 Flask `static/spa`，并由 `/app` 托管；
+  `/` 仍为旧 Jinja 首页，SPA 回退不会匹配 `/api/*`。
 
 ## 验证
 
@@ -30,20 +34,18 @@
   tests/test_alert_push.py tests/test_auth.py tests/test_rate_limit.py
 29 passed in 0.33s
 
-/home/kun/vs_code/au/.venv/bin/python -m pytest -q \
-  tests/test_playwright_collector.py tests/test_calculations.py \
-  tests/test_collector_manager.py tests/test_price_routes.py tests/test_application.py
-33 passed in 0.33s
+/home/kun/vs_code/au/.venv/bin/python -m pytest -q
+126 passed in 0.75s
 ```
 
-`npm run check` 未能完成：此 worktree 及其上级项目目录没有可解析的 React/Vite
-依赖（例如 `react`、`axios`、`vitest`）。未安装依赖或联网。它先暴露了 TypeScript 6
-对既有 `baseUrl` 配置的弃用错误，已通过 `ignoreDeprecations: "6.0"` 消除；其余错误
-均为缺失模块，尚未能验证前端类型检查。
+前端构建与类型检查尚未执行：指定的另一 worktree 虽有 306 个 `node_modules` 目录，
+但 `react`、`typescript`、`vite` 等目录没有包内容或 `.bin` 可执行文件，不能作为可用
+依赖复用。未安装依赖或联网。
 
 ## 未解决项
 
-- React SPA 目前没有被 Flask 或 Docker 构建/托管：Docker 镜像只运行 Python，页面蓝图
-  渲染 Jinja 模板。将 SPA 接入生产构建需要单独确定静态构建与部署入口，未在本次修改。
+- React SPA 通过 `/app` 单独托管，旧 Jinja 首页保留在 `/`；SPA 回退仅匹配 `/app`，
+  不会吞掉 `/api` 的 JSON 404。`/app/login` 是 Token 登录入口，`/app/admin/sources`
+  仍受前端角色守卫保护。
 - 未连接实际 MySQL/浏览器/外部通知服务；本次仅使用离线 mock/fake 测试，未调用网络
   API、未部署或重启服务。

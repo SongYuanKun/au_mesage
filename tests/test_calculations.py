@@ -33,3 +33,10 @@ def test_purchase_calculate_rounding():
     assert out["price_per_gram"] == round(1000.0 / 3.0, 4)
     assert out["market_price"] == 300.0
     assert out["difference_percentage"] == round((abs(1000.0 / 3.0 - 300) / 300) * 100, 2)
+
+
+def test_purchase_price_above_market_is_a_positive_cost_difference_not_profit():
+    out = build_purchase_calculate_response(600.0, 1.0, 500.0)
+    assert out["difference"] == 100.0
+    assert out["total_difference"] == 100.0
+    assert "高" in out["message"]

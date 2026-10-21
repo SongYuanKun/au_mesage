@@ -69,13 +69,21 @@ class TrendReader(BaseDB):
                 WHERE data_type IN ('黄 金', 'XAU', '白 银', 'XAG')
                   AND recycle_price > 0 AND trade_date BETWEEN %s AND %s
             )
-            SELECT g.date, g.recycle_price AS gold_close, s.recycle_price AS silver_close,
-                   ROUND(g.recycle_price / s.recycle_price, 2) AS ratio
-            FROM ranked g
-            JOIN ranked s ON g.date = s.date AND g.source = s.source
-                         AND g.currency = s.currency AND g.market = s.market
-            WHERE g.rn = 1 AND s.rn = 1 AND g.metal = 'gold' AND s.metal = 'silver'
-            ORDER BY g.date ASC
+            , paired AS (
+                SELECT g.date, g.recycle_price AS gold_close, s.recycle_price AS silver_close,
+                       ROUND(g.recycle_price / s.recycle_price, 2) AS ratio,
+                       ROW_NUMBER() OVER (
+                         PARTITION BY g.date
+                         ORDER BY CASE g.market WHEN 'international' THEN 0 ELSE 1 END, g.source
+                       ) AS pair_rank
+                FROM ranked g
+                JOIN ranked s ON g.date = s.date AND g.source = s.source
+                             AND g.currency = s.currency AND g.market = s.market
+                WHERE g.rn = 1 AND s.rn = 1 AND g.metal = 'gold' AND s.metal = 'silver'
+            )
+            SELECT date, gold_close, silver_close, ratio
+            FROM paired WHERE pair_rank = 1
+            ORDER BY date ASC
         """, (start_date, end_date))
 
     def get_daily_ohlc(self, data_type: str, source: str,

@@ -26,7 +26,7 @@
 - 提醒：SSE 目标价订阅（浏览器内），触发后可选多通道推送
 - 数据可信度与质量：概览返回 `data_status`/`freshness_seconds`；提供质量指标接口
 - 数据导出：按品类与日期范围导出 CSV/JSON（带限流与数量上限）
-- 管理端（可选认证）：数据源启用/优先级/回滚、审计查询、Token 登录（见 `AUTH_ENABLED`）
+- 管理端（可选认证）：数据源启用/启动优先级/回滚、审计查询、Token 登录（见 `AUTH_ENABLED`）；配置在下一次调和（最多约 30 秒）应用，优先级不改变已写入价格的选择。
 
 ## 技术栈与架构
 
@@ -34,7 +34,7 @@
 - 数据库：MySQL（见 `scripts/init.sql`）
 - 采集：多采集器并行（线程）
 - 缓存：进程内 TTL 缓存（热点接口）
-- 前端：Jinja2 模板页（主链路可运行）；仓库内也包含 React SPA 代码（并存）
+- 前端：Jinja2 模板页（`/` 主链路）与 React SPA（`/app`，Docker 构建后由 Flask 托管）。
 
 高层链路：Collectors → MySQL → Flask API/Pages → Browser（SSE）→ Notifiers
 

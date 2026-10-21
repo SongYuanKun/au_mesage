@@ -172,3 +172,51 @@ def test_restart_delay_grows_exponentially_to_cap():
     collector = PlaywrightCollector(MagicMock())
     delays = [collector._restart_delay_for(n) for n in range(1, 8)]
     assert delays == [30, 60, 120, 240, 480, 600, 600]
+
+
+def _quote_row(buyback, selling, high="0"):
+    def text(value):
+        element = MagicMock()
+        element.inner_text.return_value = value
+        return element
+
+    name = text("黄 金")
+    prices = {2: buyback, 3: selling, 4: high}
+
+    def query(selector):
+        if selector == ".symbol-name":
+            return name
+        for nth, value in prices.items():
+            if f"nth-child({nth})" in selector:
+                return text(value) if value is not None else None
+        return None
+
+    row = MagicMock()
+    row.query_selector.side_effect = query
+    return row
+
+
+def test_price_parser_skips_missing_placeholder_and_zero_quotes():
+    collector = PlaywrightCollector(MagicMock())
+    collector.page = MagicMock()
+    collector.page.query_selector_all.return_value = [
+        _quote_row(None, "500"),
+        _quote_row("--", "500"),
+        _quote_row("0", "500"),
+        _quote_row("500", "0"),
+    ]
+
+    assert collector._refresh_and_get_data() == []
+
+
+def test_price_parser_keeps_positive_quotes():
+    collector = PlaywrightCollector(MagicMock())
+    collector.page = MagicMock()
+    collector.page.query_selector_all.return_value = [_quote_row("500.5", "501.2", "502")]
+
+    rows = collector._refresh_and_get_data()
+
+    assert len(rows) == 1
+    assert rows[0]["recycle_price"] == 500.5
+    assert rows[0]["real_time_price"] == 501.2
+    assert rows[0]["high_price"] == 502.0

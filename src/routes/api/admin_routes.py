@@ -61,7 +61,7 @@ def register_admin_routes(bp: Blueprint, mysql_manager: DatabaseManager) -> None
             {
                 "success": True,
                 "data": result.get("after"),
-                "message": "配置已保存；采集器将在约 60 秒内按新配置生效",
+                "message": "配置已保存；采集器将在下一次调和（最多约 30 秒）应用启用状态与启动顺序",
             }
         )
 

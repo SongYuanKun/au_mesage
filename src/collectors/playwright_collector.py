@@ -165,12 +165,15 @@ class PlaywrightCollector(BaseCollector):
                         f'.el-col-6:nth-child({nth}) .symbol-price-fall,'
                         f'.el-col-6:nth-child({nth}) .symbole-price span'
                     )
-                    raw = el.inner_text().strip() if el else '0'
+                    if el is None:
+                        return None
+                    raw = el.inner_text().strip()
                     if raw in ('', '--', '-', '—', 'N/A'):
                         return None
                     cleaned = ''.join(c for c in raw if c.isdigit() or c in '.-')
                     try:
-                        return float(cleaned) if cleaned not in ('', '-', '.', '-.') else None
+                        parsed = float(cleaned) if cleaned not in ('', '-', '.', '-.') else None
+                        return parsed if parsed is not None and parsed > 0 else None
                     except ValueError:
                         return None
 

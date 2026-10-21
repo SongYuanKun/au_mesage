@@ -10,7 +10,7 @@ import AdminSources from "@/pages/AdminSources";
 export default function App() {
   return (
     <AuthProvider>
-      <Router>
+      <Router basename="/app">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/history" element={<History />} />

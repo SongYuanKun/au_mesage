@@ -21,7 +21,7 @@ export default function SiteNavbar() {
       <nav className="koen-navbar" aria-label="主导航">
         <div className="koen-navbar-inner">
           <NavLink to="/" className="koen-logo">
-            <img src="/assets/logo.svg" alt="" width={30} height={30} />
+            <img src="/app/assets/logo.svg" alt="" width={30} height={30} />
             <span>Koen</span>
             <span className="text-sm font-semibold text-[var(--v2-text-muted)] hidden sm:inline">
               · 金价监控
