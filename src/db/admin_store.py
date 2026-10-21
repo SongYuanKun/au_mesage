@@ -45,35 +45,41 @@ class AdminStore(BaseDB):
         priority: int,
         changed_by: str,
     ) -> Dict[str, Any]:
-        before = self._exec_one(
-            "SELECT source_id, enabled, priority FROM data_source_config WHERE source_id = %s",
-            (source_id,),
-        )
-        self._exec(
-            """
-            INSERT INTO data_source_config (source_id, enabled, priority, updated_by)
-            VALUES (%s, %s, %s, %s)
-            ON DUPLICATE KEY UPDATE
-              enabled = VALUES(enabled),
-              priority = VALUES(priority),
-              updated_by = VALUES(updated_by)
-            """,
-            (source_id, 1 if enabled else 0, priority, changed_by),
-        )
-        self._exec(
-            """
-            INSERT INTO data_source_config_history
-              (source_id, enabled, priority, changed_by)
-            VALUES (%s, %s, %s, %s)
-            """,
-            (source_id, 1 if enabled else 0, priority, changed_by),
-        )
-        after = self._exec_one(
-            "SELECT source_id, enabled, priority, updated_at, updated_by FROM data_source_config WHERE source_id = %s",
-            (source_id,),
-        )
-        if after:
-            after["enabled"] = bool(after.get("enabled"))
+        # 当前行与历史行在同一事务内写入，任一步失败整体回滚
+        with self.get_cursor(dictionary=True) as cursor:
+            cursor.execute(
+                "SELECT source_id, enabled, priority FROM data_source_config WHERE source_id = %s",
+                (source_id,),
+            )
+            before = cursor.fetchone()
+            cursor.execute(
+                """
+                INSERT INTO data_source_config (source_id, enabled, priority, updated_by)
+                VALUES (%s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE
+                  enabled = VALUES(enabled),
+                  priority = VALUES(priority),
+                  updated_by = VALUES(updated_by)
+                """,
+                (source_id, 1 if enabled else 0, priority, changed_by),
+            )
+            cursor.execute(
+                """
+                INSERT INTO data_source_config_history
+                  (source_id, enabled, priority, changed_by)
+                VALUES (%s, %s, %s, %s)
+                """,
+                (source_id, 1 if enabled else 0, priority, changed_by),
+            )
+            cursor.execute(
+                "SELECT source_id, enabled, priority, updated_at, updated_by FROM data_source_config WHERE source_id = %s",
+                (source_id,),
+            )
+            after = cursor.fetchone()
+            if after is None:
+                raise RuntimeError(f"data source {source_id} updated row could not be read")
+
+        after["enabled"] = bool(after.get("enabled"))
         if before:
             before["enabled"] = bool(before.get("enabled"))
         return {"before": before, "after": after}

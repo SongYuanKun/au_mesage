@@ -29,12 +29,9 @@ class PriceWriter(BaseDB):
             for item in data_list
         ]
 
-        try:
-            with self.get_cursor() as cursor:
-                cursor.executemany(query, values)
-            logging.info(f"成功插入 {len(data_list)} 条数据")
-        except Exception as e:
-            logging.error(f"批量插入失败: {e}")
+        with self.get_cursor() as cursor:
+            cursor.executemany(query, values)
+        logging.info("成功插入 %s 条数据", len(data_list))
 
     def upsert_exchange_rate(self, base: str, target: str, rate: float, source: str):
         """插入或更新汇率记录"""
@@ -42,11 +39,8 @@ class PriceWriter(BaseDB):
                 INSERT INTO exchange_rate (base_currency, target_currency, rate, source)
                 VALUES (%s, %s, %s, %s)
         """
-        try:
-            with self.get_cursor() as cursor:
-                cursor.execute(query, (base, target, rate, source))
-        except Exception as e:
-            logging.error(f"写入汇率失败: {e}")
+        with self.get_cursor() as cursor:
+            cursor.execute(query, (base, target, rate, source))
 
     def upsert_daily_ohlc(self, trade_date: str, data_type: str, source: str,
                           currency: str, open_price: float, high_price: float,
@@ -65,9 +59,6 @@ class PriceWriter(BaseDB):
                     volume = VALUES(volume),
                     created_at = CURRENT_TIMESTAMP
         """
-        try:
-            with self.get_cursor() as cursor:
-                cursor.execute(query, (trade_date, data_type, source, currency,
-                                       open_price, high_price, low_price, close_price, volume))
-        except Exception as e:
-            logging.error(f"写入日线OHLC失败 ({data_type},{trade_date}): {e}")
+        with self.get_cursor() as cursor:
+            cursor.execute(query, (trade_date, data_type, source, currency,
+                                   open_price, high_price, low_price, close_price, volume))

@@ -42,14 +42,30 @@ class BaseCollector(ABC):
         """
 
     def start(self):
+        if self.is_running:
+            return
+        if self._thread is not None and self._thread.is_alive():
+            raise RuntimeError(f"[{self.name}] 上一个采集线程仍在运行")
         self.is_running = True
         self._thread = threading.Thread(target=self._run, daemon=True)
         self._thread.start()
         logger.info(f"[{self.name}] 采集器已启动，间隔 {self.interval}s")
 
-    def stop(self):
+    def stop(self, join_timeout: float = 20.0):
         self.is_running = False
+        thread = self._thread
+        if thread is threading.current_thread():
+            raise RuntimeError(f"[{self.name}] 采集线程不能等待自身退出")
+        if thread is not None and thread is not threading.current_thread():
+            thread.join(timeout=join_timeout)
+            if thread.is_alive():
+                raise RuntimeError(f"[{self.name}] 采集线程未在 {join_timeout}s 内退出")
+        self._thread = None
         logger.info(f"[{self.name}] 采集器已停止")
+
+    def is_alive(self) -> bool:
+        """采集线程是否仍在运行；管理器据此重新拉起意外退出的采集器。"""
+        return self._thread is not None and self._thread.is_alive()
 
     def _run(self):
         consecutive_failures = 0
@@ -72,7 +88,9 @@ class BaseCollector(ABC):
             except Exception as e:
                 collector_stats.record_failure(self.name)
                 consecutive_failures += 1
-                logger.error(f"[{self.name}] 采集异常 (连续失败 {consecutive_failures} 次): {e}")
+                # 采集器把底层异常包成领域异常时，带上原因便于排查
+                cause = f"（原因: {e.__cause__!r}）" if e.__cause__ else ""
+                logger.error(f"[{self.name}] 采集异常 (连续失败 {consecutive_failures} 次): {e}{cause}")
                 if consecutive_failures == failure_threshold:
                     logger.error(f"[{self.name}] 达到失败阈值，采集器进入降级状态！")
             

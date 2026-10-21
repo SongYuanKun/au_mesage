@@ -26,7 +26,7 @@
 - 提醒：SSE 目标价订阅（浏览器内），触发后可选多通道推送
 - 数据可信度与质量：概览返回 `data_status`/`freshness_seconds`；提供质量指标接口
 - 数据导出：按品类与日期范围导出 CSV/JSON（带限流与数量上限）
-- 管理端（可选认证）：数据源启用/优先级/回滚、审计查询、Token 登录（见 `AUTH_ENABLED`）
+- 管理端（可选认证）：数据源启用/启动优先级/回滚、审计查询、Token 登录（见 `AUTH_ENABLED`）；配置在下一次调和（最多约 30 秒）应用，优先级不改变已写入价格的选择。
 
 ## 技术栈与架构
 
@@ -34,7 +34,7 @@
 - 数据库：MySQL（见 `scripts/init.sql`）
 - 采集：多采集器并行（线程）
 - 缓存：进程内 TTL 缓存（热点接口）
-- 前端：Jinja2 模板页（主链路可运行）；仓库内也包含 React SPA 代码（并存）
+- 前端：Jinja2 模板页（`/` 主链路）与 React SPA（`/app`，Docker 构建后由 Flask 托管）。
 
 高层链路：Collectors → MySQL → Flask API/Pages → Browser（SSE）→ Notifiers
 
@@ -104,6 +104,12 @@ python src/app.py
 
 默认监听：`0.0.0.0:8083`（可通过环境变量调整）。
 
+React 开发界面使用 `npm run dev`，访问 Vite 提示的地址下的 `/app/`。
+Vite 会将 `/api` 和 `/app/runtime-config.js` 转发到 `http://127.0.0.1:8083`，
+因此鉴权开关仍由 Flask 的 `AUTH_ENABLED` 决定。后端改用其他端口时，
+通过 `AU_API_ORIGIN=http://127.0.0.1:其他端口 npm run dev` 指定目标；该变量仅供
+开发代理使用，不会作为客户端配置打包。生产环境仍由 Flask 提供 `/app/`。
+
 ## 环境变量
 
 见：`.env.example`（外部MySQL）与 `.env.mysql.example`（Compose内置MySQL）。
@@ -114,7 +120,7 @@ python src/app.py
 - 服务：`API_HOST` `API_PORT`
 - 采集：`ENABLE_PLAYWRIGHT` `GOLD_API_INTERVAL` `WEBSITE_URL`
 - 通知（可选）：`WECHAT_WEBHOOK_URL` `TELEGRAM_BOT_TOKEN` `TELEGRAM_CHAT_ID` `SMTP_*` `ALERT_EMAIL_TO`
-- 认证（可选）：`AUTH_ENABLED` `AUTH_ADMIN_TOKEN` `AUTH_OPS_TOKEN` `AUTH_USER_TOKEN`；前端 `VITE_AUTH_ENABLED`（与后端一致）
+- 认证（可选）：`AUTH_ENABLED` `AUTH_ADMIN_TOKEN` `AUTH_OPS_TOKEN` `AUTH_USER_TOKEN`；`/app` 在启动时读取 Flask 提供的认证状态。
 
 ## API 与新增接口
 

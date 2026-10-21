@@ -31,7 +31,7 @@
 | 方法 | 路径 | 角色 | 说明 |
 |------|------|------|------|
 | GET | `/api/admin/sources` | admin / ops | 数据源配置 + 采集健康度 |
-| PUT | `/api/admin/sources/:id` | admin | 更新 enabled / priority |
+| PUT | `/api/admin/sources/:id` | admin | 更新 enabled / 启动 priority（下一次调和，最多约 30 秒；不改变已写入价格选择） |
 | POST | `/api/admin/sources/:id/rollback` | admin | 回滚到上一版本 |
 | GET | `/api/admin/audit` | admin / ops | 审计查询（`start`/`end`/`action`/`limit`） |
 

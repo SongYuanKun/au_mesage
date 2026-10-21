@@ -9,19 +9,30 @@ import time
 from flask import Blueprint, Response, jsonify, request, stream_with_context
 
 from api_errors import ApiError
+from auth.context import get_actor
+from auth.decorators import require_role
 from db import DatabaseManager
 from routes.api.cache import api_ttl_cache
+from routes.api.rate_limit import enforce_rate_limit
+
+
+def _client_key() -> str:
+    actor = get_actor()
+    return actor if actor != "anonymous" else (request.remote_addr or "unknown")
 
 
 def register_alert_routes(bp: Blueprint, mysql_manager: DatabaseManager) -> None:
     @bp.route("/api/alert-channels", methods=["GET"])
+    @require_role("admin", "ops", "user", allow_cookie=True)
     def alert_channels():
         """返回已配置的推送渠道"""
+        enforce_rate_limit(key=f"alert-channels:{_client_key()}", limit=30, window_seconds=60)
         from webhook_notifier import get_configured_channels
 
         return jsonify({"success": True, "channels": get_configured_channels()})
 
     @bp.route("/api/price-alert/push", methods=["POST"])
+    @require_role("admin", "ops", "user", force_auth=True)
     def price_alert_push():
         """
         增强版价格提醒：支持多通道推送。
@@ -33,6 +44,8 @@ def register_alert_routes(bp: Blueprint, mysql_manager: DatabaseManager) -> None
         op = data.get("op", "gte")
         channels = data.get("channels", [])
 
+        enforce_rate_limit(key=f"alert-push:{_client_key()}", limit=10, window_seconds=60)
+
         if not data_type or target is None:
             raise ApiError.invalid_argument("缺少参数: data_type 或 target")
 
@@ -40,6 +53,8 @@ def register_alert_routes(bp: Blueprint, mysql_manager: DatabaseManager) -> None
             target_f = float(target)
         except (ValueError, TypeError):
             raise ApiError.invalid_argument("参数格式错误: target 必须是数字")
+        if target_f <= 0 or op not in ("gte", "lte") or not isinstance(channels, list):
+            raise ApiError.invalid_argument("target 必须大于0，op 仅支持 gte/lte，channels 必须是数组")
 
         price = mysql_manager.get_latest_market_price(data_type)
         if price is None:
@@ -79,6 +94,7 @@ def register_alert_routes(bp: Blueprint, mysql_manager: DatabaseManager) -> None
         return jsonify(result)
 
     @bp.route("/api/price-alert/subscribe", methods=["GET"])
+    @require_role("admin", "ops", "user", allow_cookie=True)
     def price_alert_subscribe():
         data_type = request.args.get("data_type")
         target_raw = request.args.get("target")
@@ -90,6 +106,9 @@ def register_alert_routes(bp: Blueprint, mysql_manager: DatabaseManager) -> None
             target = float(target_raw)
         except Exception:
             raise ApiError.invalid_argument("参数格式错误")
+        if target <= 0 or op not in ("gte", "lte"):
+            raise ApiError.invalid_argument("target 必须大于0，op 仅支持 gte/lte")
+        enforce_rate_limit(key=f"alert-sse:{_client_key()}", limit=10, window_seconds=60)
 
         def sse_stream():
             alerted = False
@@ -105,7 +124,12 @@ def register_alert_routes(bp: Blueprint, mysql_manager: DatabaseManager) -> None
                 cache_key = f"latest_price_{data_type}"
                 price = api_ttl_cache.get(cache_key, ttl=10)
                 if price is None:
-                    price = mysql_manager.get_latest_market_price(data_type)
+                    # 流式响应头已发出，全局错误处理器接不住；读库失败按“取不到价格”发 error 事件后结束
+                    try:
+                        price = mysql_manager.get_latest_market_price(data_type)
+                    except Exception:
+                        logging.exception("SSE 获取最新价格失败 data_type=%s", data_type)
+                        price = None
                     if price is not None:
                         api_ttl_cache.set(cache_key, price)
 
@@ -122,21 +146,11 @@ def register_alert_routes(bp: Blueprint, mysql_manager: DatabaseManager) -> None
                     yield "event: alert\n"
                     yield f"data: {payload_alert}\n\n"
                     alerted = True
-                    try:
-                        from webhook_notifier import notify_all
-
-                        op_text = "达到或超过" if op == "gte" else "达到或低于"
-                        notify_all(
-                            f"{data_type}价格提醒",
-                            f"当前价格 {float(price)} 元/克，已{op_text}目标价 {target} 元/克",
-                        )
-                    except Exception:
-                        pass
                     if auto_close:
                         break
                 yield "event: ping\n"
                 yield "data: keepalive\n\n"
                 time.sleep(5)
 
-        headers = {"Cache-Control": "no-cache", "Connection": "keep-alive"}
+        headers = {"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"}
         return Response(stream_with_context(sse_stream()), mimetype="text/event-stream", headers=headers)

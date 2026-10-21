@@ -111,27 +111,26 @@ export interface PriceTrendResult {
 
 /** 价差计算结果 */
 export interface CalculateResult {
-  real_time_price: number;
-  product_price_per_gram: number;
-  diff: number;
-  total_diff: number;
+  price_per_gram: number;
+  market_price: number;
+  difference: number;
+  total_difference: number;
+  difference_percentage: number;
+  message: string;
 }
 
 /** 历史对比结果 */
 export interface HistoryCompareResult {
-  purchase_price_per_gram: number;
-  current_price: number;
-  profit_per_gram: number;
-  total_profit: number;
+  price_per_gram: number;
+  market_price: number;
+  difference: number;
+  total_difference: number;
+  difference_percentage: number;
+  message: string;
 }
 
 /** 推送渠道信息 */
-export interface AlertChannel {
-  type: string;
-  name?: string;
-  status?: string;
-  [key: string]: unknown;
-}
+export type AlertChannel = "wechat" | "telegram" | "email";
 
 // --- API functions with retry & error handling ---
 
@@ -259,15 +258,12 @@ export async function calculatePriceDiff(
 ): Promise<CalculateResult> {
   try {
     return await withRetry(async () => {
-      const res = await api.post<ApiResponse<CalculateResult>>("/api/calculate", {
+      const res = await api.post<CalculateResult>("/api/calculate", {
         product_price: productPrice,
         weight,
         data_type: dataType,
       });
-      if (res.data.success) {
-        return res.data.data;
-      }
-      throw new Error(res.data.message || "价差计算失败");
+      return res.data;
     });
   } catch (err) {
     normalizeError(err);
@@ -284,15 +280,12 @@ export async function compareHistory(
 ): Promise<HistoryCompareResult> {
   try {
     return await withRetry(async () => {
-      const res = await api.post<ApiResponse<HistoryCompareResult>>("/api/history", {
+      const res = await api.post<HistoryCompareResult>("/api/history", {
         product_price: productPrice,
         weight,
         data_type: dataType,
       });
-      if (res.data.success) {
-        return res.data.data;
-      }
-      throw new Error(res.data.message || "历史对比失败");
+      return res.data;
     });
   } catch (err) {
     normalizeError(err);
@@ -305,9 +298,9 @@ export async function compareHistory(
 export async function fetchAlertChannels(): Promise<AlertChannel[]> {
   try {
     return await withRetry(async () => {
-      const res = await api.get<ApiResponse<AlertChannel[]>>("/api/alert-channels");
+      const res = await api.get<{ success: boolean; channels: AlertChannel[] }>("/api/alert-channels");
       if (res.data.success) {
-        return res.data.data;
+        return res.data.channels;
       }
       throw new Error(res.data.message || "获取推送渠道失败");
     });

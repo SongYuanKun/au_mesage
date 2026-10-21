@@ -37,8 +37,9 @@ def log_audit(
     actor: Optional[str] = None,
 ) -> None:
     actor = actor or get_actor()
-    before_json = json.dumps(sanitize_value(before_value), ensure_ascii=False) if before_value is not None else None
-    after_json = json.dumps(sanitize_value(after_value), ensure_ascii=False) if after_value is not None else None
+    # 数据库行里的 datetime/Decimal 等转成字符串，避免业务已提交后因审计序列化失败返回 500
+    before_json = json.dumps(sanitize_value(before_value), ensure_ascii=False, default=str) if before_value is not None else None
+    after_json = json.dumps(sanitize_value(after_value), ensure_ascii=False, default=str) if after_value is not None else None
     ip, user_agent = _request_meta()
 
     if _audit_writer is None:

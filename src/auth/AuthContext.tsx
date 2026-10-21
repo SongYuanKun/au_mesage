@@ -128,7 +128,7 @@ export function ProtectedRoute({
     return <p className="p-6 text-center text-gray-500">正在验证登录状态…</p>;
   }
   if (!token || !role) {
-    window.location.href = "/login";
+    window.location.href = "/app/login";
     return null;
   }
   if (roles && !roles.includes(role)) {

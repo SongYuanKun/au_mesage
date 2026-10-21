@@ -1,5 +1,7 @@
 """应用工厂与路由注册冒烟测试（无需真实 MySQL）。"""
 
+from datetime import datetime
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 from urllib.parse import quote
 
@@ -19,7 +21,9 @@ _OVERVIEW_ROW = {
 
 
 def test_create_app_registers_health():
-    app = create_app(MagicMock())
+    mock_db = MagicMock()
+    mock_db.get_latest_updates_by_group.return_value = [{"latest_at": datetime.now().isoformat()}]
+    app = create_app(mock_db)
     client = app.test_client()
     resp = client.get("/api/health")
     assert resp.status_code == 200
@@ -28,12 +32,58 @@ def test_create_app_registers_health():
     assert body["service"] == "price-data-api"
 
 
+def test_health_returns_503_when_database_readiness_probe_fails():
+    mock_db = MagicMock()
+    mock_db.get_latest_updates_by_group.side_effect = RuntimeError("database down")
+    resp = create_app(mock_db).test_client().get("/api/health")
+    assert resp.status_code == 503
+    assert resp.get_json()["reason"] == "database_unavailable"
+
+
 def test_pages_routes_registered():
     app = create_app(MagicMock())
     client = app.test_client()
     # 无数据库时首页模板仍可渲染（不触发 DB 的查询在后续请求）
     r = client.get("/")
     assert r.status_code == 200
+
+
+def test_react_spa_uses_explicit_prefix_and_does_not_swallow_api_404(tmp_path):
+    app = create_app(MagicMock())
+    spa_dir = Path(tmp_path) / "spa"
+    spa_dir.mkdir()
+    (spa_dir / "index.html").write_text("<div id='root'>spa</div>", encoding="utf-8")
+    (spa_dir / "assets").mkdir()
+    (spa_dir / "assets" / "app.js").write_text("console.log('spa')", encoding="utf-8")
+    app.static_folder = str(tmp_path)
+    client = app.test_client()
+
+    assert client.get("/app", follow_redirects=True).data == b"<div id='root'>spa</div>"
+    assert client.get("/app/analysis").data == b"<div id='root'>spa</div>"
+    assert client.get("/app/assets/app.js").data == b"console.log('spa')"
+    assert client.get("/app/assets/missing.js").status_code == 404
+    api_404 = client.get("/api/not-a-route")
+    assert api_404.status_code == 404
+    assert api_404.get_json()["error"]["code"] == "NOT_FOUND"
+
+
+def test_react_runtime_config_tracks_backend_auth_setting(monkeypatch):
+    """The SPA bootstrap must use Flask's runtime AUTH_ENABLED value."""
+    app = create_app(MagicMock())
+    client = app.test_client()
+
+    monkeypatch.setenv("AUTH_ENABLED", "true")
+    enabled = client.get("/app/runtime-config.js")
+    assert enabled.status_code == 200
+    assert enabled.get_data(as_text=True) == 'window.__AU_RUNTIME_CONFIG__ = {"authEnabled": true};\n'
+    assert enabled.headers["Cache-Control"] == "no-store"
+
+    monkeypatch.setenv("AUTH_ENABLED", "false")
+    disabled = client.get("/app/runtime-config.js")
+    assert disabled.get_data(as_text=True) == 'window.__AU_RUNTIME_CONFIG__ = {"authEnabled": false};\n'
+
+    vite_entry = Path(__file__).resolve().parents[1] / "index.html"
+    assert '<script src="/app/runtime-config.js"></script>' in vite_entry.read_text(encoding="utf-8")
 
 
 def test_api_calculate_with_mock_market_data():

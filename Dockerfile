@@ -1,3 +1,13 @@
+# 构建 React SPA；产物由后续 Flask 镜像在 /app 下托管。
+FROM node:20-bookworm-slim AS frontend-builder
+WORKDIR /frontend
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY index.html tsconfig.json vite.config.ts postcss.config.js tailwind.config.js ./
+COPY public ./public
+COPY src ./src
+RUN npm run build
+
 # 使用官方 Python 轻量级镜像
 FROM python:3.11-slim-bookworm
 
@@ -40,6 +50,8 @@ RUN pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple -r re
 
 # 复制项目文件
 COPY . .
+# React 入口固定为 /app；旧 Jinja 首页与 Flask API 保持原路由。
+COPY --from=frontend-builder /frontend/dist ./static/spa
 
 # 安装 Playwright 浏览器
 RUN playwright install chromium

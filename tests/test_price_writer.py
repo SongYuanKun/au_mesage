@@ -1,4 +1,7 @@
 from unittest.mock import MagicMock
+
+import pytest
+
 from db.price_writer import PriceWriter
 
 
@@ -33,3 +36,22 @@ def test_batch_insert_empty_data():
     writer = PriceWriter(mock_pool)
     writer.batch_insert_data([])
     mock_pool.get_connection.assert_not_called()
+
+
+def test_batch_insert_failure_propagates():
+    mock_pool = MagicMock()
+    writer = PriceWriter(mock_pool)
+    cursor = mock_pool.get_connection.return_value.cursor.return_value
+    cursor.executemany.side_effect = RuntimeError("batch failed")
+    data = [
+        {
+            "trade_date": "2026-05-13",
+            "trade_time": "10:00:00",
+            "data_type": "XAU",
+            "real_time_price": 100.0,
+            "recycle_price": 99.0,
+        }
+    ]
+
+    with pytest.raises(RuntimeError, match="batch failed"):
+        writer.batch_insert_data(data)

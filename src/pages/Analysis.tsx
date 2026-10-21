@@ -396,39 +396,43 @@ export default function Analysis() {
                 <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50">
                   <p className="text-xs text-gray-500 dark:text-gray-400">实时单价</p>
                   <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                    ¥{calcResult.real_time_price.toFixed(2)}/克
+                    ¥{calcResult.market_price.toFixed(2)}/克
                   </p>
                 </div>
                 <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50">
                   <p className="text-xs text-gray-500 dark:text-gray-400">产品单价</p>
                   <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                    ¥{calcResult.product_price_per_gram.toFixed(2)}/克
+                    ¥{calcResult.price_per_gram.toFixed(2)}/克
                   </p>
                 </div>
                 <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50">
                   <p className="text-xs text-gray-500 dark:text-gray-400">价差（每克）</p>
                   <p className={`text-lg font-semibold flex items-center gap-1 ${
-                    calcResult.diff >= 0
-                      ? "text-green-600 dark:text-green-400"
-                      : "text-red-600 dark:text-red-400"
+                    calcResult.difference > 0
+                      ? "text-red-600 dark:text-red-400"
+                      : calcResult.difference < 0
+                        ? "text-green-600 dark:text-green-400"
+                        : "text-gray-600 dark:text-gray-400"
                   }`}>
-                    {calcResult.diff >= 0 ? (
+                    {calcResult.difference > 0 ? (
                       <TrendingUp className="w-4 h-4" />
                     ) : (
                       <TrendingDown className="w-4 h-4" />
                     )}
-                    ¥{calcResult.diff.toFixed(2)}/克
+                    ¥{calcResult.difference.toFixed(2)}/克
                   </p>
                 </div>
                 <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50">
-                  <p className="text-xs text-gray-500 dark:text-gray-400">总盈亏</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">总价差</p>
                   <p className={`text-lg font-semibold ${
-                    calcResult.total_diff >= 0
-                      ? "text-green-600 dark:text-green-400"
-                      : "text-red-600 dark:text-red-400"
+                    calcResult.total_difference > 0
+                      ? "text-red-600 dark:text-red-400"
+                      : calcResult.total_difference < 0
+                        ? "text-green-600 dark:text-green-400"
+                        : "text-gray-600 dark:text-gray-400"
                   }`}>
-                    {calcResult.total_diff >= 0 ? "+" : ""}
-                    ¥{calcResult.total_diff.toFixed(2)}
+                    {calcResult.total_difference >= 0 ? "+" : ""}
+                    ¥{calcResult.total_difference.toFixed(2)}
                   </p>
                 </div>
               </div>
@@ -442,7 +446,7 @@ export default function Analysis() {
               历史对比
             </h3>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-              输入购买信息，查看当前价格下的盈亏情况
+              输入购买信息，查看购买价与当前价的价差
             </p>
 
             {/* 品类选择 */}
@@ -526,40 +530,44 @@ export default function Analysis() {
                 <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50">
                   <p className="text-xs text-gray-500 dark:text-gray-400">购买单价</p>
                   <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                    ¥{histResult.purchase_price_per_gram.toFixed(2)}/克
+                    ¥{histResult.price_per_gram.toFixed(2)}/克
                   </p>
                 </div>
                 <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50">
                   <p className="text-xs text-gray-500 dark:text-gray-400">当前实时单价</p>
                   <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                    ¥{histResult.current_price.toFixed(2)}/克
+                    ¥{histResult.market_price.toFixed(2)}/克
                   </p>
                 </div>
                 <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50">
-                  <p className="text-xs text-gray-500 dark:text-gray-400">盈亏（每克）</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">购买价差（每克）</p>
                   <p className={`text-lg font-semibold flex items-center gap-1 ${
-                    histResult.profit_per_gram >= 0
-                      ? "text-green-600 dark:text-green-400"
-                      : "text-red-600 dark:text-red-400"
+                    histResult.difference > 0
+                      ? "text-red-600 dark:text-red-400"
+                      : histResult.difference < 0
+                        ? "text-green-600 dark:text-green-400"
+                        : "text-gray-600 dark:text-gray-400"
                   }`}>
-                    {histResult.profit_per_gram >= 0 ? (
+                    {histResult.difference > 0 ? (
                       <TrendingUp className="w-4 h-4" />
                     ) : (
                       <TrendingDown className="w-4 h-4" />
                     )}
-                    {histResult.profit_per_gram >= 0 ? "+" : ""}
-                    ¥{histResult.profit_per_gram.toFixed(2)}/克
+                    {histResult.difference > 0 ? "+" : ""}
+                    ¥{histResult.difference.toFixed(2)}/克
                   </p>
                 </div>
                 <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50">
-                  <p className="text-xs text-gray-500 dark:text-gray-400">总盈亏</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">总价差</p>
                   <p className={`text-lg font-semibold ${
-                    histResult.total_profit >= 0
-                      ? "text-green-600 dark:text-green-400"
-                      : "text-red-600 dark:text-red-400"
+                    histResult.total_difference > 0
+                      ? "text-red-600 dark:text-red-400"
+                      : histResult.total_difference < 0
+                        ? "text-green-600 dark:text-green-400"
+                        : "text-gray-600 dark:text-gray-400"
                   }`}>
-                    {histResult.total_profit >= 0 ? "+" : ""}
-                    ¥{histResult.total_profit.toFixed(2)}
+                    {histResult.total_difference > 0 ? "+" : ""}
+                    ¥{histResult.total_difference.toFixed(2)}
                   </p>
                 </div>
               </div>

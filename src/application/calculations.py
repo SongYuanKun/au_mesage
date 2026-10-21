@@ -30,6 +30,7 @@ def build_history_comparison_response(
         return {
             "price_per_gram": 0,
             "market_price": market_price or 0,
+            "total_difference": 0,
             "difference": 0,
             "difference_percentage": 0,
             "message": "",
@@ -46,6 +47,7 @@ def build_history_comparison_response(
         return {
             "price_per_gram": 0,
             "market_price": market_price,
+            "total_difference": 0,
             "difference": 0,
             "difference_percentage": 0,
             "message": "",
@@ -70,6 +72,7 @@ def build_history_comparison_response(
     return {
         "price_per_gram": float(_round_decimal(price_per_gram, 4)),
         "market_price": market_price,
+        "total_difference": float(_round_decimal(difference * w, 4)),
         "difference": float(_round_decimal(difference, 4)),
         "difference_percentage": float(_round_decimal(difference_percentage, 6)),
         "message": msg,

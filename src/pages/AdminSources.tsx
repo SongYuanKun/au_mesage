@@ -84,7 +84,7 @@ export default function AdminSources() {
       hero={{
         eyebrow: "Admin",
         title: "数据源配置",
-        subtitle: "修改后约 60 秒内采集器按新配置生效；误操作可使用回滚。",
+        subtitle: "启用状态和启动顺序将在下一次调和（最多约 30 秒）应用；优先级不改变已写入价格的选择。",
       }}
     >
       <div className="max-w-4xl">
@@ -95,7 +95,7 @@ export default function AdminSources() {
               <tr>
                 <th className="p-3">数据源</th>
                 <th className="p-3">启用</th>
-                <th className="p-3">优先级</th>
+                <th className="p-3">启动优先级</th>
                 <th className="p-3">最近成功</th>
                 <th className="p-3">失败次数</th>
                 <th className="p-3">操作</th>

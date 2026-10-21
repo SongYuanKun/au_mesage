@@ -48,6 +48,8 @@ def register_admin_routes(bp: Blueprint, mysql_manager: DatabaseManager) -> None
             priority=priority,
             changed_by=get_actor(),
         )
+        if result.get("after") is None:
+            raise ApiError.internal("数据源配置保存失败")
         source_config_cache.invalidate()
         log_audit(
             action="admin.source.update",
@@ -59,7 +61,7 @@ def register_admin_routes(bp: Blueprint, mysql_manager: DatabaseManager) -> None
             {
                 "success": True,
                 "data": result.get("after"),
-                "message": "配置已保存；采集器将在约 60 秒内按新配置生效",
+                "message": "配置已保存；采集器将在下一次调和（最多约 30 秒）应用启用状态与启动顺序",
             }
         )
 
@@ -69,6 +71,8 @@ def register_admin_routes(bp: Blueprint, mysql_manager: DatabaseManager) -> None
         result = mysql_manager.rollback_data_source_config(source_id, changed_by=get_actor())
         if result is None:
             raise ApiError.not_found("无可回滚的历史版本")
+        if result.get("after") is None:
+            raise ApiError.internal("数据源配置回滚失败")
         source_config_cache.invalidate()
         log_audit(
             action="admin.source.rollback",

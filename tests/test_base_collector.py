@@ -1,4 +1,6 @@
+import threading
 from unittest.mock import MagicMock
+
 from collectors.base import BaseCollector
 
 class DummyCollector(BaseCollector):
@@ -79,3 +81,151 @@ def test_collector_recovery(monkeypatch):
     # 3rd exit -> sleep 0
     assert sleep_mock.call_count == 2
     mock_manager.batch_insert_data.assert_called_once_with([{"fake": "data"}])
+
+
+def test_stop_waits_for_worker_thread():
+    collector = DummyCollector(MagicMock(), MagicMock(return_value=[]))
+    worker = MagicMock()
+    worker.is_alive.return_value = False
+    collector.is_running = True
+    collector._thread = worker
+
+    collector.stop(join_timeout=0.25)
+
+    worker.join.assert_called_once_with(timeout=0.25)
+    assert collector.is_running is False
+    assert collector._thread is None
+
+
+def test_worker_self_stop_raises_and_blocks_replacement_worker():
+    first_worker_ready = threading.Event()
+    allow_self_stop = threading.Event()
+    self_stop_finished = threading.Event()
+    release_first_worker = threading.Event()
+    first_worker_holder = []
+    replacement_workers = []
+    self_stop_errors = []
+    self_stop_returned = []
+
+    def fetch_mock():
+        current = threading.current_thread()
+        if not first_worker_holder:
+            first_worker_ready.set()
+            allow_self_stop.wait(timeout=1)
+
+        if current is first_worker_holder[0]:
+            try:
+                collector.stop(join_timeout=0.01)
+            except RuntimeError as error:
+                self_stop_errors.append(error)
+            else:
+                self_stop_returned.append(True)
+            finally:
+                self_stop_finished.set()
+            release_first_worker.wait(timeout=1)
+            return []
+
+        replacement_workers.append(current)
+        collector.is_running = False
+        return []
+
+    collector = DummyCollector(MagicMock(), fetch_mock)
+    first_worker = None
+    replacement_start_error = None
+    thread_reference_during_self_stop = None
+
+    try:
+        collector.start()
+        assert first_worker_ready.wait(timeout=1)
+        first_worker = collector._thread
+        first_worker_holder.append(first_worker)
+        allow_self_stop.set()
+        assert self_stop_finished.wait(timeout=1)
+
+        thread_reference_during_self_stop = collector._thread
+        try:
+            collector.start()
+        except RuntimeError as error:
+            replacement_start_error = error
+    finally:
+        release_first_worker.set()
+        if first_worker is not None:
+            first_worker.join(timeout=1)
+        for worker in replacement_workers:
+            worker.join(timeout=1)
+        collector.stop(join_timeout=0.25)
+
+    assert self_stop_returned == []
+    assert len(self_stop_errors) == 1
+    assert thread_reference_during_self_stop is first_worker
+    assert isinstance(replacement_start_error, RuntimeError)
+    assert replacement_workers == []
+    assert first_worker.is_alive() is False
+    assert collector._thread is None
+
+
+def test_batch_write_failure_records_failure_and_uses_backoff(monkeypatch):
+    mock_manager = MagicMock()
+    collector = DummyCollector(mock_manager, MagicMock())
+    write_count = 0
+
+    def fetch_data():
+        return [{"fake": "data"}]
+
+    def fail_write(_rows):
+        nonlocal write_count
+        write_count += 1
+        if write_count == 3:
+            collector.is_running = False
+        raise RuntimeError("db unavailable")
+
+    collector.fetch_mock = fetch_data
+    mock_manager.batch_insert_data.side_effect = fail_write
+    collector.is_running = True
+    success = MagicMock()
+    failure = MagicMock()
+    sleep = MagicMock()
+    monkeypatch.setattr("collectors.base.collector_stats.record_success", success)
+    monkeypatch.setattr("collectors.base.collector_stats.record_failure", failure)
+    monkeypatch.setattr("collectors.base.time.sleep", sleep)
+
+    collector._run()
+
+    assert failure.call_count == 3
+    failure.assert_called_with("dummy")
+    success.assert_not_called()
+    assert sleep.call_count == 3
+
+
+def test_is_alive_reflects_worker_thread():
+    collector = DummyCollector(MagicMock(), MagicMock(return_value=[]))
+    assert collector.is_alive() is False
+
+    worker = MagicMock()
+    worker.is_alive.return_value = True
+    collector._thread = worker
+    assert collector.is_alive() is True
+
+    worker.is_alive.return_value = False
+    assert collector.is_alive() is False
+
+
+def test_failure_log_includes_root_cause(monkeypatch, caplog):
+    collector = DummyCollector(MagicMock(), MagicMock())
+
+    def fetch_data():
+        collector.is_running = False
+        try:
+            raise ValueError("upstream timeout")
+        except ValueError as exc:
+            raise RuntimeError("rate request failed") from exc
+
+    collector.fetch_mock = fetch_data
+    collector.is_running = True
+    monkeypatch.setattr("collectors.base.collector_stats.record_failure", MagicMock())
+    monkeypatch.setattr("collectors.base.time.sleep", MagicMock())
+
+    with caplog.at_level("ERROR", logger="collectors.base"):
+        collector._run()
+
+    assert "upstream timeout" in caplog.text

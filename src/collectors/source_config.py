@@ -23,6 +23,7 @@ class SourceConfigCache:
         self._items: list[dict[str, Any]] = list(DEFAULT_SOURCES)
         self._loaded_at: float = 0.0
         self._db: Any = None
+        self._loaded_from_db = False
 
     def bind_db(self, mysql_manager: Any) -> None:
         self._db = mysql_manager
@@ -44,9 +45,14 @@ class SourceConfigCache:
             else:
                 self._db.seed_data_source_configs(DEFAULT_SOURCES, changed_by="system")
                 self._items = self._db.list_data_source_configs() or list(DEFAULT_SOURCES)
+            self._loaded_from_db = True
         except Exception:
-            logger.exception("加载数据源配置失败，使用默认配置")
-            self._items = list(DEFAULT_SOURCES)
+            # 已成功加载过则沿用上次配置，避免数据库短暂故障时拉起已停用的数据源
+            if self._loaded_from_db:
+                logger.exception("加载数据源配置失败，沿用上次成功加载的配置")
+            else:
+                logger.exception("加载数据源配置失败，使用默认配置")
+                self._items = list(DEFAULT_SOURCES)
 
         self._loaded_at = now
         return list(self._items)

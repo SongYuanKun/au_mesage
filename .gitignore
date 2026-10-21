@@ -41,6 +41,7 @@ docker-compose.override.yml
 src/graphify-out/
 
 # Local AI / assistant workspace (not project source)
+.worktrees/
 .workbuddy/
 .trae/
 

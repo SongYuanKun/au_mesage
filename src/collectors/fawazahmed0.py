@@ -7,9 +7,10 @@ Fawazahmed0Collector — 对接 cdn.jsdelivr.net/@fawazahmed0/currency-api
 import json
 import logging
 from urllib.request import Request, urlopen
-from urllib.error import URLError
 
 from collectors.base import BaseCollector
+from collectors.errors import CollectionError
+from collectors.validation import parse_positive_finite
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,8 @@ class Fawazahmed0Collector(BaseCollector):
 
     def fetch(self) -> list:
         date_str = self.today_str()
+        successful_symbols = 0
+        failed_symbols = []
 
         for symbol, target_currencies in SYMBOLS:
             try:
@@ -34,35 +37,47 @@ class Fawazahmed0Collector(BaseCollector):
                 req = Request(url, headers={'User-Agent': 'au-mesage/1.0'})
                 with urlopen(req, timeout=15) as resp:
                     body = json.loads(resp.read().decode())
-
                 symbol_data = body.get(symbol.lower(), {})
                 api_date = body.get('date', date_str)
-
+                parsed_rates = []
                 for currency in target_currencies:
-                    rate = symbol_data.get(currency)
-                    if not rate:
+                    raw_rate = symbol_data.get(currency)
+                    if raw_rate is None:
                         continue
-                    price = float(rate)
+                    try:
+                        price = parse_positive_finite(raw_rate)
+                    except (TypeError, ValueError):
+                        continue
+                    parsed_rates.append((currency, price))
+                if not parsed_rates:
+                    raise ValueError('no positive target rate')
+            except Exception as exc:
+                failed_symbols.append(symbol)
+                logger.warning('[%s] 获取 %s 失败: %s', self.name, symbol, exc)
+                continue
 
-                    # 写入 daily_ohlc 表（日线基准）
-                    self.mysql_manager.upsert_daily_ohlc(
-                        trade_date=api_date,
-                        data_type=symbol,
-                        source=self.name,
-                        currency=currency.upper(),
-                        open_price=price,
-                        high_price=price,
-                        low_price=price,
-                        close_price=price,
-                    )
+            for currency, price in parsed_rates:
+                self.mysql_manager.upsert_daily_ohlc(
+                    trade_date=api_date,
+                    data_type=symbol,
+                    source=self.name,
+                    currency=currency.upper(),
+                    open_price=price,
+                    high_price=price,
+                    low_price=price,
+                    close_price=price,
+                )
+            successful_symbols += 1
+            logger.info(
+                '[%s] %s 日线数据已写入，日期 %s',
+                self.name,
+                symbol,
+                api_date,
+            )
 
-                    # fawazahmed0 数据仅写入 daily_ohlc 表，不写 price_data
-                    # 避免 CNY/盎司 价格与 gold_api 的 USD/盎司 混在同一 data_type
-
-                logger.info(f"[{self.name}] {symbol} 日线数据已写入，日期 {api_date}")
-
-            except (URLError, Exception) as e:
-                logger.warning(f"[{self.name}] 获取 {symbol} 失败: {e}")
-
-        # 数据仅写入 daily_ohlc 表，不写 price_data
+        if successful_symbols == 0:
+            raise CollectionError(
+                f"{self.name}: all upstream symbols failed "
+                f"({','.join(failed_symbols)})"
+            )
         return []
