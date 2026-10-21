@@ -13,3 +13,8 @@ logs
 .mypy_cache
 .ruff_cache
 .cursor
+node_modules
+dist
+.claude
+.worktrees
+.codegraph
