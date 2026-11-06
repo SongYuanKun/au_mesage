@@ -68,48 +68,52 @@ export function useSSEAlert(options: SSEAlertOptions = {}) {
       });
       const url = `/api/price-alert/subscribe?${params.toString()}`;
 
+      const isCurrent = (source: EventSource) =>
+        mountedRef.current && eventSourceRef.current === source;
+      const handlePrice = (source: EventSource, event: MessageEvent) => {
+        if (!isCurrent(source)) return;
+        try {
+          const data = JSON.parse(event.data);
+          onPrice?.({ ...data, data_type: data.data_type ?? dataType });
+        } catch { /* 忽略无效事件 */ }
+      };
+      const handleAlert = (source: EventSource, event: MessageEvent) => {
+        if (!isCurrent(source)) return;
+        try {
+          const data = JSON.parse(event.data);
+          onAlert?.({
+            ...data,
+            data_type: data.data_type ?? dataType,
+            direction: data.direction ?? data.op ?? direction,
+          });
+        } catch { /* 忽略无效事件 */ }
+      };
+
       const es = new EventSource(url);
       eventSourceRef.current = es;
 
       es.onopen = () => {
-        if (!mountedRef.current) return;
+        if (!isCurrent(es)) return;
         reconnectAttemptsRef.current = 0;
         setIsConnected(true);
         onConnect?.();
       };
 
-      es.addEventListener("price", (event) => {
-        if (!mountedRef.current) return;
-        try {
-          const data = JSON.parse(event.data);
-          onPrice?.(data);
-        } catch {
-          // 忽略解析错误
-        }
-      });
-
-      es.addEventListener("alert", (event) => {
-        if (!mountedRef.current) return;
-        try {
-          const data = JSON.parse(event.data);
-          onAlert?.(data);
-        } catch {
-          // 忽略解析错误
-        }
-      });
+      es.addEventListener("price", (event) => handlePrice(es, event));
+      es.addEventListener("alert", (event) => handleAlert(es, event));
 
       es.addEventListener("ping", () => {
-        if (!mountedRef.current) return;
+        if (!isCurrent(es)) return;
         onPing?.();
       });
 
       es.addEventListener("timeout", () => {
-        if (!mountedRef.current) return;
+        if (!isCurrent(es)) return;
         onError?.({ message: "SSE 连接超时" });
       });
 
       es.addEventListener("error", () => {
-        if (!mountedRef.current) return;
+        if (!isCurrent(es)) return;
         const wasConnected = es.readyState === EventSource.OPEN;
         setIsConnected(false);
 
@@ -117,49 +121,40 @@ export function useSSEAlert(options: SSEAlertOptions = {}) {
           onDisconnect?.();
         }
 
-        // 尝试重连
+        // 一个连接只保留一个重连计时器，切换订阅后旧计时器不能覆盖新连接。
+        if (reconnectTimerRef.current !== null) return;
         if (reconnectAttemptsRef.current < maxReconnectAttempts) {
           reconnectAttemptsRef.current += 1;
           reconnectTimerRef.current = setTimeout(() => {
-            if (mountedRef.current && reconnectAttemptsRef.current <= maxReconnectAttempts) {
+            if (isCurrent(es) && reconnectAttemptsRef.current <= maxReconnectAttempts) {
+              reconnectTimerRef.current = null;
               es.close();
               const newEs = new EventSource(url);
               eventSourceRef.current = newEs;
 
               // 重新绑定事件
               newEs.onopen = () => {
-                if (!mountedRef.current) return;
+                if (!isCurrent(newEs)) return;
                 reconnectAttemptsRef.current = 0;
                 setIsConnected(true);
                 onConnect?.();
               };
 
-              newEs.addEventListener("price", (evt) => {
-                if (!mountedRef.current) return;
-                try {
-                  onPrice?.(JSON.parse(evt.data));
-                } catch { /* ignore */ }
-              });
-
-              newEs.addEventListener("alert", (evt) => {
-                if (!mountedRef.current) return;
-                try {
-                  onAlert?.(JSON.parse(evt.data));
-                } catch { /* ignore */ }
-              });
+              newEs.addEventListener("price", (evt) => handlePrice(newEs, evt));
+              newEs.addEventListener("alert", (evt) => handleAlert(newEs, evt));
 
               newEs.addEventListener("ping", () => {
-                if (!mountedRef.current) return;
+                if (!isCurrent(newEs)) return;
                 onPing?.();
               });
 
               newEs.addEventListener("timeout", () => {
-                if (!mountedRef.current) return;
+                if (!isCurrent(newEs)) return;
                 onError?.({ message: "SSE 连接超时" });
               });
 
               newEs.onerror = () => {
-                if (!mountedRef.current) return;
+                if (!isCurrent(newEs)) return;
                 setIsConnected(false);
               };
             }

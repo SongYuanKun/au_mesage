@@ -28,8 +28,8 @@ class TrendReader(BaseDB):
             FROM (
                 SELECT trade_date,
                        FIRST_VALUE(recycle_price) OVER w_asc  AS open_price,
-                       MAX(recycle_price) OVER w_asc           AS high_price,
-                       MIN(recycle_price) OVER w_asc           AS low_price,
+                       MAX(recycle_price) OVER (PARTITION BY trade_date) AS high_price,
+                       MIN(recycle_price) OVER (PARTITION BY trade_date) AS low_price,
                        FIRST_VALUE(recycle_price) OVER w_desc  AS close_price,
                        ROW_NUMBER() OVER w_asc                 AS rn
                 FROM price_data

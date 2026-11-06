@@ -4,6 +4,7 @@ import AppLayout from "@/components/layout/AppLayout";
 import { useSSEAlert } from "@/hooks/useSSEAlert";
 import { fetchAlertChannels, type AlertChannel } from "@/api/price";
 import usePriceStore from "@/stores/priceStore";
+import { apiDomesticDataType } from "@/lib/metalTypes";
 
 /** 品类选项 */
 type DataTypeOption = "黄金" | "白银";
@@ -82,10 +83,10 @@ export default function Alerts() {
 
   // 更新当前价格
   useEffect(() => {
-    if (goldPrice) {
+    if (goldPrice?.data_type === apiDomesticDataType("gold")) {
       setCurrentPrice((prev) => ({ ...prev, gold: goldPrice.real_time_price }));
     }
-    if (silverPrice) {
+    if (silverPrice?.data_type === apiDomesticDataType("silver")) {
       setCurrentPrice((prev) => ({ ...prev, silver: silverPrice.real_time_price }));
     }
   }, [goldPrice, silverPrice]);
@@ -119,12 +120,15 @@ export default function Alerts() {
       setCurrentPrice((prev) => ({ ...prev, silver: data.silver ?? prev.silver }));
     }
     if (data.data_type && data.price !== undefined) {
-      addToast(`${data.data_type} 实时价格：¥${data.price.toFixed(2)}`, "price");
+      const metal = data.data_type === apiDomesticDataType("gold") ? "gold"
+        : data.data_type === apiDomesticDataType("silver") ? "silver" : null;
+      if (metal) setCurrentPrice((prev) => ({ ...prev, [metal]: data.price }));
+      addToast(`${data.data_type.replace(/\s/g, "")} 实时价格：¥${data.price.toFixed(2)}`, "price");
     }
   }, [addToast]);
 
   const handleAlertTriggered = useCallback((data: { message?: string; data_type?: string; target?: number; direction?: string }) => {
-    const msg = data.message || `提醒触发：${data.data_type || ""} ${data.direction === "gte" ? "≥" : "≤"} ${data.target || ""}`;
+    const msg = data.message || `提醒触发：${data.data_type?.replace(/\s/g, "") || ""} ${data.direction === "gte" ? "≥" : "≤"} ${data.target ?? ""}`;
     addToast(msg, "alert");
 
     // 浏览器通知
@@ -163,7 +167,7 @@ export default function Alerts() {
         notificationPermissionRef.current = perm;
       });
     }
-    connect(alertDataType, parseFloat(alertTarget), alertDirection);
+    connect(apiDomesticDataType(alertDataType === "黄金" ? "gold" : "silver"), parseFloat(alertTarget), alertDirection);
   }, [connect, alertDataType, alertTarget, alertDirection]);
 
   // 取消订阅
