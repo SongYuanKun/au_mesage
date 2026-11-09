@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 from urllib.parse import quote
 
 from route import create_app
-from routes.api.cache import api_ttl_cache
+from routes.api.cache import BEIJING_TZ, api_ttl_cache
 
 
 _OVERVIEW_ROW = {
@@ -22,7 +22,10 @@ _OVERVIEW_ROW = {
 
 def test_create_app_registers_health():
     mock_db = MagicMock()
-    mock_db.get_latest_updates_by_group.return_value = [{"latest_at": datetime.now().isoformat()}]
+    # Health readiness compares against Asia/Shanghai "now"; keep the fixture tz-aware.
+    mock_db.get_latest_updates_by_group.return_value = [
+        {"latest_at": datetime.now(BEIJING_TZ).isoformat()}
+    ]
     app = create_app(mock_db)
     client = app.test_client()
     resp = client.get("/api/health")
