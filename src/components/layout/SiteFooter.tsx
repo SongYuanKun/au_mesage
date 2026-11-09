@@ -12,8 +12,14 @@ export default function SiteFooter() {
           <Link to="/">实时价格</Link>
           <Link to="/history">趋势图表</Link>
           <Link to="/analysis">行情分析</Link>
+          <a href="https://koen.songyuankun.top/" target="_blank" rel="noopener noreferrer">
+            个人页
+          </a>
           <a href="https://tools.songyuankun.top" target="_blank" rel="noopener noreferrer">
             工具箱
+          </a>
+          <a href="https://github.com/SongYuanKun/au_mesage" target="_blank" rel="noopener noreferrer">
+            GitHub
           </a>
         </nav>
       </div>
